@@ -1,11 +1,13 @@
 .venv/
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
 .coverage
 htmlcov/
 node_modules/
+*.tsbuildinfo
 dist/
 playwright-report/
 test-results/
@@ -17,3 +19,5 @@ data/
 *.db-*
 *.log
 .local/
+*.dump
+*-backup.tgz
