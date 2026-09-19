@@ -216,6 +216,33 @@ def test_invalid_or_3d_catalog_geometry_is_rejected(harness, geometry):
     assert response.status_code == 422, response.text
 
 
+def test_catalog_search_keeps_ambiguous_prefixed_street_names(harness):
+    catalog = b"id,kind,ubigeo,street_type,street_name,door_number,latitude,longitude\nA,door,150101,AV.,DEMOSTRACION,120,-12.04,-77.03\nB,door,150101,AVENIDA,AV. DEMOSTRACION,120,-12.05,-77.04\n"
+    response = harness.client.post(
+        "/api/references",
+        headers=harness.headers["admin"],
+        data={"name": "Demo", "version": "test", "source": "Sintético"},
+        files={"file": ("aliases.csv", catalog, "text/csv")},
+    )
+    assert response.status_code == 201, response.text
+    run = harness.run(reference_id=response.json()["id"])
+    result = next(item for item in harness.results(run["id"]) if item["complaint_id"] == "DEMO-A")
+    assert result["resolution"] == "REVISION_REQUERIDA"
+    detail = harness.client.get(f"/api/results/{result['id']}", headers=harness.headers["admin"]).json()
+    assert len(detail["candidates"]) == 2
+
+
+def test_catalog_does_not_relabel_a_different_crs(harness):
+    catalog = b"kind,ubigeo,name,latitude,longitude,crs\nsite,150101,DEMO,-12,-77,EPSG:3857\n"
+    response = harness.client.post(
+        "/api/references",
+        headers=harness.headers["admin"],
+        data={"name": "Demo", "version": "test", "source": "Sintético"},
+        files={"file": ("crs.csv", catalog, "text/csv")},
+    )
+    assert response.status_code == 422, response.text
+
+
 def test_expired_session_is_rejected(harness):
     token = harness.headers["analyst"]["Authorization"].removeprefix("Bearer ")
     with harness.sessions() as db:

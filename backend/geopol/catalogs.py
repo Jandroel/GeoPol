@@ -8,6 +8,8 @@ import unicodedata
 from shapely.geometry import shape
 from shapely.errors import ShapelyError
 
+from .domain.normalization import canonical_street_type, street_parts
+
 KINDS = {"door", "block", "intersection", "site", "nucleus", "jurisdiction", "boundary"}
 
 
@@ -55,9 +57,20 @@ def read_catalog(data: bytes, filename: str, source: str, version: str):
         if not re.fullmatch(r"\d{6}", ubigeo):
             raise ValueError(f"UBIGEO debe tener seis dígitos en entidad {ordinal}")
         feature["ubigeo"] = ubigeo
+        declared_crs = search_key(feature.get("crs") or "EPSG:4326")
+        if declared_crs not in {"EPSG:4326", "4326", "WGS84", "WGS 84"}:
+            raise ValueError(f"Transforme la entidad {ordinal} a EPSG:4326 antes de importarla")
         for key in ("name", "street_type", "street_name", "cross_street"):
             if key in feature:
                 feature[key] = search_key(feature[key])
+        if "street_type" in feature:
+            feature["street_type"] = canonical_street_type(feature["street_type"]) or feature["street_type"]
+        for key in ("street_name", "cross_street"):
+            if key in feature:
+                inferred_type, street = street_parts(feature[key])
+                feature[key] = street
+                if key == "street_name" and inferred_type and not feature.get("street_type"):
+                    feature["street_type"] = inferred_type
         if isinstance(feature.get("geometry"), str):
             feature["geometry"] = json.loads(feature["geometry"])
         geometry = feature.get("geometry")
