@@ -31,7 +31,9 @@ class IngestionError(ValueError):
 def _extension(filename: str) -> str:
     extension = Path(filename).suffix.lower()
     if extension not in {".csv", ".xlsx"}:
-        raise IngestionError("Formato no admitido. Use CSV o XLSX; XLS y archivos con macros no están admitidos.")
+        raise IngestionError(
+            "Formato no admitido. Use CSV o XLSX; XLS y archivos con macros no están admitidos."
+        )
     return extension
 
 
@@ -90,13 +92,18 @@ def _xlsx_safety(path: Path) -> None:
     try:
         with zipfile.ZipFile(path) as archive:
             entries = archive.infolist()
-            if len(entries) > MAX_XLSX_ENTRIES or sum(info.file_size for info in entries) > MAX_XLSX_UNCOMPRESSED:
+            if (
+                len(entries) > MAX_XLSX_ENTRIES
+                or sum(info.file_size for info in entries) > MAX_XLSX_UNCOMPRESSED
+            ):
                 raise IngestionError("XLSX excede el límite de 512 MiB descomprimidos o 4096 componentes.")
             for info in entries:
                 if info.flag_bits & 1:
                     raise IngestionError("No se admiten libros cifrados.")
                 if info.filename == "xl/sharedStrings.xml" and info.file_size > MAX_XLSX_SHARED_STRINGS:
-                    raise IngestionError("XLSX supera 64 MiB de cadenas compartidas; conviértalo a CSV para procesarlo en flujo.")
+                    raise IngestionError(
+                        "XLSX supera 64 MiB de cadenas compartidas; conviértalo a CSV para procesarlo en flujo."
+                    )
     except zipfile.BadZipFile as exc:
         raise IngestionError("El archivo no es un XLSX válido.") from exc
 
@@ -136,7 +143,9 @@ def _serializable(value):
 def _row(columns: list[str], values: list, formulas: bool = False) -> tuple[dict, str | None]:
     issues = []
     if len(values) > MAX_COLUMNS:
-        raise IngestionError(f"Fila excede el límite de {MAX_COLUMNS} columnas; procesamiento detenido sin omitir filas.")
+        raise IngestionError(
+            f"Fila excede el límite de {MAX_COLUMNS} columnas; procesamiento detenido sin omitir filas."
+        )
     if len(values) != len(columns):
         issues.append(f"COLUMNAS_DESIGUALES: esperadas {len(columns)}, recibidas {len(values)}")
     result = {name: _serializable(values[i]) if i < len(values) else None for i, name in enumerate(columns)}
@@ -144,7 +153,7 @@ def _row(columns: list[str], values: list, formulas: bool = False) -> tuple[dict
         extra_key = "__extra_columns__"
         while extra_key in result:
             extra_key += "_"
-        result[extra_key] = [_serializable(v) for v in values[len(columns):]]
+        result[extra_key] = [_serializable(v) for v in values[len(columns) :]]
     if not any(v is not None and text(v) for v in values):
         issues.append("FILA_VACIA")
     if formulas:
@@ -154,7 +163,9 @@ def _row(columns: list[str], values: list, formulas: bool = False) -> tuple[dict
     return result, "; ".join(issues) or None
 
 
-def iter_records(path: Path, filename: str, sheet: str | None = None, delimiter: str = ",", encoding: str = "utf-8-sig") -> Iterator[tuple[int, dict, str | None]]:
+def iter_records(
+    path: Path, filename: str, sheet: str | None = None, delimiter: str = ",", encoding: str = "utf-8-sig"
+) -> Iterator[tuple[int, dict, str | None]]:
     """Yield every logical source record; ordinal 1 follows the header."""
     path = Path(path)
     if _extension(filename) == ".csv":
@@ -196,7 +207,7 @@ def inspect_file(path: Path, filename: str, sheet: str | None = None) -> dict:
         except UnicodeDecodeError as exc:
             # Only retry if error is not a truncated UTF-8 sequence at sample edge.
             if exc.end == len(sample_bytes) and exc.reason == "unexpected end of data":
-                sample_text = sample_bytes[:exc.start].decode(encoding)
+                sample_text = sample_bytes[: exc.start].decode(encoding)
             else:
                 encoding = "cp1252"
                 try:
@@ -220,7 +231,11 @@ def inspect_file(path: Path, filename: str, sheet: str | None = None) -> dict:
     samples = []
     try:
         for _, raw, issue in itertools.islice(records, 5):
-            safe = {canonical: raw.get(source) for canonical, source in mapping.items() if canonical != "complaint_id"}
+            safe = {
+                canonical: raw.get(source)
+                for canonical, source in mapping.items()
+                if canonical != "complaint_id"
+            }
             samples.append(safe)
             if issue:
                 warnings.append(issue)
@@ -228,5 +243,13 @@ def inspect_file(path: Path, filename: str, sheet: str | None = None) -> dict:
         records.close()
     if "location_original" not in mapping and "latitude" not in mapping:
         warnings.append("SIN_LOCALIZADOR_RECONOCIDO: configure el mapeo antes de procesar.")
-    return {"columns": columns, "sheets": sheets, "suggested_mapping": mapping, "sample": samples,
-            "warnings": warnings, "delimiter": delimiter, "encoding": encoding, "sheet": sheet or (sheets[0] if sheets else None)}
+    return {
+        "columns": columns,
+        "sheets": sheets,
+        "suggested_mapping": mapping,
+        "sample": samples,
+        "warnings": warnings,
+        "delimiter": delimiter,
+        "encoding": encoding,
+        "sheet": sheet or (sheets[0] if sheets else None),
+    }

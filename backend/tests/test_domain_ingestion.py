@@ -11,7 +11,9 @@ from geopol.domain.ingestion import IngestionError, inspect_file, iter_records
 
 def test_csv_preserves_malformed_recoverable_rows_and_logical_ordinals(tmp_path):
     path = tmp_path / "source.csv"
-    path.write_text('ID_DENUNCIA,UBICACION\n1,"AV LAS FLORES\n123"\n2\n3,CALLE A,extra\n\n', encoding="utf-8", newline="")
+    path.write_text(
+        'ID_DENUNCIA,UBICACION\n1,"AV LAS FLORES\n123"\n2\n3,CALLE A,extra\n\n', encoding="utf-8", newline=""
+    )
     records = list(iter_records(path, path.name))
     assert [r[0] for r in records] == [1, 2, 3, 4]
     assert records[0][1]["UBICACION"] == "AV LAS FLORES\n123"
@@ -46,7 +48,9 @@ def test_csv_field_and_logical_record_limits_are_enforced(tmp_path, monkeypatch)
 
 def test_profile_is_bounded_and_excludes_personal_fields(tmp_path):
     path = tmp_path / "source.csv"
-    path.write_text("ID_DENUNCIA;UBICACION;NOMBRE;EDAD\n" + "1;CALLE A;PERSONA SINTETICA;30\n" * 30, encoding="utf-8-sig")
+    path.write_text(
+        "ID_DENUNCIA;UBICACION;NOMBRE;EDAD\n" + "1;CALLE A;PERSONA SINTETICA;30\n" * 30, encoding="utf-8-sig"
+    )
     profile = inspect_file(path, path.name)
     assert profile["delimiter"] == ";"
     assert len(profile["sample"]) == 5

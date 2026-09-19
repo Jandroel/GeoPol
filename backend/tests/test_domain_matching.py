@@ -10,13 +10,34 @@ def normalized(**overrides):
 
 
 def door(**overrides):
-    return {"id": "d1", "kind": "door", "ubigeo": "150101", "street_type": "AVENIDA", "street_name": "LAS FLORES",
-            "door_number": "123", "latitude": -12.05, "longitude": -77.1, "source": "SINTETICO", "version": "1", **overrides}
+    return {
+        "id": "d1",
+        "kind": "door",
+        "ubigeo": "150101",
+        "street_type": "AVENIDA",
+        "street_name": "LAS FLORES",
+        "door_number": "123",
+        "latitude": -12.05,
+        "longitude": -77.1,
+        "source": "SINTETICO",
+        "version": "1",
+        **overrides,
+    }
 
 
 def boundary(**overrides):
-    return {"id": "b1", "kind": "boundary", "ubigeo": "150101", "source": "SINTETICO", "version": "1",
-            "geometry": {"type": "Polygon", "coordinates": [[[-78, -13], [-76, -13], [-76, -11], [-78, -11], [-78, -13]]]}, **overrides}
+    return {
+        "id": "b1",
+        "kind": "boundary",
+        "ubigeo": "150101",
+        "source": "SINTETICO",
+        "version": "1",
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[[-78, -13], [-76, -13], [-76, -11], [-78, -11], [-78, -13]]],
+        },
+        **overrides,
+    }
 
 
 def test_unique_exact_door_has_explainable_acceptance():
@@ -60,8 +81,11 @@ def test_fuzzy_ranking_always_requires_human_review():
 
 
 def test_number_name_equivalence_is_not_assumed():
-    result = resolve_location(normalized(location_original="CALLE UNO 12"),
-                              [door(street_type="CALLE", street_name="1", door_number="12")], True)
+    result = resolve_location(
+        normalized(location_original="CALLE UNO 12"),
+        [door(street_type="CALLE", street_name="1", door_number="12")],
+        True,
+    )
     assert result["resolution"] == "SIN_COINCIDENCIA"
 
 
@@ -102,8 +126,11 @@ def test_truncated_lookup_never_autoaccepts_apparent_unique_candidate():
 
 
 def test_block_result_preserves_approximate_precision():
-    result = resolve_location(normalized(location_original="AV LAS FLORES CUADRA 5"),
-                              [door(kind="block", block_number="5", door_number=None)], True)
+    result = resolve_location(
+        normalized(location_original="AV LAS FLORES CUADRA 5"),
+        [door(kind="block", block_number="5", door_number=None)],
+        True,
+    )
     assert result["resolution"] == "REVISION_REQUERIDA"
     assert result["precision"] == "CUADRA"
     assert result["product"] == "DIRECCION_SIN_PUNTO"
@@ -127,7 +154,9 @@ def test_relative_site_is_never_precise_automatic_location():
 
 
 def test_legacy_centroid_never_appears_in_accepted_coordinates():
-    source = normalized(location_original="", latitude=-12.05, longitude=-77.1, coordinate_origin="CENTROIDE_FORZADO")
+    source = normalized(
+        location_original="", latitude=-12.05, longitude=-77.1, coordinate_origin="CENTROIDE_FORZADO"
+    )
     result = resolve_location(source, [boundary()], True)
     assert result["resolution"] == "REVISION_REQUERIDA"
     assert result["latitude"] is result["longitude"] is None
@@ -135,7 +164,12 @@ def test_legacy_centroid_never_appears_in_accepted_coordinates():
 
 
 def test_structured_components_conflicting_with_text_block_automatic_match():
-    source = normalized(location_original="CALLE LOS PINOS 124", street_type="AVENIDA", street_name="LAS FLORES", door_number="123")
+    source = normalized(
+        location_original="CALLE LOS PINOS 124",
+        street_type="AVENIDA",
+        street_name="LAS FLORES",
+        door_number="123",
+    )
     assert "COMPONENTES_CONTRADICTORIOS" in source["decision_constraints"]
     result = resolve_location(source, [door()], True)
     assert result["resolution"] != "ACEPTADO_AUTOMATICO"

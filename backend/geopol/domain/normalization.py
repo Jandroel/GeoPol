@@ -65,7 +65,9 @@ def suggest_mapping(columns: list[str]) -> dict[str, str]:
     return dict(_mapping_for_columns(tuple(columns)))
 
 
-_ALIAS_KEYS = {canonical: tuple(column_key(alias) for alias in aliases) for canonical, aliases in ALIASES.items()}
+_ALIAS_KEYS = {
+    canonical: tuple(column_key(alias) for alias in aliases) for canonical, aliases in ALIASES.items()
+}
 
 
 @lru_cache(maxsize=128)
@@ -81,16 +83,33 @@ def _mapping_for_columns(columns: tuple[str, ...]) -> tuple[tuple[str, str], ...
 
 
 _TYPES = {
-    "AV": "AVENIDA", "AVDA": "AVENIDA", "AVENIDA": "AVENIDA",
-    "JR": "JIRON", "JIRON": "JIRON", "CL": "CALLE", "CAL": "CALLE", "CALLE": "CALLE",
-    "PSJE": "PASAJE", "PJE": "PASAJE", "PASAJE": "PASAJE",
-    "CAR": "CARRETERA", "CARRETERA": "CARRETERA", "MALECON": "MALECON",
-    "PROL": "PROLONGACION", "PROLONGACION": "PROLONGACION",
+    "AV": "AVENIDA",
+    "AVDA": "AVENIDA",
+    "AVENIDA": "AVENIDA",
+    "JR": "JIRON",
+    "JIRON": "JIRON",
+    "CL": "CALLE",
+    "CAL": "CALLE",
+    "CALLE": "CALLE",
+    "PSJE": "PASAJE",
+    "PJE": "PASAJE",
+    "PASAJE": "PASAJE",
+    "CAR": "CARRETERA",
+    "CARRETERA": "CARRETERA",
+    "MALECON": "MALECON",
+    "PROL": "PROLONGACION",
+    "PROLONGACION": "PROLONGACION",
 }
-_TYPE_RE = r"(?:AVENIDA|AVDA|AV|JIRON|JR|CALLE|CAL|CL|PASAJE|PSJE|PJE|CARRETERA|CAR|MALECON|PROLONGACION|PROL)\.?\b"
+_TYPE_RE = (
+    r"(?:AVENIDA|AVDA|AV|JIRON|JR|CALLE|CAL|CL|PASAJE|PSJE|PJE|CARRETERA|CAR|MALECON|PROLONGACION|PROL)\.?\b"
+)
 DECISION_WARNINGS = {
-    "COORDENADAS_CONTRADICTORIAS", "REFERENCIA_RELATIVA", "MANZANA_LOTE_REQUIERE_REFERENCIA",
-    "UBIGEO_INVALIDO", "UBIGEO_CONFLICTIVO_ORIGEN", "PROCEDENCIA_COORDENADA_NO_CONFIRMADA",
+    "COORDENADAS_CONTRADICTORIAS",
+    "REFERENCIA_RELATIVA",
+    "MANZANA_LOTE_REQUIERE_REFERENCIA",
+    "UBIGEO_INVALIDO",
+    "UBIGEO_CONFLICTIVO_ORIGEN",
+    "PROCEDENCIA_COORDENADA_NO_CONFIRMADA",
     "CRUCE_MISMA_VIA",
     "COMPONENTES_CONTRADICTORIOS",
 }
@@ -122,7 +141,8 @@ def _axis(value: Any, latitude: bool) -> float | None:
         return number if math.isfinite(number) and abs(number) <= (90 if latitude else 180) else None
     match = re.fullmatch(
         r"([+-]?\d+(?:[.,]\d+)?)\s*(?:[°D]\s*(\d+(?:[.,]\d+)?)\s*['′M]"
-        r"\s*(?:(\d+(?:[.,]\d+)?)\s*[\"″]?)?)?\s*([NSEOW])?", value
+        r"\s*(?:(\d+(?:[.,]\d+)?)\s*[\"″]?)?)?\s*([NSEOW])?",
+        value,
     )
     if not match:
         return None
@@ -158,12 +178,15 @@ def _coordinates_in_text(value: str) -> tuple[tuple[float, float] | None, str | 
         return valid_pair(match[1], match[2]), match[0]
     match = re.search(
         r"LAT(?:ITUD|ITUDE)?\s*[:=]?\s*([+-]?\d+(?:[.,]\d+)?\s*[NS]?)"
-        r"\s*[,; /]*\s*(?:LON(?:GITUD|GITUDE)?|LONG|LNG)\s*[:=]?\s*([+-]?\d+(?:[.,]\d+)?\s*[EWO]?)", value
+        r"\s*[,; /]*\s*(?:LON(?:GITUD|GITUDE)?|LONG|LNG)\s*[:=]?\s*([+-]?\d+(?:[.,]\d+)?\s*[EWO]?)",
+        value,
     )
     if match:
         return valid_pair(match[1], match[2]), match[0]
     # Unlabelled decimal pairs require decimal points on both axes and clear separators.
-    match = re.search(r"(?<![\d.])([+-]?\d{1,2}\.\d+\s*[NS]?)\s*[,; /]\s*([+-]?\d{1,3}\.\d+\s*[EWO]?)(?![\d.])", value)
+    match = re.search(
+        r"(?<![\d.])([+-]?\d{1,2}\.\d+\s*[NS]?)\s*[,; /]\s*([+-]?\d{1,3}\.\d+\s*[EWO]?)(?![\d.])", value
+    )
     if match:
         return valid_pair(match[1], match[2]), match[0]
     return None, None
@@ -184,11 +207,28 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
     if search != normalized:
         changes.append({"rule": "CLAVE_SIN_DIACRITICOS", "before": normalized, "after": search})
     result = {name: None for name in ALIASES}
-    result.update({"complaint_id": text(values.get("complaint_id")) or None,
-                   "location_original": original, "location_normalized": normalized,
-                   "transformations": changes, "warnings": warnings, "rules_version": RULES_VERSION,
-                   "legacy": {}, "extraction_evidence": []})
-    for name in ("district", "street_type", "street_name", "door_number", "block_number", "cross_street", "site_name", "urban_core"):
+    result.update(
+        {
+            "complaint_id": text(values.get("complaint_id")) or None,
+            "location_original": original,
+            "location_normalized": normalized,
+            "transformations": changes,
+            "warnings": warnings,
+            "rules_version": RULES_VERSION,
+            "legacy": {},
+            "extraction_evidence": [],
+        }
+    )
+    for name in (
+        "district",
+        "street_type",
+        "street_name",
+        "door_number",
+        "block_number",
+        "cross_street",
+        "site_name",
+        "urban_core",
+    ):
         result[name] = key(values.get(name)) or None
     if result["street_type"]:
         declared_type = canonical_street_type(result["street_type"])
@@ -203,11 +243,17 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
         no_number_door = component == "door_number" and candidate in {"S/N", "SN", "SIN NUMERO"}
         if candidate and not re.fullmatch(r"\d+(?:\s*[-/]?\s*[A-Z])?", candidate) and not no_number_door:
             result["legacy"][component + "_original"] = values.get(component)
-            warnings.append("PUERTA_ESTRUCTURADA_INVALIDA" if component == "door_number" else "CUADRA_ESTRUCTURADA_INVALIDA")
+            warnings.append(
+                "PUERTA_ESTRUCTURADA_INVALIDA"
+                if component == "door_number"
+                else "CUADRA_ESTRUCTURADA_INVALIDA"
+            )
             result[component] = None
     ubigeo = text(values.get("ubigeo"))
     if re.fullmatch(r"\d{1,5}", ubigeo):
-        changes.append({"rule": "UBIGEO_SEIS_POSICIONES_CANDIDATO", "before": ubigeo, "after": ubigeo.zfill(6)})
+        changes.append(
+            {"rule": "UBIGEO_SEIS_POSICIONES_CANDIDATO", "before": ubigeo, "after": ubigeo.zfill(6)}
+        )
         warnings.append("UBIGEO_REQUIERE_VALIDACION_CATALOGO")
         ubigeo = ubigeo.zfill(6)
     if ubigeo and not re.fullmatch(r"\d{6}", ubigeo):
@@ -222,9 +268,22 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
         result["crs"] = "EPSG:4326"
     for name, value in raw.items():
         canonical = column_key(name)
-        if canonical in {"LATHECHO", "LONGHECHO", "ESTADO", "ESTADOCOORD", "OBSERVACION", "FLAGGEOREF", "FLAGCALIDAD", "NIVELCRUCE"}:
+        if canonical in {
+            "LATHECHO",
+            "LONGHECHO",
+            "ESTADO",
+            "ESTADOCOORD",
+            "OBSERVACION",
+            "FLAGGEOREF",
+            "FLAGCALIDAD",
+            "NIVELCRUCE",
+        }:
             result["legacy"][name] = value
-    legacy_text = " ".join(key(v) for k, v in result["legacy"].items() if column_key(k) in {"ESTADOCOORD", "OBSERVACION", "ESTADO"})
+    legacy_text = " ".join(
+        key(v)
+        for k, v in result["legacy"].items()
+        if column_key(k) in {"ESTADOCOORD", "OBSERVACION", "ESTADO"}
+    )
     origin = key(values.get("coordinate_origin"))
     flag = next((text(v) for k, v in result["legacy"].items() if column_key(k) == "FLAGGEOREF"), "")
     if flag == "2":
@@ -248,7 +307,9 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
     if fragment:
         result["extraction_evidence"].append({"component": "coordinates", "fragment": fragment})
         if textual:
-            if coordinate and (abs(coordinate[0] - textual[0]) > 1e-6 or abs(coordinate[1] - textual[1]) > 1e-6):
+            if coordinate and (
+                abs(coordinate[0] - textual[0]) > 1e-6 or abs(coordinate[1] - textual[1]) > 1e-6
+            ):
                 warnings.append("COORDENADAS_CONTRADICTORIAS")
                 result["text_coordinates"] = {"latitude": textual[0], "longitude": textual[1]}
             elif not coordinate:
@@ -273,19 +334,23 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
         address = address.replace(fragment, " ").strip(" ,;()")
     district = result["district"]
     if district:
-        administrative_suffix = re.search(rf"(?:\s+(?:DISTRITO\s+DE\s+)?|\s*[-,]\s*){re.escape(district)}\s*$", address)
+        administrative_suffix = re.search(
+            rf"(?:\s+(?:DISTRITO\s+DE\s+)?|\s*[-,]\s*){re.escape(district)}\s*$", address
+        )
         if administrative_suffix:
-            address = address[:administrative_suffix.start()].rstrip(" ,;-")
+            address = address[: administrative_suffix.start()].rstrip(" ,;-")
             changes.append({"rule": "SEPARAR_DISTRITO_DECLARADO", "before": search, "after": address})
     typed_street = re.search(rf"\b{_TYPE_RE}\s+", address)
     if typed_street:
-        address = address[typed_street.start():]
-    address = re.split(r"\s+(?:TOMANDO\s+COMO\s+REFERENCIA|COMO\s+REFERENCIA|REFERENCIA|AL\s+FRENTE)\b", address, maxsplit=1)[0]
+        address = address[typed_street.start() :]
+    address = re.split(
+        r"\s+(?:TOMANDO\s+COMO\s+REFERENCIA|COMO\s+REFERENCIA|REFERENCIA|AL\s+FRENTE)\b", address, maxsplit=1
+    )[0]
     block = re.search(r"\b(?:CUADRA|CDRA|CDR)\.?\s*:?\s*(?:N[°ºO.]?\s*)?(\d+[A-Z]?)\b", address)
     if block:
         result["block_number"] = result["block_number"] or block[1]
         result["extraction_evidence"].append({"component": "block_number", "fragment": block[0]})
-        address = address[:block.start()] + " " + address[block.end():]
+        address = address[: block.start()] + " " + address[block.end() :]
     no_number = re.search(r"\bS\s*/\s*N\b|\bSIN NUMERO\b", address)
     if no_number or result["door_number"] in {"S/N", "SN", "SIN NUMERO"}:
         if no_number and result["door_number"] and result["door_number"] not in {"S/N", "SN", "SIN NUMERO"}:
@@ -297,18 +362,27 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
         door = re.search(r"\s+(?:N(?:RO|UMERO|UM)?[°ºO.]?\.?\s*|#\s*)(\d+(?:[-/]?[A-Z])?)\b", address)
         if not door:
             door = re.search(r"\s+(\d+(?:[-/]?[A-Z])?)\s*(?=,|$)", address)
-        address_without_door = address[:door.start()].strip() if door else ""
+        address_without_door = address[: door.start()].strip() if door else ""
         _, name_without_door = street_parts(address_without_door)
-        if door and name_without_door and not result["block_number"] and not re.search(r"\b(?:MZ|MANZANA|LOTE|LT|KM)\b", address):
+        if (
+            door
+            and name_without_door
+            and not result["block_number"]
+            and not re.search(r"\b(?:MZ|MANZANA|LOTE|LT|KM)\b", address)
+        ):
             extracted_door = re.sub(r"\s+", "", door[1])
             if result["door_number"] and re.sub(r"\s+", "", result["door_number"]) != extracted_door:
                 warnings.append("COMPONENTES_CONTRADICTORIOS")
             result["door_number"] = result["door_number"] or extracted_door
             result["extraction_evidence"].append({"component": "door_number", "fragment": door[0].strip()})
             # Text after a declared door belongs to context, not the street name.
-            address = address[:door.start()]
+            address = address[: door.start()]
     address = re.sub(r"^(?:INTERSECCION|CRUCE)\s+(?:DE\s+)?", "", address)
-    split = re.split(rf"\s+(?:CON|ESQ(?:UINA)?\.?(?:\s+CON)?|INTERSECCION(?:\s+CON)?)\s+|\s+[&/]\s+|\s+Y\s+(?={_TYPE_RE})", address, maxsplit=1)
+    split = re.split(
+        rf"\s+(?:CON|ESQ(?:UINA)?\.?(?:\s+CON)?|INTERSECCION(?:\s+CON)?)\s+|\s+[&/]\s+|\s+Y\s+(?={_TYPE_RE})",
+        address,
+        maxsplit=1,
+    )
     text_type, text_street = street_parts(split[0])
     if text_type and result["street_type"] and text_type != result["street_type"]:
         warnings.append("COMPONENTES_CONTRADICTORIOS")
@@ -335,13 +409,23 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
         if result["cross_street"] == result["street_name"]:
             warnings.append("CRUCE_MISMA_VIA")
     if not result["site_name"]:
-        site = re.search(r"\b(?:CENTRO COMERCIAL|MERCADO|HOSPITAL|COLEGIO|ESTADIO|PARQUE|PLAYA|AEROPUERTO|TERMINAL)\s+.+", search)
+        site = re.search(
+            r"\b(?:CENTRO COMERCIAL|MERCADO|HOSPITAL|COLEGIO|ESTADIO|PARQUE|PLAYA|AEROPUERTO|TERMINAL)\s+.+",
+            search,
+        )
         if site:
             result["site_name"] = site[0].strip(" .,")
     if not result["urban_core"]:
-        nucleus = re.search(r"\b(?:CENTRO POBLADO|CASERIO|AA\.?\s*HH\.?|ASENTAMIENTO HUMANO|URBANIZACION|URB\.?)\s+(.+)", search)
+        nucleus = re.search(
+            r"\b(?:CENTRO POBLADO|CASERIO|AA\.?\s*HH\.?|ASENTAMIENTO HUMANO|URBANIZACION|URB\.?)\s+(.+)",
+            search,
+        )
         if nucleus:
             result["urban_core"] = nucleus[1].strip(" .,")
-    result["search_names"] = list(dict.fromkeys(result[n] for n in ("street_name", "cross_street", "site_name", "urban_core") if result[n]))
+    result["search_names"] = list(
+        dict.fromkeys(
+            result[n] for n in ("street_name", "cross_street", "site_name", "urban_core") if result[n]
+        )
+    )
     result["decision_constraints"] = sorted(set(warnings) & DECISION_WARNINGS)
     return result

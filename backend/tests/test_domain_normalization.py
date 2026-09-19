@@ -4,7 +4,9 @@ from geopol.domain.normalization import normalize_record, suggest_mapping, valid
 
 
 def test_sidpol_mapping_does_not_misidentify_police_station_or_legacy_axes():
-    mapping = suggest_mapping(["DIRECCION", "UBICACION", "xx", "yy", "lat_hecho", "long_hecho", "UBIGEO_CIA", "UBIGEO_HECHO", "VIA"])
+    mapping = suggest_mapping(
+        ["DIRECCION", "UBICACION", "xx", "yy", "lat_hecho", "long_hecho", "UBIGEO_CIA", "UBIGEO_HECHO", "VIA"]
+    )
     assert mapping["location_original"] == "UBICACION"
     assert mapping["latitude"] == "xx"
     assert mapping["longitude"] == "yy"
@@ -54,27 +56,33 @@ def test_block_never_infers_door_and_sn_never_becomes_zero():
     assert "PUERTA_SIN_NUMERO" in sn["warnings"]
 
 
-@pytest.mark.parametrize("latitude,longitude,expected", [
-    ("-12.05", "-77.10", (-12.05, -77.1)),
-    ("-12° 3' 0\" S", "77° 6' 0\" O", (-12.05, -77.1)),
-    ("12° 3' 0 S", "-77° 6' 0 W", (-12.05, -77.1)),
-    ("-12 N", "-77 W", None),
-    ("12° 61' 0 S", "77 W", None),
-    ("nan", "-77", None),
-    (float("inf"), -77, None),
-    (-91, -77, None),
-    (-12, -181, None),
-    (1e-6, "-7.7E+1", (1e-6, -77)),
-])
+@pytest.mark.parametrize(
+    "latitude,longitude,expected",
+    [
+        ("-12.05", "-77.10", (-12.05, -77.1)),
+        ("-12° 3' 0\" S", "77° 6' 0\" O", (-12.05, -77.1)),
+        ("12° 3' 0 S", "-77° 6' 0 W", (-12.05, -77.1)),
+        ("-12 N", "-77 W", None),
+        ("12° 61' 0 S", "77 W", None),
+        ("nan", "-77", None),
+        (float("inf"), -77, None),
+        (-91, -77, None),
+        (-12, -181, None),
+        (1e-6, "-7.7E+1", (1e-6, -77)),
+    ],
+)
 def test_coordinate_signs_ranges_and_hemispheres(latitude, longitude, expected):
     assert valid_pair(latitude, longitude) == expected
 
 
-@pytest.mark.parametrize("location", [
-    "LAT: -12.05 LONG: -77.1",
-    "LUGAR (-12.05, -77.1)",
-    "12° 3' 0\" S 77° 6' 0\" O",
-])
+@pytest.mark.parametrize(
+    "location",
+    [
+        "LAT: -12.05 LONG: -77.1",
+        "LUGAR (-12.05, -77.1)",
+        "12° 3' 0\" S 77° 6' 0\" O",
+    ],
+)
 def test_extracts_textual_coordinates(location):
     result = normalize_record({"UBICACION": location})
     assert result["latitude"] == -12.05
@@ -89,8 +97,15 @@ def test_xx_is_latitude_and_yy_longitude():
 
 
 def test_forced_centroid_is_never_an_original_coordinate():
-    result = normalize_record({"xx": -12.05, "yy": -77.1, "lat_hecho": -12.05,
-                               "long_hecho": -77.1, "OBSERVACION": "GEO FORZADA AL CENTROIDE DE COMISARIA"})
+    result = normalize_record(
+        {
+            "xx": -12.05,
+            "yy": -77.1,
+            "lat_hecho": -12.05,
+            "long_hecho": -77.1,
+            "OBSERVACION": "GEO FORZADA AL CENTROIDE DE COMISARIA",
+        }
+    )
     assert result["latitude"] is result["longitude"] is None
     assert result["coordinate_origin"] == "SUSTITUTO_HEREDADO"
     assert result["legacy"]["lat_hecho"] == -12.05
@@ -104,16 +119,25 @@ def test_legacy_final_axes_do_not_silently_fill_original_axes():
 
 
 def test_text_coordinates_can_recover_after_ignoring_legacy_centroid():
-    result = normalize_record({"UBICACION": "LAT: -12.05 LONG: -77.1", "FLAG_GEOREF": 3,
-                               "xx": -12.2, "yy": -77.2})
+    result = normalize_record(
+        {"UBICACION": "LAT: -12.05 LONG: -77.1", "FLAG_GEOREF": 3, "xx": -12.2, "yy": -77.2}
+    )
     assert result["latitude"] == -12.05
     assert result["coordinate_origin"] == "TEXTO_SIDPOL"
     assert result["legacy"]["FLAG_GEOREF"] == 3
 
 
 def test_preserves_conflicting_textual_coordinate_and_legacy_flags():
-    result = normalize_record({"xx": -12.1, "yy": -77.1, "UBICACION": "-12.2, -77.2",
-                               "FLAG_GEOREF": 1, "FLAG_CALIDAD": 2, "NIVEL_CRUCE": 3})
+    result = normalize_record(
+        {
+            "xx": -12.1,
+            "yy": -77.1,
+            "UBICACION": "-12.2, -77.2",
+            "FLAG_GEOREF": 1,
+            "FLAG_CALIDAD": 2,
+            "NIVEL_CRUCE": 3,
+        }
+    )
     assert result["text_coordinates"] == {"latitude": -12.2, "longitude": -77.2}
     assert "COORDENADAS_CONTRADICTORIAS" in result["warnings"]
     assert result["legacy"] == {"FLAG_GEOREF": 1, "FLAG_CALIDAD": 2, "NIVEL_CRUCE": 3}
@@ -128,13 +152,16 @@ def test_cross_and_relative_site_remain_explicit():
     assert "REFERENCIA_RELATIVA" in site["warnings"]
 
 
-@pytest.mark.parametrize("location,district,street,door", [
-    ("FRONTIS DEL INMUEBLE EN CALLE LA PAZ NRO. 110 URB EL SOL", "", "LA PAZ", "110"),
-    ("AV. NUEVA N°.1734 - DISTRITO AZUL", "DISTRITO AZUL", "NUEVA", "1734"),
-    ("PROLONGACION LUNA 337 DISTRITO AZUL", "DISTRITO AZUL", "LUNA", "337"),
-    ("ALFA BETA 201, CIUDAD 15079", "", "ALFA BETA", "201"),
-    ("AV 28 DE JULIO 567", "", "28 DE JULIO", "567"),
-])
+@pytest.mark.parametrize(
+    "location,district,street,door",
+    [
+        ("FRONTIS DEL INMUEBLE EN CALLE LA PAZ NRO. 110 URB EL SOL", "", "LA PAZ", "110"),
+        ("AV. NUEVA N°.1734 - DISTRITO AZUL", "DISTRITO AZUL", "NUEVA", "1734"),
+        ("PROLONGACION LUNA 337 DISTRITO AZUL", "DISTRITO AZUL", "LUNA", "337"),
+        ("ALFA BETA 201, CIUDAD 15079", "", "ALFA BETA", "201"),
+        ("AV 28 DE JULIO 567", "", "28 DE JULIO", "567"),
+    ],
+)
 def test_address_with_prefix_or_declared_district_keeps_street_components(location, district, street, door):
     result = normalize_record({"location_original": location, "district": district})
     assert result["street_name"] == street
@@ -160,7 +187,15 @@ def test_worker_unit_key_keeps_decision_constraints_and_merges_only_compatible_e
     from geopol.worker import unit_key
 
     original = normalize_record({"ID_DENUNCIA": "SYNTHETIC-A", "xx": -12.1, "yy": -77.1, "FLAG_GEOREF": 1})
-    duplicate = normalize_record({"ID_DENUNCIA": "SYNTHETIC-A", "xx": -12.1, "yy": -77.1, "FLAG_GEOREF": 1, "PERSONA": "Otra relación sintética"})
+    duplicate = normalize_record(
+        {
+            "ID_DENUNCIA": "SYNTHETIC-A",
+            "xx": -12.1,
+            "yy": -77.1,
+            "FLAG_GEOREF": 1,
+            "PERSONA": "Otra relación sintética",
+        }
+    )
     conflict = normalize_record({"ID_DENUNCIA": "SYNTHETIC-A", "xx": -12.1, "yy": -77.1, "FLAG_GEOREF": 2})
     assert unit_key(original, 1) == unit_key(duplicate, 2)
     assert unit_key(original, 1) != unit_key(conflict, 3)
