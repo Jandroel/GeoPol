@@ -11,7 +11,7 @@ dependencies = [
   "fastapi>=0.115,<1", "uvicorn>=0.34,<1",
   "sqlalchemy>=2.0.36,<2.1", "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.7,<3", "python-multipart>=0.0.20,<1",
-  "openpyxl>=3.1.5,<4", "rapidfuzz>=3.12,<4", "shapely>=2.0.7,<3",
+  "openpyxl>=3.1.5,<4", "defusedxml>=0.7.1,<1", "rapidfuzz>=3.12,<4", "shapely>=2.0.7,<3",
 ]
 
 [project.optional-dependencies]

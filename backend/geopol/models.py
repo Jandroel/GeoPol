@@ -18,6 +18,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
+from .domain import RULES_VERSION
 
 
 def uid():
@@ -87,7 +88,7 @@ class Run(Base):
     name: Mapped[str] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(32), default="QUEUED", index=True)
     reference_id: Mapped[str | None] = mapped_column(ForeignKey("catalogs.id"))
-    rules_version: Mapped[str] = mapped_column(String(32), default="2026.1")
+    rules_version: Mapped[str] = mapped_column(String(32), default=RULES_VERSION)
     config: Mapped[dict] = mapped_column(JSON, default=dict)
     created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[float] = mapped_column(Float, default=time.time)

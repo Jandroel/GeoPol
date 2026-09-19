@@ -1,0 +1,550 @@
+"""Cola SQL con arrendamiento, checkpoints transaccionales e ingesta acotada."""
+
+import argparse
+import csv
+import hashlib
+import json
+import logging
+import os
+import signal
+import socket
+import time
+from functools import lru_cache
+
+from sqlalchemy import and_, func, insert, or_, select, update
+
+from .catalogs import search_key
+from .config import settings
+from .db import SessionLocal
+from .domain import RULES_VERSION
+from .domain.ingestion import iter_records
+from .domain.matching import resolve_location
+from .domain.normalization import normalize_record
+from .models import (
+    Catalog,
+    Export,
+    ExportItem,
+    Feature,
+    Heartbeat,
+    Job,
+    Location,
+    Run,
+    SourceRow,
+    Upload,
+    uid,
+)
+from .serialization import add_revision, audit, iso
+from .storage import checksum, storage_file
+
+logger = logging.getLogger("geopol.worker")
+WORKER_ID = f"{socket.gethostname()}:{os.getpid()}"
+
+
+class LeaseLost(Exception):
+    pass
+
+
+class Cancelled(Exception):
+    pass
+
+
+def heartbeat(db, job_id=None):
+    item = db.get(Heartbeat, WORKER_ID)
+    if item is None:
+        db.add(Heartbeat(id=WORKER_ID, seen_at=time.time(), job_id=job_id))
+    else:
+        item.seen_at, item.job_id = time.time(), job_id
+
+
+def renew(db, job_id, token):
+    now = time.time()
+    changed = db.execute(
+        update(Job)
+        .where(Job.id == job_id, Job.lease_token == token, Job.status == "RUNNING", Job.lease_until > now)
+        .values(lease_until=now + settings.lease_seconds)
+    ).rowcount
+    if changed != 1:
+        raise LeaseLost()
+    heartbeat(db, job_id)
+
+
+def claim_job():
+    with SessionLocal() as db:
+        now = time.time()
+        eligible = or_(Job.status == "QUEUED", and_(Job.status == "RUNNING", Job.lease_until < now))
+        query = select(Job).where(eligible).order_by(Job.created_at).limit(1)
+        if db.bind.dialect.name == "postgresql":
+            query = query.with_for_update(skip_locked=True)
+        job = db.scalar(query)
+        if job is None:
+            heartbeat(db)
+            db.commit()
+            return None
+        token = uid()
+        changed = db.execute(
+            update(Job)
+            .where(Job.id == job.id, eligible)
+            .values(
+                status="RUNNING",
+                lease_token=token,
+                lease_until=now + settings.lease_seconds,
+                attempts=Job.attempts + 1,
+            )
+        ).rowcount
+        if changed != 1:
+            db.rollback()
+            return None
+        heartbeat(db, job.id)
+        db.commit()
+        return job.id, token, job.kind, job.target_id
+
+
+def unit_key(normalized, ordinal):
+    # Location evidence, not person/modalidad columns, defines a compatible unit.
+    keys = (
+        "complaint_id",
+        "location_normalized",
+        "ubigeo",
+        "district",
+        "street_type",
+        "street_name",
+        "door_number",
+        "block_number",
+        "cross_street",
+        "site_name",
+        "urban_core",
+        "latitude",
+        "longitude",
+        "coordinate_origin",
+        "decision_constraints",
+        "crs",
+        "source_crs",
+    )
+    canonical = {k: normalized.get(k) for k in keys}
+    if not canonical["complaint_id"]:
+        canonical["source_ordinal"] = ordinal
+    return hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def ingest_batch(run_id, batch, job_id, token):
+    with SessionLocal() as db:
+        renew(db, job_id, token)
+        run = db.get(Run, run_id)
+        if run.cancel_requested:
+            raise Cancelled()
+        entries = []
+        for ordinal, raw, issue in batch:
+            normalized = normalize_record(raw, run.config.get("mapping"))
+            normalized["source_crs"] = normalized.get("crs")
+            if normalized.get("crs") and run.config.get("crs") and normalized["crs"] != run.config["crs"]:
+                normalized["warnings"] = normalized.get("warnings", []) + ["CRS_CONFLICTIVO"]
+                normalized["decision_constraints"] = normalized.get("decision_constraints", []) + [
+                    "CRS_CONFLICTIVO"
+                ]
+            normalized["crs"] = run.config.get("crs") or normalized.get("crs")
+            key = unit_key(normalized, ordinal)
+            entries.append((ordinal, raw, issue, normalized, key))
+        existing = {
+            x.unit_key: x
+            for x in db.scalars(
+                select(Location).where(
+                    Location.run_id == run_id, Location.unit_key.in_([e[4] for e in entries])
+                )
+            )
+        }
+        source_rows = []
+        for ordinal, raw, issue, normalized, key in entries:
+            item = existing.get(key)
+            if item is None:
+                item = Location(
+                    id=uid(),
+                    run_id=run_id,
+                    unit_key=key,
+                    complaint_id=normalized.get("complaint_id"),
+                    location_original=normalized.get("location_original") or "",
+                    location_normalized=normalized.get("location_normalized") or "",
+                    ubigeo=normalized.get("ubigeo"),
+                    normalized=normalized,
+                    source_row_count=0,
+                )
+                db.add(item)
+                existing[key] = item
+                run.location_units += 1
+            item.source_row_count += 1
+            if issue:
+                copy = dict(item.normalized)
+                copy["warnings"] = list(set(copy.get("warnings", []) + ["FILA_ORIGEN_CON_INCIDENCIA"]))
+                item.normalized = copy
+            source_rows.append(
+                dict(run_id=run_id, ordinal=ordinal, raw=raw, issue=issue, location_id=item.id)
+            )
+            run.source_rows = ordinal
+            run.issue_rows += int(bool(issue))
+        db.flush()
+        db.execute(insert(SourceRow), source_rows)
+        renew(db, job_id, token)
+        db.commit()
+
+
+def process_run(run_id, job_id, token):
+    with SessionLocal() as db:
+        renew(db, job_id, token)
+        run = db.get(Run, run_id)
+        upload = db.get(Upload, run.upload_id)
+        if run.rules_version != RULES_VERSION:
+            raise ValueError("La versión de reglas del lote no está disponible en este worker")
+        if run.cancel_requested:
+            raise Cancelled()
+        run.started_at = run.started_at or time.time()
+        run.status = "PROCESSING" if run.ingested else "INGESTING"
+        config, filename, upload_id, skip, ingested = (
+            run.config,
+            upload.filename,
+            upload.id,
+            run.source_rows,
+            run.ingested,
+        )
+        db.commit()
+    if not ingested:
+        batch = []
+        batch_bytes = 0
+        last_touch = time.monotonic()
+        for ordinal, raw, issue in iter_records(
+            storage_file("uploads", upload_id),
+            filename,
+            sheet=config.get("sheet"),
+            delimiter=config.get("delimiter", ","),
+            encoding=config.get("encoding", "utf-8-sig"),
+        ):
+            if ordinal <= skip:
+                if time.monotonic() - last_touch > 15:
+                    with SessionLocal() as db:
+                        renew(db, job_id, token)
+                        if db.get(Run, run_id).cancel_requested:
+                            raise Cancelled()
+                        db.commit()
+                    last_touch = time.monotonic()
+                continue
+            record_bytes = len(json.dumps(raw, ensure_ascii=False).encode("utf-8"))
+            if batch and batch_bytes + record_bytes > 16 * 1024 * 1024:
+                ingest_batch(run_id, batch, job_id, token)
+                batch, batch_bytes = [], 0
+            batch.append((ordinal, raw, issue))
+            batch_bytes += record_bytes
+            if len(batch) >= settings.batch_size:
+                ingest_batch(run_id, batch, job_id, token)
+                batch, batch_bytes = [], 0
+        if batch:
+            ingest_batch(run_id, batch, job_id, token)
+        with SessionLocal() as db:
+            renew(db, job_id, token)
+            run = db.get(Run, run_id)
+            run.ingested, run.status = True, "PROCESSING"
+            db.commit()
+
+    @lru_cache(maxsize=32)
+    def territorial_features(catalog_id, ubigeo, boundaries_only):
+        with SessionLocal() as db:
+            query = select(Feature).where(Feature.catalog_id == catalog_id, Feature.ubigeo == ubigeo)
+            query = query.where(Feature.kind == "boundary" if boundaries_only else Feature.kind != "boundary")
+            limit = 50 if boundaries_only else 500
+            rows = list(db.scalars(query.order_by(Feature.id).limit(limit + 1)))
+            return [row.payload for row in rows[:limit]], len(rows) > limit
+
+    @lru_cache(maxsize=64)
+    def lookup(catalog_id, ubigeo, names):
+        if not catalog_id or not ubigeo:
+            return [], False
+        boundaries, boundaries_truncated = territorial_features(catalog_id, ubigeo, True)
+        with SessionLocal() as db:
+            base = select(Feature).where(Feature.catalog_id == catalog_id, Feature.ubigeo == ubigeo)
+            exact = (
+                list(
+                    db.scalars(
+                        base.where(Feature.kind != "boundary", Feature.search_key.in_(names))
+                        .order_by(Feature.id)
+                        .limit(501)
+                    )
+                )
+                if names
+                else []
+            )
+        if exact:
+            rows, rows_truncated = [x.payload for x in exact[:500]], len(exact) > 500
+        else:
+            rows, rows_truncated = territorial_features(catalog_id, ubigeo, False)
+        return rows + boundaries, rows_truncated or boundaries_truncated
+
+    while True:
+        with SessionLocal() as db:
+            renew(db, job_id, token)
+            run = db.get(Run, run_id)
+            if run.cancel_requested:
+                raise Cancelled()
+            items, normalized_bytes = [], 0
+            selected = db.scalars(
+                select(Location)
+                .where(Location.run_id == run_id, Location.resolution == "PENDIENTE")
+                .order_by(Location.id)
+                .limit(settings.batch_size)
+                .execution_options(yield_per=1)
+            )
+            try:
+                for item in selected:
+                    items.append(item)
+                    normalized_bytes += len(json.dumps(item.normalized, ensure_ascii=False).encode("utf-8"))
+                    if normalized_bytes >= 16 * 1024 * 1024:
+                        break
+            finally:
+                selected.close()
+            if not items:
+                run.status = "COMPLETED_WITH_ISSUES" if run.issue_rows else "COMPLETED"
+                run.finished_at = time.time()
+                audit(
+                    db,
+                    "worker",
+                    "run.completed",
+                    run_id,
+                    {"source_rows": run.source_rows, "location_units": run.location_units},
+                )
+                db.commit()
+                return
+            catalog = db.get(Catalog, run.reference_id) if run.reference_id else None
+            complaint_ids = [x.complaint_id for x in items if x.complaint_id]
+            conflicts = set(
+                db.scalars(
+                    select(Location.complaint_id)
+                    .where(Location.run_id == run_id, Location.complaint_id.in_(complaint_ids))
+                    .group_by(Location.complaint_id)
+                    .having(func.count() > 1)
+                )
+            )
+            result_bytes, batch_started = 0, time.monotonic()
+            for item in items:
+                normalized = dict(item.normalized)
+                names = tuple(search_key(n) for n in normalized.get("search_names", []) if n)
+                features, truncated = lookup(run.reference_id, item.ubigeo, names)
+                normalized["reference_truncated"] = truncated
+                normalized["available_reference_kinds"] = catalog.kinds if catalog else []
+                resolved = resolve_location(normalized, features, reference_available=bool(catalog))
+                if item.complaint_id in conflicts or {"FILA_ORIGEN_CON_INCIDENCIA", "CRS_CONFLICTIVO"} & set(
+                    normalized.get("warnings", [])
+                ):
+                    resolved.update(
+                        resolution="REVISION_REQUERIDA",
+                        latitude=None,
+                        longitude=None,
+                        product="DIRECCION_SIN_PUNTO" if item.location_normalized else "NINGUNO",
+                        evidence_band="REVISION",
+                        reason="Ubicaciones contradictorias, CRS en conflicto o incidencia en la fila de origen; requiere conciliación",
+                    )
+                for key in (
+                    "resolution",
+                    "method",
+                    "precision",
+                    "evidence_band",
+                    "product",
+                    "latitude",
+                    "longitude",
+                    "reason",
+                    "candidates",
+                    "attempts",
+                ):
+                    if key in resolved:
+                        setattr(item, key, resolved[key])
+                item.normalized, item.revision = normalized, 1
+                add_revision(db, item, "worker", "automatic_resolution")
+                run.processed_units += 1
+                result_bytes += len(json.dumps(resolved, ensure_ascii=False).encode("utf-8"))
+                if result_bytes >= 16 * 1024 * 1024 or time.monotonic() - batch_started > 15:
+                    break
+            renew(db, job_id, token)
+            db.commit()
+
+
+EXPORT_COLUMNS = (
+    "id",
+    "complaint_id",
+    "location_original",
+    "location_normalized",
+    "ubigeo",
+    "resolution",
+    "method",
+    "precision",
+    "evidence_band",
+    "product",
+    "latitude",
+    "longitude",
+    "reason",
+    "revision",
+    "source_row_count",
+)
+
+
+def safe_cell(value, safe):
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        value = json.dumps(value, ensure_ascii=False)
+    if safe and isinstance(value, str) and value.lstrip(" \t\r\n\ufeff").startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
+def process_export(export_id, job_id, token):
+    with SessionLocal() as db:
+        renew(db, job_id, token)
+        export = db.get(Export, export_id)
+        export.status = "PROCESSING"
+        run = db.get(Run, export.run_id)
+        upload = db.get(Upload, run.upload_id)
+        profile, safe, run_id = export.profile, export.safe_spreadsheet, run.id
+        source_columns = list(run.config.get("source_columns", upload.profile.get("columns", [])))
+        extra_column = "__extra_columns__"
+        while extra_column in source_columns:
+            extra_column += "_"
+        source_columns.append(extra_column)
+        manifest = dict(export.manifest)
+        db.commit()
+    path = storage_file("exports", export_id, f".{token}.csv.part")
+    row_count = 0
+    with path.open("w", encoding="utf-8-sig", newline="") as stream:
+        writer = csv.writer(stream)
+        headers = [f"GEOPOL_{x}" for x in EXPORT_COLUMNS]
+        if profile == "source_rows":
+            headers = ["SOURCE_ORDINAL", "SOURCE_ISSUE"] + source_columns + headers
+        writer.writerow([safe_cell(header, safe) for header in headers])
+        cursor = 0 if profile == "source_rows" else ""
+        while True:
+            with SessionLocal() as db:
+                renew(db, job_id, token)
+                batch_count = 0
+                if profile == "source_rows":
+                    rows = db.execute(
+                        select(SourceRow, ExportItem.snapshot)
+                        .outerjoin(
+                            ExportItem,
+                            and_(
+                                SourceRow.location_id == ExportItem.location_id,
+                                ExportItem.export_id == export_id,
+                            ),
+                        )
+                        .where(SourceRow.run_id == run_id, SourceRow.ordinal > cursor)
+                        .order_by(SourceRow.ordinal)
+                        .limit(settings.batch_size)
+                    ).yield_per(1)
+                    for source_row, snapshot in rows:
+                        values = (
+                            [source_row.ordinal, source_row.issue]
+                            + [source_row.raw.get(k) for k in source_columns]
+                            + [(snapshot or {}).get(k) for k in EXPORT_COLUMNS]
+                        )
+                        writer.writerow([safe_cell(v, safe) for v in values])
+                        cursor = source_row.ordinal
+                        batch_count += 1
+                    rows.close()
+                else:
+                    rows = db.scalars(
+                        select(ExportItem)
+                        .where(ExportItem.export_id == export_id, ExportItem.location_id > cursor)
+                        .order_by(ExportItem.location_id)
+                        .limit(settings.batch_size)
+                    ).yield_per(1)
+                    for item in rows:
+                        writer.writerow([safe_cell(item.snapshot.get(k), safe) for k in EXPORT_COLUMNS])
+                        cursor = item.location_id
+                        batch_count += 1
+                    rows.close()
+                row_count += batch_count
+                db.commit()
+                if not batch_count:
+                    break
+        stream.flush()
+        os.fsync(stream.fileno())
+    digest = checksum(path)
+    with SessionLocal() as db:
+        renew(db, job_id, token)
+        export = db.get(Export, export_id)
+        expected = manifest["expected_rows"]
+        if row_count != expected:
+            raise ValueError("La exportación no coincide con la cardinalidad de la instantánea")
+        # Lease guards publication; an expired worker cannot publish another worker's file.
+        path.replace(storage_file("exports", export_id, ".csv"))
+        export.status, export.row_count, export.sha256 = "COMPLETED", row_count, digest
+        manifest.update(
+            row_count=row_count,
+            sha256=digest,
+            completed_at=iso(time.time()),
+            encoding="utf-8-sig",
+            safe_spreadsheet=safe,
+        )
+        export.manifest = manifest
+        audit(db, "worker", "export.completed", export_id, {"row_count": row_count})
+        db.commit()
+
+
+def work_once():
+    claim = claim_job()
+    if claim is None:
+        return False
+    job_id, token, kind, target_id = claim
+    status, error = "COMPLETED", None
+    try:
+        if kind == "RUN":
+            process_run(target_id, job_id, token)
+        elif kind == "EXPORT":
+            process_export(target_id, job_id, token)
+        else:
+            raise ValueError("Tipo de trabajo desconocido")
+    except LeaseLost:
+        logger.warning("Arrendamiento perdido para trabajo %s", job_id)
+        return True
+    except Cancelled:
+        status = "CANCELLED"
+    except Exception as exc:
+        status = "FAILED"
+        # Exception payloads may include raw fields; persist only category, never source data.
+        error = f"Error de procesamiento ({type(exc).__name__}). Revise formato, mapeo y límites; reintente desde el checkpoint."
+        logger.error("Trabajo %s falló: %s", job_id, type(exc).__name__)
+    with SessionLocal() as db:
+        try:
+            renew(db, job_id, token)
+        except LeaseLost:
+            return True
+        job = db.get(Job, job_id)
+        job.status, job.error, job.lease_until = status, error, None
+        if status != "COMPLETED":
+            target = db.get(Run if kind == "RUN" else Export, target_id)
+            target.status, target.error = status, error
+            if kind == "RUN":
+                target.finished_at = time.time()
+            audit(db, "worker", f"job.{status.lower()}", target_id, {"kind": kind, "error": error})
+        heartbeat(db)
+        db.commit()
+    return True
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--once", action="store_true", help="Procesar como máximo un trabajo")
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    stopped = False
+
+    def stop(*_):
+        nonlocal stopped
+        stopped = True
+
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    logger.info("Worker iniciado: %s", WORKER_ID)
+    while not stopped:
+        worked = work_once()
+        if args.once:
+            break
+        if not worked:
+            time.sleep(2)
+
+
+if __name__ == "__main__":
+    main()

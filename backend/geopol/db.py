@@ -25,6 +25,9 @@ def make_engine(url: str):
         def sqlite_pragmas(conn, _):
             conn.execute("PRAGMA foreign_keys=ON")
             conn.execute("PRAGMA journal_mode=WAL")
+            # Bounded 64 MiB per connection avoids spilling every medium-sized batch.
+            # Keep SQLite's FULL synchronization: checkpoints must survive a restart.
+            conn.execute("PRAGMA cache_size=-65536")
 
     return engine
 

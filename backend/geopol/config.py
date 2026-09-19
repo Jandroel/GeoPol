@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     max_upload_bytes: int = 5 * 1024**3
     chunk_bytes: int = 8 * 1024**2
     catalog_bytes: int = 24 * 1024**2
-    batch_size: int = 250
+    batch_size: int = 1000
     lease_seconds: int = 240
     session_hours: int = 12
 
