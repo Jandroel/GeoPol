@@ -1,0 +1,93 @@
+name: geopol-mvp
+
+x-backend: &backend
+  image: geopol-api:local
+  build:
+    context: ./backend
+  environment: &backend-env
+    GEOPOL_ENV: production
+    GEOPOL_DATABASE_URL: postgresql+psycopg://geopol:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD in .env}@db:5432/geopol
+    GEOPOL_STORAGE_PATH: /app/data/storage
+    GEOPOL_ALLOWED_ORIGINS: ${GEOPOL_ALLOWED_ORIGINS:-http://localhost:8080}
+  volumes:
+    - artifacts:/app/data
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=256m
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+
+services:
+  db:
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: geopol
+      POSTGRES_USER: geopol
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD in .env}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U geopol -d geopol']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+  migrate:
+    <<: *backend
+    command: [python, -m, geopol.cli, init-db]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    <<: *backend
+    command: [uvicorn, geopol.main:app, --host, 0.0.0.0, --port, '8000', --no-access-log]
+    ports:
+      - '127.0.0.1:8000:8000'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  worker:
+    <<: *backend
+    command: [python, -m, geopol.worker]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - '127.0.0.1:8080:8080'
+    depends_on:
+      api:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/healthz]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  database:
+  artifacts:

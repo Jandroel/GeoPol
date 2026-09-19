@@ -1,0 +1,60 @@
+{
+  "type": "FeatureCollection",
+  "name": "DEMO FICTICIA - NO USO OPERATIVO",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "demo-boundary",
+      "properties": {
+        "kind": "boundary", "ubigeo": "150101", "name": "LIMITE FICTICIO DE PRUEBA",
+        "crs": "EPSG:4326", "source": "SINTETICO - NO CARTOGRAFIA OFICIAL", "version": "demo-1"
+      },
+      "geometry": { "type": "Polygon", "coordinates": [[[-77.06, -12.06], [-77.02, -12.06], [-77.02, -12.02], [-77.06, -12.02], [-77.06, -12.06]]] }
+    },
+    {
+      "type": "Feature",
+      "id": "demo-door-120",
+      "properties": {
+        "kind": "door", "ubigeo": "150101", "street_type": "AVENIDA", "street_name": "DEMOSTRACION", "door_number": "120",
+        "name": "AVENIDA DEMOSTRACION 120", "crs": "EPSG:4326", "source": "SINTETICO - NO CARTOGRAFIA OFICIAL", "version": "demo-1"
+      },
+      "geometry": { "type": "Point", "coordinates": [-77.0345, -12.0435] }
+    },
+    {
+      "type": "Feature",
+      "id": "demo-block-2",
+      "properties": {
+        "kind": "block", "ubigeo": "150101", "street_type": "AVENIDA", "street_name": "DEMOSTRACION", "block_number": "2",
+        "name": "CUADRA SINTETICA 2", "crs": "EPSG:4326", "source": "SINTETICO - NO CARTOGRAFIA OFICIAL", "version": "demo-1"
+      },
+      "geometry": { "type": "Point", "coordinates": [-77.0352, -12.0442] }
+    },
+    {
+      "type": "Feature",
+      "id": "demo-site",
+      "properties": {
+        "kind": "site", "ubigeo": "150101", "name": "PARQUE DE PRUEBA",
+        "crs": "EPSG:4326", "source": "SINTETICO - NO CARTOGRAFIA OFICIAL", "version": "demo-1"
+      },
+      "geometry": { "type": "Point", "coordinates": [-77.038, -12.046] }
+    },
+    {
+      "type": "Feature",
+      "id": "demo-ambiguous-a",
+      "properties": {
+        "kind": "door", "ubigeo": "150101", "street_type": "CALLE", "street_name": "AMBIGUA", "door_number": "50",
+        "name": "CALLE AMBIGUA 50 CANDIDATO A", "crs": "EPSG:4326", "source": "SINTETICO - NO CARTOGRAFIA OFICIAL", "version": "demo-1"
+      },
+      "geometry": { "type": "Point", "coordinates": [-77.04, -12.045] }
+    },
+    {
+      "type": "Feature",
+      "id": "demo-ambiguous-b",
+      "properties": {
+        "kind": "door", "ubigeo": "150101", "street_type": "CALLE", "street_name": "AMBIGUA", "door_number": "50",
+        "name": "CALLE AMBIGUA 50 CANDIDATO B", "crs": "EPSG:4326", "source": "SINTETICO - NO CARTOGRAFIA OFICIAL", "version": "demo-1"
+      },
+      "geometry": { "type": "Point", "coordinates": [-77.042, -12.047] }
+    }
+  ]
+}

@@ -18,6 +18,8 @@ GET /dashboard -> {runs,source_rows,location_units,review_required,accepted,unre
 
 POST /uploads {filename,size} -> upload {id,filename,size,offset,status}. GET /uploads/{id} same. PATCH /uploads/{id} binary body, header Upload-Offset, bounded chunk <=8MiB -> upload. POST /uploads/{id}/complete -> upload plus sha256, profile. Profile uses header/bounded sample only. Bad sheet can be selected at run creation.
 
+GET /uploads/{id}/profile?sheet=&delimiter=&encoding= -> refreshed profile for a completed upload, scoped to its owner/admin. GET /uploads/{id}/download -> immutable original with permission check and audit. Source columns for exports follow the selected worksheet and parsing configuration.
+
 POST /runs {upload_id,name,sheet?,mapping?:{canonical:source column},delimiter?:',',encoding?:'utf-8-sig',reference_id?:string,crs?:'EPSG:4326'} -> run. GET /runs -> list. GET /runs/{id} -> run incl counters/status/error. POST /runs/{id}/cancel -> run. POST /runs/{id}/retry -> run (resume failed/cancelled same rules). POST /runs/{id}/reprocess -> new run, same file/config independent results.
 
 run = {id,name,status,filename,created_at,started_at,finished_at,source_rows,location_units,processed_units,issue_rows,reference_id,rules_version,error,config,counts:{resolution:count}}. Status QUEUED/INGESTING/PROCESSING/COMPLETED/COMPLETED_WITH_ISSUES/FAILED/CANCELLED.
@@ -31,6 +33,8 @@ GET /references -> list. POST /references multipart form fields name,version,sou
 POST /runs/{id}/exports {profile:'locations'|'source_rows',safe_spreadsheet:true} -> {id,status,run_id}. GET /exports/{id} -> {id,status,error,filename,row_count,sha256}. GET /exports/{id}/download -> file authenticated fetch; GET /exports/{id}/manifest -> JSON. Async snapshot export must include unresolved rows. CSV coordinates null when unresolved. Source-row export can access restricted originals for admin/operator only; analyst default location export excludes PII.
 
 GET /audit?page=1&page_size=25 -> list audit {id,actor,action,entity_id,created_at,detail}; admin only. GET /rules -> {version,policies,limitations}. GET /health -> {status,version,database}.
+
+GET /health/worker -> {status,last_seen_at}, authenticated. The rule version has one canonical constant: `domain.RULES_VERSION`; a worker refuses a run created for an unavailable rules version. Source, normalized components and catalog coordinates use an explicit EPSG:4326 contract; declared conflicts require review or rejection, never an implicit reprojection.
 
 ## Frontend
 
