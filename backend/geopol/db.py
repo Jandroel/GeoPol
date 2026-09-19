@@ -28,6 +28,9 @@ def make_engine(url: str):
             # Bounded 64 MiB per connection avoids spilling every medium-sized batch.
             # Keep SQLite's FULL synchronization: checkpoints must survive a restart.
             conn.execute("PRAGMA cache_size=-65536")
+            # Amortize random index writes: ~128 MiB at SQLite's default 4 KiB page size.
+            # FULL still syncs every committed WAL transaction; checkpoint timing is independent.
+            conn.execute("PRAGMA wal_autocheckpoint=32768")
 
     return engine
 
