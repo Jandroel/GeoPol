@@ -1,0 +1,140 @@
+{
+  "passed": true,
+  "date_utc": "2026-09-19T18:58:31Z",
+  "platform": "Windows-10-10.0.26100-SP0",
+  "python": "3.11.9",
+  "database": "SQLite",
+  "rules_version": "2026.1",
+  "sqlite_parameters": {
+    "cache_size": -65536,
+    "wal_autocheckpoint": 32768,
+    "synchronous": 2,
+    "page_size": 4096,
+    "journal_mode": "wal"
+  },
+  "batch_size": 1000,
+  "profiled": false,
+  "resumed_after_interruption": true,
+  "source_rows_at_resume": 400100,
+  "processed_units_at_resume": 51000,
+  "timing_and_memory_scope": "Recovery segment and subsequent export only; earlier interrupted segment not included",
+  "rows": 400100,
+  "location_units": 400100,
+  "input_bytes": 1248312057,
+  "padding_bytes_per_row": 3072,
+  "source_sha256": "f574be372da3f7682b7610aa8a4e69cba1e8138e2574918908c1ba4e36257639",
+  "export_rows": 400100,
+  "export_bytes": 1339023969,
+  "export_sha256": "d1aaf7a762470b3a2e58459e3311e4b979ecbae793b6736583be2739c828e376",
+  "export_ordinals_and_identifiers_verified": true,
+  "resolutions": {
+    "ACEPTADO_AUTOMATICO": 400100
+  },
+  "issue_rows": 0,
+  "timings_seconds": {
+    "existing_source_verify_seconds": 6.878,
+    "recovery_ingest_and_process_seconds": 330.886,
+    "ingest_seconds_approx": 5.141,
+    "process_seconds_approx": 325.746,
+    "export_snapshot_seconds": 88.089,
+    "export_seconds": 138.554,
+    "download_and_verify_seconds": 23.596
+  },
+  "peak_rss_bytes_by_process_tree": {
+    "driver": 207441920,
+    "api": 188207104,
+    "processing_worker": 226656256,
+    "export_worker": 177803264
+  },
+  "process_tree_peak_metric": "Upper bound: sum of individual process historical RSS maxima; not a simultaneous tree peak",
+  "peak_combined_sampled_rss_bytes": 537784320,
+  "memory_sampling_seconds": 0.25,
+  "memory_monitor": {
+    "healthy": true,
+    "successful_samples": 2131,
+    "error_count": 0,
+    "recent_error_types": []
+  },
+  "ingestion_timing_sampling_seconds": 5,
+  "workload": "Unique synthetic complaint per row; one exact street and reference point; no fuzzy search; ASCII padding only in source field",
+  "continuous_execution": false,
+  "full_run_elapsed_seconds": null,
+  "full_run_peak_combined_rss_bytes": null,
+  "hardware": {
+    "cpu": "Intel Core i7-12700",
+    "physical_cores": 12,
+    "logical_processors": 20,
+    "ram_gib": 15.7,
+    "source_and_artifact_storage": "D: SATA HDD ST1000DM010-2EP102",
+    "final_segment_database_storage": "C: SSD Micron MTFDKBA512TFK"
+  },
+  "lineage_verification": {
+    "same_run_upload_catalog_after_backup_and_completion": true,
+    "final_run": {
+      "id": "b364df75-9a64-4d97-96c2-c6d2af87c473",
+      "upload_id": "50fab2e6-3e67-44ef-9bf9-5fe192c2c0db",
+      "reference_id": "b58e12ab-7bb0-4814-ba87-0dc30e1dcd81",
+      "status": "COMPLETED",
+      "source_rows": 400100,
+      "location_units": 400100,
+      "processed_units": 400100,
+      "issue_rows": 0
+    },
+    "database_counts": {
+      "runs": 1,
+      "uploads": 1,
+      "catalogs": 1,
+      "locations": 400100,
+      "source_rows": 400100,
+      "exports": 1,
+      "export_items": 400100
+    },
+    "source_ordinal_min_max_distinct_count": [
+      1,
+      400100,
+      400100
+    ],
+    "all_export_ordinals_and_synthetic_complaint_ids_checked_in_order": true,
+    "export_sha256_matches_manifest_and_stream": true
+  },
+  "execution_segments": [
+    {
+      "segment": 1,
+      "database_storage": "D: HDD",
+      "outcome": "HTTP monitoring client TransportError WinError10053; its cleanup stopped owned processes",
+      "source_rows_checkpoint": 268000,
+      "upload_and_profile_seconds": 28.908,
+      "complete_segment_elapsed_seconds": null,
+      "memory_measurement": null
+    },
+    {
+      "segment": 2,
+      "database_storage": "D: HDD",
+      "outcome": "Same run resumed; ingestion completed; controlled cancellation at a batch checkpoint before consistent SSD backup",
+      "source_rows_at_start": 268000,
+      "source_rows_at_end": 400100,
+      "processed_units_at_start": 0,
+      "processed_units_at_end": 51000,
+      "driver_started_utc": "2026-09-19T18:29:14.932Z",
+      "partial_observation_utc": "2026-09-19T18:46:43Z",
+      "partial_observation_processed_units": 46000,
+      "current_combined_rss_bytes_at_partial_observation": 657375232,
+      "sum_of_individual_process_rss_maxima_bytes_at_partial_observation": 708661248,
+      "complete_segment_elapsed_seconds": null,
+      "memory_scope": "One OS observation of live driver/API/worker tree at transition; no retrospective simultaneous peak or whole-segment peak inferred"
+    },
+    {
+      "segment": 3,
+      "database_storage": "C: SSD; source/export files remain on D: HDD",
+      "backup_seconds": 20.726,
+      "backup_quick_check": "ok",
+      "source_rows_at_start": 400100,
+      "processed_units_at_start": 51000,
+      "source_rows_at_end": 400100,
+      "processed_units_at_end": 400100,
+      "outcome": "Completed processing, full source-row export, streamed download, SHA256 and all ordinal/identifier/padding/coordinate assertions",
+      "timing_and_memory_scope": "Top-level timings and memory belong only to this third segment; no new ingestion was necessary"
+    }
+  ],
+  "timing_interpretation": "ingest_seconds_approx in this recovered segment is startup/first PROCESSING observation delay, not additional source ingestion. The source was already fully ingested. Earlier segment durations and global peaks were not captured completely."
+}

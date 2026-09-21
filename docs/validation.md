@@ -4,7 +4,7 @@ Fechas: 18 y 19 de septiembre de 2026. Entorno de estas comprobaciones: Windows,
 
 ## Pruebas funcionales y muestra suministrada
 
-La suite completa del backend aprobó 83 pruebas y omitió únicamente la integración PostgreSQL/PostGIS, por falta de ese servicio. Después se aprobó una prueba adicional de rechazo de entidades XML en XLSX y se repitieron las 12 pruebas del lector con `defusedxml` instalado. Ruff y la comprobación de dependencias no encontraron errores. Las dos advertencias de deprecación proceden de las dependencias del cliente HTTP de pruebas.
+La suite completa final del backend aprobó **86 pruebas** en 48,28 segundos y omitió únicamente la integración PostgreSQL/PostGIS, por falta de ese servicio. Incluye rechazo de entidades XML en XLSX, conservación de candidatos ambiguos al normalizar alias de vías y rechazo de CRS de catálogo incompatibles. Ruff, su comprobación de formato y la comprobación de dependencias no encontraron errores. Las dos advertencias de deprecación proceden de las dependencias del cliente HTTP de pruebas.
 
 El flujo privado con `MUESTRA.xlsx` se repitió el 19 de septiembre: **40 filas conservadas, 16 unidades procesadas, cero incidencias de lectura y exportaciones de 40/16 registros**. Sin cartografía cargada, nueve unidades quedaron como `NO_EVALUABLE_REFERENCIA` y siete como `REVISION_REQUERIDA`; todas conservaron coordenadas canónicas nulas. El archivo institucional y sus filas no forman parte del repositorio.
 
@@ -51,4 +51,6 @@ Pyogrio y GeoPandas no son dependencias de producción. La prueba se omite si no
 
 `docker compose config --quiet` valida la configuración declarativa. Los scripts PowerShell y Bash pasan su análisis sintáctico. El intento de iniciar Docker Desktop confirmó que WSL no está instalado; se cerró el proceso de verificación sin cambiar la configuración del equipo. No se ejecutaron contenedores ni una restauración PostgreSQL. CI incluye un servicio PostGIS para comprobar migración idempotente, geometría derivada e índices espaciales.
 
-La capacidad medida se documenta separadamente en [prueba de carga](validation-load.md).
+## Capacidad medida
+
+Se completó una carga sintética CSV de **1 248 312 057 bytes y 400 100 filas**: 400 100 unidades procesadas, cero incidencias y 400 100 filas verificadas en la exportación descargada. Se comprobaron SHA-256, ordinales e identificadores. La prueba incluyó recuperación del mismo lote desde un checkpoint y el traslado de una copia consistente de la base de HDD a SSD; no constituye una ejecución continua ni una medición de exactitud geográfica real. Los tiempos, memoria, entorno y límites se documentan en la [prueba de carga](validation-load.md).

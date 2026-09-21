@@ -24,9 +24,11 @@ La CLI solicitará una contraseña propia; no existe usuario ni contraseña pred
 .\scripts\dev.ps1 frontend
 ```
 
-Abrir [GeoPol local](http://localhost:5173). La documentación interactiva de la API está en [OpenAPI local](http://localhost:8000/docs). El worker debe permanecer activo para procesar ejecuciones y exportaciones; su trabajo continúa aunque se cierre el navegador.
+Abrir [GeoPol local](http://localhost:5173). Si ese puerto ya está ocupado, usar la URL alternativa que muestra Vite en la terminal. La documentación interactiva de la API está en [OpenAPI local](http://localhost:8000/docs). El worker debe permanecer activo para procesar ejecuciones y exportaciones; su trabajo continúa aunque se cierre el navegador.
 
 El modo local utiliza SQLite en `data/geopol.db` y archivos en `data/storage`, relativos a la raíz desde la que se ejecutan estos scripts. Usar **un solo worker con SQLite**. La configuración lee variables `GEOPOL_*` del entorno y de `.env`; mantener rutas y orígenes coherentes si se alternan los modos local y Compose.
+
+Para lotes grandes, consultar la [configuración de almacenamiento en SSD](docs/runbook.md#almacenamiento-para-lotes-grandes) antes de inicializar una instalación nueva. La [prueba de carga](docs/validation-load.md) documenta el efecto observado del almacenamiento y la recuperación por checkpoints.
 
 ## Inicio local en Linux o macOS
 
@@ -109,6 +111,8 @@ geopol-mvp/
 La [arquitectura](docs/architecture.md) explica las decisiones y fronteras de los módulos. El [contrato de implementación](docs/implementation-contract.md) documenta los endpoints y la [guía de operación](docs/runbook.md) cubre recuperación y respaldo.
 
 La [evidencia de validación](docs/validation.md) detalla recuperación de trabajos, restauración SQLite y lectura real del CSV con GDAL, incluidos sus límites.
+
+Se verificaron las 40 filas de la muestra suministrada como 16 unidades, y un CSV sintético de **1 248 312 057 bytes con 400 100 filas**, conservadas hasta la descarga de la exportación. La prueba grande incluyó recuperación por checkpoints y traslado de una copia consistente de la base de HDD a SSD; sus tiempos corresponden a etapas separadas. Consulte el [informe reproducible de carga](docs/validation-load.md).
 
 ## Verificación y colaboración
 

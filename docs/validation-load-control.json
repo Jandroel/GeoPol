@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "date_utc": "2026-09-18T20:16:27Z",
+  "platform": "Windows-10-10.0.26100-SP0",
+  "python": "3.11.9",
+  "database": "SQLite",
+  "batch_size": 1000,
+  "profiled": false,
+  "rows": 10000,
+  "location_units": 10000,
+  "input_bytes": 31200057,
+  "padding_bytes_per_row": 3072,
+  "source_sha256": "e49263b6d94f86d6c8b7dbc56f4d60c8b748d9ba4d0ae20fa4ee137bd5109053",
+  "export_rows": 10000,
+  "export_bytes": 33449268,
+  "resolutions": {
+    "ACEPTADO_AUTOMATICO": 10000
+  },
+  "issue_rows": 0,
+  "timings_seconds": {
+    "generate_seconds": 0.795,
+    "upload_and_profile_seconds": 0.726,
+    "ingest_and_process_seconds": 36.754,
+    "ingest_seconds_approx": 15.091,
+    "process_seconds_approx": 21.664,
+    "export_snapshot_seconds": 1.763,
+    "export_seconds": 4.029,
+    "download_and_verify_seconds": 0.847
+  },
+  "peak_rss_bytes_by_process_tree": {
+    "driver": 110239744,
+    "api": 126439424,
+    "processing_worker": 140288000,
+    "export_worker": 140967936
+  },
+  "peak_combined_sampled_rss_bytes": 338198528,
+  "memory_sampling_seconds": 0.25,
+  "ingestion_timing_sampling_seconds": 5,
+  "workload": "Unique synthetic complaint per row; one exact street and reference point; no fuzzy search; ASCII padding only in source field"
+}

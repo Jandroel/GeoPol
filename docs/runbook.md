@@ -14,6 +14,16 @@ docker compose logs --tail=100 api worker
 
 En local, mantener activas las tres terminales indicadas en el README. Los scripts fijan el directorio de trabajo a la raíz para que API, worker y CLI utilicen la misma base SQLite y almacenamiento.
 
+## Almacenamiento para lotes grandes
+
+El ensayo local mostró una diferencia importante al trasladar la base SQLite de un HDD a un SSD; las etapas y sus límites están descritos en la [prueba de carga](validation-load.md). Para una instalación local nueva, se puede elegir una ruta en SSD mediante `.env`, antes de inicializar la base y crear usuarios:
+
+```dotenv
+GEOPOL_DATABASE_URL=sqlite:///C:/GeoPolData/geopol.db
+```
+
+La ruta es un ejemplo de Windows y debe corresponder al disco elegido. API, worker y CLI deben usar la misma configuración. Los originales pueden permanecer en el almacenamiento privado configurado con `GEOPOL_STORAGE_PATH`. Cambiar la variable no traslada datos existentes: una instancia con datos necesita detener sus procesos y restaurar una copia consistente de base y archivos, siguiendo el procedimiento de respaldo. Mantener un solo worker con SQLite.
+
 ## Usuarios
 
 ```bash

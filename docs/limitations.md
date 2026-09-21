@@ -34,6 +34,8 @@ La carga de origen admite hasta 5 GiB, mediante bloques de hasta 8 MiB. Cada cat
 
 El límite configurado de carga es un control de aceptación; no constituye un benchmark. La memoria del proceso depende del parser, estructura interna de XLSX y tamaño del catálogo. Se deben ejecutar pruebas con archivos representativos, medir disco/RAM/tiempo y ajustar límites antes del piloto institucional. El procesamiento nacional y archivos grandes no se declaran certificados.
 
+La [prueba sintética documentada](validation-load.md) sí verificó un CSV de 1 248 312 057 bytes y 400 100 filas hasta su exportación, con recuperación del mismo lote y etapas en HDD/SSD. Ese resultado no se extiende a XLSX de igual tamaño, catálogos nacionales, matching complejo o concurrencia de producción.
+
 SQLite está destinado al desarrollo con un solo worker. Para varios procesos concurrentes utilizar PostgreSQL y verificar la recuperación de reservas y la consistencia de resultados en el despliegue objetivo. La disponibilidad de imágenes Compose no equivale a que se hayan ejecutado en la máquina de entrega; consultar `docs/validation.md` cuando esté presente para la evidencia concreta.
 
 ## Validaciones institucionales pendientes
