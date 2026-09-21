@@ -1,0 +1,261 @@
+{
+  "type": "FeatureCollection",
+  "name": "RETO CORTO - TERRITORIO Y REFERENCIAS TOTALMENTE FICTICIOS",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "reto-boundary",
+      "properties": {
+        "kind": "boundary",
+        "ubigeo": "999901",
+        "name": "LABORATORIO FICTICIO",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -77.2,
+              -12.2
+            ],
+            [
+              -77.0,
+              -12.2
+            ],
+            [
+              -77.0,
+              -12.0
+            ],
+            [
+              -77.2,
+              -12.0
+            ],
+            [
+              -77.2,
+              -12.2
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-door-orbita",
+      "properties": {
+        "kind": "door",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "AVENIDA",
+        "street_name": "ORBITA LUMICA",
+        "door_number": "120"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.101,
+          -12.101
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-door-calle7",
+      "properties": {
+        "kind": "door",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "CALLE",
+        "street_name": "7",
+        "door_number": "0042"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.102,
+          -12.102
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-door-nacar",
+      "properties": {
+        "kind": "door",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "PASAJE",
+        "street_name": "NACAR DELTA",
+        "door_number": "55"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.103,
+          -12.103
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-intersection",
+      "properties": {
+        "kind": "intersection",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "AVENIDA",
+        "street_name": "BRISA FOTON",
+        "cross_street": "CUASAR NORTE",
+        "connects_at_grade": true
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.104,
+          -12.104
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-equivalent-a",
+      "properties": {
+        "kind": "door",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "AVENIDA",
+        "street_name": "PRISMA GEMELO",
+        "door_number": "88-A",
+        "name": "PRISMA GEMELO 88-A - EVIDENCIA A"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.108,
+          -12.108
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-equivalent-b",
+      "properties": {
+        "kind": "door",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "AVENIDA",
+        "street_name": "PRISMA GEMELO",
+        "door_number": "88-A",
+        "name": "PRISMA GEMELO 88-A - EVIDENCIA B"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.108,
+          -12.108
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-ambiguous-a",
+      "properties": {
+        "kind": "door",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "CALLE",
+        "street_name": "ECO DOBLE",
+        "door_number": "30",
+        "name": "ECO DOBLE 30 - PUNTO A"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.109,
+          -12.109
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-ambiguous-b",
+      "properties": {
+        "kind": "door",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "CALLE",
+        "street_name": "ECO DOBLE",
+        "door_number": "30",
+        "name": "ECO DOBLE 30 - PUNTO B"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.11,
+          -12.11
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-door-fuzzy",
+      "properties": {
+        "kind": "door",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "AVENIDA",
+        "street_name": "LABERINTO FOTONICO",
+        "door_number": "77"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.111,
+          -12.111
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "reto-block-mosaico",
+      "properties": {
+        "kind": "block",
+        "ubigeo": "999901",
+        "crs": "EPSG:4326",
+        "source": "RETO SINTETICO - NO CARTOGRAFIA OFICIAL - NO USO OPERATIVO",
+        "version": "reto-corto-2026.2-v1",
+        "street_type": "AVENIDA",
+        "street_name": "MOSAICO LENTO",
+        "block_number": "4",
+        "name": "PUNTO REPRESENTATIVO SINTETICO DE CUADRA 4 - NO PUERTA"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -77.112,
+          -12.112
+        ]
+      }
+    }
+  ]
+}

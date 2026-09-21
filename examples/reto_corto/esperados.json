@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "rules_version": "2026.2",
+  "prediction_status": "PREDECLARED_BEFORE_VALIDATION",
+  "expected_source_rows": 12,
+  "expected_location_units": 12,
+  "expected_issue_rows": 0,
+  "expected_counts": {
+    "ACEPTADO_AUTOMATICO": 8,
+    "REVISION_REQUERIDA": 4
+  },
+  "expected_review_summary": {
+    "open": {
+      "actionable": 4,
+      "needs_reference": 0,
+      "needs_data": 0,
+      "technical": 0
+    },
+    "closed": 8,
+    "total": 12
+  },
+  "coordinate_comparison_absolute_tolerance": 1e-10,
+  "conditions": [
+    "Importar y seleccionar el catálogo suministrado",
+    "Confirmar EPSG:4326 en la creación del lote",
+    "Usar todas las filas de Casos sin editar",
+    "Conservar como texto la puerta 0042, los ejes y el resto de las columnas"
+  ],
+  "cases": [
+    {
+      "complaint_id": "DEMO-RETO-01",
+      "challenge": "Mayúsculas, tildes, espacios repetidos y abreviatura de avenida",
+      "resolution": "ACEPTADO_AUTOMATICO",
+      "method": "PUERTA_CON_TIPO",
+      "precision": "PUERTA",
+      "product": "PUNTO",
+      "reason_contains": "COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL",
+      "candidate_count": 1,
+      "latitude": -12.101,
+      "longitude": -77.101,
+      "review_status": "CLOSED",
+      "review_bucket": "none"
+    },
+    {
+      "complaint_id": "DEMO-RETO-02",
+      "challenge": "Nombre de vía numérico 7 y puerta 0042 conservada como texto",
+      "resolution": "ACEPTADO_AUTOMATICO",
+      "method": "PUERTA_CON_TIPO",
+      "precision": "PUERTA",
+      "product": "PUNTO",
+      "reason_contains": "COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL",
+      "candidate_count": 1,
+      "latitude": -12.102,
+      "longitude": -77.102,
+      "review_status": "CLOSED",
+      "review_bucket": "none",
+      "normalized_components": {
+        "street_name": "7",
+        "door_number": "0042"
+      }
+    },
+    {
+      "complaint_id": "DEMO-RETO-03",
+      "challenge": "Abreviatura de pasaje y sentinela NULL en cuadra sin falso aviso de invalidez",
+      "resolution": "ACEPTADO_AUTOMATICO",
+      "method": "PUERTA_CON_TIPO",
+      "precision": "PUERTA",
+      "product": "PUNTO",
+      "reason_contains": "COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL",
+      "candidate_count": 1,
+      "latitude": -12.103,
+      "longitude": -77.103,
+      "review_status": "CLOSED",
+      "review_bucket": "none",
+      "required_transformation": {
+        "rule": "SENTINELA_AUSENCIA_ESTRUCTURADA",
+        "field": "block_number",
+        "before": "NULL",
+        "after": null
+      },
+      "absent_warnings": [
+        "CUADRA_ESTRUCTURADA_INVALIDA"
+      ]
+    },
+    {
+      "complaint_id": "DEMO-RETO-04",
+      "challenge": "Cruce con orden de vías invertido respecto del catálogo y conexión a nivel confirmada",
+      "resolution": "ACEPTADO_AUTOMATICO",
+      "method": "CRUCE",
+      "precision": "INTERSECCION",
+      "product": "PUNTO",
+      "reason_contains": "COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL",
+      "candidate_count": 1,
+      "latitude": -12.104,
+      "longitude": -77.104,
+      "review_status": "CLOSED",
+      "review_bucket": "none"
+    },
+    {
+      "complaint_id": "DEMO-RETO-05",
+      "challenge": "Par decimal etiquetado extraído del texto y corroborado por el límite",
+      "resolution": "ACEPTADO_AUTOMATICO",
+      "method": "COORD_TEXTO",
+      "precision": "COORDENADA",
+      "product": "PUNTO",
+      "reason_contains": "COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL",
+      "candidate_count": 1,
+      "latitude": -12.105,
+      "longitude": -77.105,
+      "review_status": "CLOSED",
+      "review_bucket": "none"
+    },
+    {
+      "complaint_id": "DEMO-RETO-06",
+      "challenge": "Coordenadas DMS con hemisferios S/O dentro del límite ficticio",
+      "resolution": "ACEPTADO_AUTOMATICO",
+      "method": "COORD_TEXTO",
+      "precision": "COORDENADA",
+      "product": "PUNTO",
+      "reason_contains": "COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL",
+      "candidate_count": 1,
+      "latitude": -12.1,
+      "longitude": -77.1,
+      "review_status": "CLOSED",
+      "review_bucket": "none"
+    },
+    {
+      "complaint_id": "DEMO-RETO-07",
+      "challenge": "Coordenada original validada independientemente de dirección manzana/lote",
+      "resolution": "ACEPTADO_AUTOMATICO",
+      "method": "COORD_ORIGINAL",
+      "precision": "COORDENADA",
+      "product": "PUNTO",
+      "reason_contains": "COORDENADA_ORIGINAL_VALIDADA_INDEPENDIENTE_DE_MANZANA_LOTE",
+      "candidate_count": 1,
+      "latitude": -12.107,
+      "longitude": -77.107,
+      "review_status": "CLOSED",
+      "review_bucket": "none",
+      "preserved_warning": "MANZANA_LOTE_REQUIERE_REFERENCIA"
+    },
+    {
+      "complaint_id": "DEMO-RETO-08",
+      "challenge": "Dos evidencias exactas del mismo punto/método/precisión, sin descartar procedencias",
+      "resolution": "ACEPTADO_AUTOMATICO",
+      "method": "PUERTA_CON_TIPO",
+      "precision": "PUERTA",
+      "product": "PUNTO",
+      "reason_contains": "EVIDENCIAS_EQUIVALENTES_MISMO_PUNTO",
+      "candidate_count": 2,
+      "latitude": -12.108,
+      "longitude": -77.108,
+      "review_status": "CLOSED",
+      "review_bucket": "none",
+      "candidate_ids": [
+        "reto-equivalent-a",
+        "reto-equivalent-b"
+      ]
+    },
+    {
+      "complaint_id": "DEMO-RETO-09",
+      "challenge": "Dos puntos distintos para los mismos componentes: ambigüedad que requiere revisión",
+      "resolution": "REVISION_REQUERIDA",
+      "method": "PUERTA_CON_TIPO",
+      "precision": "PUERTA",
+      "product": "DIRECCION_SIN_PUNTO",
+      "reason_contains": "MULTIPLES_CANDIDATOS",
+      "candidate_count": 2,
+      "latitude": null,
+      "longitude": null,
+      "review_status": "OPEN",
+      "review_bucket": "actionable"
+    },
+    {
+      "complaint_id": "DEMO-RETO-10",
+      "challenge": "Error ortográfico FOTONIKO/FOTONICO: similitud no equivale a exactitud",
+      "resolution": "REVISION_REQUERIDA",
+      "method": "PUERTA_CON_TIPO",
+      "precision": "PUERTA",
+      "product": "DIRECCION_SIN_PUNTO",
+      "reason_contains": "SIMILITUD_TEXTUAL_REQUIERE_REVISION",
+      "candidate_count": 1,
+      "latitude": null,
+      "longitude": null,
+      "review_status": "OPEN",
+      "review_bucket": "actionable"
+    },
+    {
+      "complaint_id": "DEMO-RETO-11",
+      "challenge": "Coordenada original válida numéricamente pero fuera del límite declarado",
+      "resolution": "REVISION_REQUERIDA",
+      "method": "COORD_ORIGINAL",
+      "precision": "COORDENADA",
+      "product": "DIRECCION_SIN_PUNTO",
+      "reason_contains": "PUNTO_FUERA_UBIGEO",
+      "candidate_count": 1,
+      "latitude": null,
+      "longitude": null,
+      "review_status": "OPEN",
+      "review_bucket": "actionable"
+    },
+    {
+      "complaint_id": "DEMO-RETO-12",
+      "challenge": "Cuadra con punto representativo: precisión aproximada, no puerta exacta",
+      "resolution": "REVISION_REQUERIDA",
+      "method": "CUADRA_CON_TIPO",
+      "precision": "CUADRA",
+      "product": "DIRECCION_SIN_PUNTO",
+      "reason_contains": "APROXIMACION_ESPACIAL_REQUIERE_REVISION",
+      "candidate_count": 1,
+      "latitude": null,
+      "longitude": null,
+      "review_status": "OPEN",
+      "review_bucket": "actionable",
+      "candidate_product": "AREA_TRAMO"
+    }
+  ]
+}
