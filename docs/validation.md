@@ -2,6 +2,26 @@
 
 Fechas: 18 y 19 de septiembre de 2026. Entorno de estas comprobaciones: Windows, Python 3.11, base SQLite y archivos temporales con datos sintéticos. Los resultados siguientes corresponden a las pruebas concretas indicadas; no son un benchmark de volumen nacional.
 
+## Actualización del 21 de septiembre: reglas 2026.2 y revisión
+
+La suite completa actual aprobó **178 pruebas**, con una omisión correspondiente a PostgreSQL/PostGIS y dos avisos de deprecación del cliente de pruebas. Ruff y formato pasan. La interfaz aprobó **11 pruebas**, compilación TypeScript/Vite y formato. Los **dos recorridos E2E de Chromium** aprobaron en 47,1 segundos contra API, worker, base SQLite y almacenamiento sintéticos temporales; los procesos se cerraron al terminar. Cubren importación/exportación y el nuevo flujo: falta de referencia → reproceso con catálogo → historial → guardar y siguiente → cierre, reapertura y liberación → navegación móvil. No se ejecutó CI remoto ni PostgreSQL.
+
+La instalación local recibió la migración v2 después de detener sus procesos y respaldar base y objetos. Las huellas de las 40 filas de origen, 16 revisiones existentes, carga y usuario coinciden exactamente antes y después de migrar. Las comprobaciones SQLite de integridad y claves foráneas pasan. API y worker volvieron a responder correctamente. La prueba de acceso y consulta en el navegador desplegado no encontró errores de consola ni desbordamiento horizontal a 400 px.
+
+Se reprocesó la misma carga de `MUESTRA.xlsx`, sin introducir catálogos sintéticos en la instalación del usuario:
+
+| Comprobación | Resultado |
+| --- | --- |
+| Origen | 40 filas idénticas por ordinal; SHA-256 del archivo coincide con la carga |
+| Ubicaciones | 16 unidades procesadas, cero incidencias |
+| Resolución geográfica | 9 `NO_EVALUABLE_REFERENCIA`, 7 `REVISION_REQUERIDA`, 0 puntos aceptados |
+| Trabajo pendiente | 11 necesitan referencia, 5 necesitan datos, 0 con candidatos listos para decidir, 0 errores técnicos |
+| Advertencia por cuadra `NULL` | Eliminada en las 16 unidades; original conservado |
+| Historial | Ejecución anterior y sus revisiones conservadas, enlazadas al sucesor |
+| Dashboard | 2 ejecuciones históricas; 40 filas y 16 unidades vigentes, sin duplicar el lote |
+
+La corrección evita falsos avisos y tareas repetidas; **no aumentó la cantidad de puntos aceptados en esta muestra sin catálogo**. Los once bloqueos de referencia incluyen nueve casos no evaluables y dos candidatos de coordenadas que necesitan corroboración territorial. Separar la bandeja no equivale a resolver esos registros. La prueba de carga anterior sigue siendo evidencia de la versión evaluada entonces; no se repitió el benchmark de 1,2 GB para esta actualización.
+
 ## Pruebas funcionales y muestra suministrada
 
 La suite completa final del backend aprobó **86 pruebas** en 48,28 segundos y omitió únicamente la integración PostgreSQL/PostGIS, por falta de ese servicio. Incluye rechazo de entidades XML en XLSX, conservación de candidatos ambiguos al normalizar alias de vías y rechazo de CRS de catálogo incompatibles. Ruff, su comprobación de formato y la comprobación de dependencias no encontraron errores. Las dos advertencias de deprecación proceden de las dependencias del cliente HTTP de pruebas.
