@@ -1,5 +1,6 @@
 import pytest
 
+from geopol.domain import RULES_VERSION
 from geopol.domain.normalization import normalize_record, suggest_mapping, valid_pair
 
 
@@ -35,7 +36,7 @@ def test_calle_one_is_street_name_and_not_door_one():
     assert result["door_number"] is None
 
 
-def test_sidpol_category_and_invalid_block_do_not_obstruct_text_extraction():
+def test_sidpol_absent_block_is_audited_without_an_invalid_component_warning():
     result = normalize_record({"UBICACION": "CALLE LOS PINOS 123", "VIA": "Otros", "CUADRA": "NULL"})
     assert result["street_name"] == "LOS PINOS"
     assert result["street_type"] == "CALLE"
@@ -43,6 +44,130 @@ def test_sidpol_category_and_invalid_block_do_not_obstruct_text_extraction():
     assert result["block_number"] is None
     assert result["legacy"]["block_number_original"] == "NULL"
     assert result["legacy"]["street_type_original"] == "Otros"
+    assert "CUADRA_ESTRUCTURADA_INVALIDA" not in result["warnings"]
+    assert "TIPO_VIA_ESTRUCTURADO_NO_RECONOCIDO" in result["warnings"]
+    assert {
+        "rule": "SENTINELA_AUSENCIA_ESTRUCTURADA",
+        "field": "block_number",
+        "source_column": "CUADRA",
+        "before": "NULL",
+        "after": None,
+    } in result["transformations"]
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        "NULL",
+        " null ",
+        "(Null)",
+        "< null >",
+        "None",
+        "NaN",
+        "<NA>",
+        "NA",
+        "n / a",
+        "S/D",
+        " sin dato ",
+        "SIN   DATOS",
+        "No disponible",
+    ],
+)
+def test_numeric_absence_markers_preserve_raw_and_auditable_originals(marker):
+    raw = {"CUADRA": marker, "numero_puerta": marker, "xx": marker, "yy": marker, "UBIGEO_HECHO": marker}
+    original = dict(raw)
+    result = normalize_record(raw)
+    assert raw == original
+    assert result["rules_version"] == RULES_VERSION == "2026.2"
+    for field in ("block_number", "door_number", "latitude", "longitude", "ubigeo"):
+        assert result[field] is None
+        assert result["legacy"][field + "_original"] == marker
+    assert result["warnings"] == ["TERRITORIO_NO_CONFIRMADO"]
+    assert len(result["transformations"]) == 5
+    assert all(change["before"] == marker and change["after"] is None for change in result["transformations"])
+
+
+def test_absent_structured_number_allows_independent_textual_extraction():
+    block = normalize_record({"UBICACION": "AV LOS PINOS CUADRA 5", "CUADRA": "NULL"})
+    assert block["block_number"] == "5"
+    assert block["door_number"] is None
+    assert "CUADRA_ESTRUCTURADA_INVALIDA" not in block["warnings"]
+    door = normalize_record({"UBICACION": "CALLE LOS PINOS 123", "numero_puerta": "N/A"})
+    assert door["door_number"] == "123"
+    assert "PUERTA_ESTRUCTURADA_INVALIDA" not in door["warnings"]
+    assert door["legacy"]["door_number_original"] == "N/A"
+
+
+def test_absence_markers_do_not_remove_legitimate_names_or_free_text():
+    result = normalize_record(
+        {
+            "complaint_id": "NULL",
+            "location_original": "CALLE NULL",
+            "street_name": "NULL",
+            "cross_street": "NAN",
+            "district": "NONE",
+            "site_name": "SIN DATOS",
+            "urban_core": "N/A",
+        }
+    )
+    assert result["complaint_id"] == result["street_name"] == "NULL"
+    assert result["location_original"] == "CALLE NULL"
+    assert result["cross_street"] == "NAN"
+    assert result["district"] == "NONE"
+    assert result["site_name"] == "SIN DATOS"
+    assert result["urban_core"] == "N/A"
+    assert not any(
+        change["rule"] == "SENTINELA_AUSENCIA_ESTRUCTURADA" for change in result["transformations"]
+    )
+
+
+@pytest.mark.parametrize("no_number", ["S/N", "SN", "SIN NUMERO", "Sin número"])
+def test_explicit_no_door_number_remains_distinct_from_missing_data(no_number):
+    result = normalize_record({"location_original": "JR LOS PINOS", "door_number": no_number})
+    assert result["door_number"] is None
+    assert "PUERTA_SIN_NUMERO" in result["warnings"]
+    assert "PUERTA_ESTRUCTURADA_INVALIDA" not in result["warnings"]
+    assert not any(
+        change["rule"] == "SENTINELA_AUSENCIA_ESTRUCTURADA" for change in result["transformations"]
+    )
+
+
+@pytest.mark.parametrize("invalid", ["NULL 5", "NULO123", "-", "12.5", True])
+def test_invalid_numeric_values_do_not_become_absence_markers(invalid):
+    result = normalize_record({"CUADRA": invalid})
+    assert "CUADRA_ESTRUCTURADA_INVALIDA" in result["warnings"]
+    assert result["legacy"]["block_number_original"] == invalid
+    assert not any(
+        change["rule"] == "SENTINELA_AUSENCIA_ESTRUCTURADA" for change in result["transformations"]
+    )
+
+
+def test_numeric_zero_is_not_an_absence_marker():
+    result = normalize_record({"CUADRA": 0, "door_number": "0", "xx": 0, "yy": 0})
+    assert result["block_number"] == result["door_number"] == "0"
+    assert (result["latitude"], result["longitude"]) == (0, 0)
+    assert result["coordinate_origin"] == "PNP_ORIGINAL"
+
+
+def test_partial_coordinate_pair_still_requires_attention():
+    result = normalize_record({"xx": "NULL", "yy": -77.1})
+    assert result["latitude"] is result["longitude"] is None
+    assert "COORDENADAS_ESTRUCTURADAS_INVALIDAS" in result["warnings"]
+    assert result["legacy"]["latitude_original"] == "NULL"
+
+
+def test_absent_axes_allow_text_evidence_but_never_promote_legacy_centroids():
+    result = normalize_record(
+        {"xx": "NULL", "yy": "N/A", "lat_hecho": -12.2, "long_hecho": -77.2, "FLAG_GEOREF": 3}
+    )
+    assert result["latitude"] is result["longitude"] is None
+    assert result["coordinate_origin"] == "SUSTITUTO_HEREDADO"
+    assert "COORDENADA_SUSTITUTA" in result["warnings"]
+    assert "COORDENADA_FINAL_LEGADA_NO_ORIGINAL" in result["warnings"]
+    assert "COORDENADAS_ESTRUCTURADAS_INVALIDAS" not in result["warnings"]
+    result = normalize_record({"xx": "NULL", "yy": "N/A", "UBICACION": "LAT: -12.05 LONG: -77.1"})
+    assert (result["latitude"], result["longitude"]) == (-12.05, -77.1)
+    assert result["coordinate_origin"] == "TEXTO_SIDPOL"
 
 
 def test_block_never_infers_door_and_sn_never_becomes_zero():

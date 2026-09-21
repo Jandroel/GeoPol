@@ -114,6 +114,31 @@ DECISION_WARNINGS = {
     "COMPONENTES_CONTRADICTORIOS",
 }
 
+# Only structured numeric fields use these explicit absence markers. Applying
+# them to names or free text would discard legitimate address components.
+_ABSENCE_FIELDS = ("door_number", "block_number", "latitude", "longitude", "ubigeo")
+_ABSENCE_MARKERS = {
+    "NULL",
+    "(NULL)",
+    "<NULL>",
+    "NONE",
+    "NAN",
+    "<NA>",
+    "NA",
+    "N/A",
+    "S/D",
+    "SIN DATO",
+    "SIN DATOS",
+    "NO DISPONIBLE",
+}
+
+
+def _is_absence_marker(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    marker = re.sub(r"\s*([/<>()[\]])\s*", r"\1", key(value))
+    return marker in _ABSENCE_MARKERS
+
 
 def canonical_street_type(value: Any) -> str:
     value = key(value).strip(". ")
@@ -219,6 +244,20 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
             "extraction_evidence": [],
         }
     )
+    for name in _ABSENCE_FIELDS:
+        value = values.get(name)
+        if _is_absence_marker(value):
+            result["legacy"][name + "_original"] = value
+            changes.append(
+                {
+                    "rule": "SENTINELA_AUSENCIA_ESTRUCTURADA",
+                    "field": name,
+                    "source_column": selected.get(name),
+                    "before": value,
+                    "after": None,
+                }
+            )
+            values[name] = None
     for name in (
         "district",
         "street_type",

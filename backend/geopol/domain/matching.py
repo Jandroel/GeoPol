@@ -140,7 +140,8 @@ def resolve_location(normalized: dict, features: list[dict], reference_available
     available = set(normalized.get("available_reference_kinds") or [_kind(f) for f in features])
     applicable: list[tuple[str, str]] = []
     candidates, attempts = [], []
-    automatic: dict[str, bool] = {}
+    # Eligibility belongs to each evidence item, even if a reference repeats an ID.
+    automatic: dict[int, bool] = {}
 
     def attempt(method: str, status: str, reason: str, count: int = 0, **extra):
         attempts.append(
@@ -178,7 +179,7 @@ def resolve_location(normalized: dict, features: list[dict], reference_available
             "version": RULES_VERSION,
         }
         candidates.append(candidate)
-        automatic[candidate["id"]] = territory == "INSIDE" and crs_confirmed
+        automatic[id(candidate)] = territory == "INSIDE" and crs_confirmed
         attempt(method, "CANDIDATOS_ENCONTRADOS", "; ".join(evidence), 1)
     else:
         reason = (
@@ -204,7 +205,7 @@ def resolve_location(normalized: dict, features: list[dict], reference_available
                 "version": RULES_VERSION,
             }
         )
-        automatic["coord_texto:conflict"] = False
+        automatic[id(candidates[-1])] = False
         attempt("COORD_TEXTO", "CANDIDATOS_ENCONTRADOS", "COORDENADAS_CONTRADICTORIAS", 1)
 
     street = _street(normalized.get("street_name"))
@@ -298,7 +299,7 @@ def resolve_location(normalized: dict, features: list[dict], reference_available
                 evidence.append("CRS_NO_CONFIRMADO")
             candidate = _candidate(feature, method, precision, 100 if exact else similarity, evidence)
             candidates.append(candidate)
-            automatic[candidate["id"]] = bool(
+            automatic[id(candidate)] = bool(
                 exact
                 and pair
                 and territorial_match
@@ -332,12 +333,36 @@ def resolve_location(normalized: dict, features: list[dict], reference_available
     }
     if candidates:
         # Keep every competing candidate, including evidence from different methods.
-        candidates.sort(key=lambda c: (not automatic.get(c["id"], False), -(c.get("score") or 0), c["id"]))
+        candidates.sort(key=lambda c: (not automatic.get(id(c), False), -(c.get("score") or 0), c["id"]))
         chosen = candidates[0]
         hard_warnings = warnings & DECISION_WARNINGS
-        duplicate_candidates = len(candidates) > 1
+        equivalent_candidates = (
+            len(candidates) > 1
+            and all(automatic[id(c)] for c in candidates)
+            and len(
+                {
+                    (c["latitude"], c["longitude"], c["method"], c["precision"], c["product"])
+                    for c in candidates
+                }
+            )
+            == 1
+        )
+        if equivalent_candidates:
+            for candidate in candidates:
+                candidate["evidence"].append("EVIDENCIAS_EQUIVALENTES_MISMO_PUNTO")
+        independent_original_coordinate = bool(
+            chosen["method"] == "COORD_ORIGINAL"
+            and automatic[id(chosen)]
+            and "MANZANA_LOTE_REQUIERE_REFERENCIA" in hard_warnings
+        )
+        if independent_original_coordinate:
+            # This parser limitation cannot negate an independently validated
+            # original point. Keep the source warning and every real conflict.
+            hard_warnings.remove("MANZANA_LOTE_REQUIERE_REFERENCIA")
+            chosen["evidence"].append("MANZANA_LOTE_NO_LIMITA_COORDENADA_ORIGINAL_VALIDADA")
+        duplicate_candidates = len(candidates) > 1 and not equivalent_candidates
         accepted = bool(
-            automatic.get(chosen["id"])
+            automatic[id(chosen)]
             and not hard_warnings
             and not duplicate_candidates
             and not normalized.get("reference_truncated")
@@ -353,8 +378,15 @@ def resolve_location(normalized: dict, features: list[dict], reference_available
             reasons.append("CRS_NO_CONFIRMADO")
         if not ubigeo:
             reasons.append("TERRITORIO_NO_CONFIRMADO")
-        if not automatic.get(chosen["id"]):
+        if not automatic[id(chosen)]:
             reasons.extend(chosen["evidence"])
+        accepted_reason = (
+            "EVIDENCIAS_EQUIVALENTES_MISMO_PUNTO"
+            if equivalent_candidates
+            else "COORDENADA_ORIGINAL_VALIDADA_INDEPENDIENTE_DE_MANZANA_LOTE"
+            if independent_original_coordinate
+            else "COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL"
+        )
         result.update(
             {
                 "resolution": "ACEPTADO_AUTOMATICO" if accepted else "REVISION_REQUERIDA",
@@ -366,13 +398,13 @@ def resolve_location(normalized: dict, features: list[dict], reference_available
                 else ("DIRECCION_SIN_PUNTO" if normalized.get("location_normalized") else "NINGUNO"),
                 "latitude": chosen["latitude"] if accepted else None,
                 "longitude": chosen["longitude"] if accepted else None,
-                "reason": "COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL"
+                "reason": accepted_reason
                 if accepted
                 else "; ".join(dict.fromkeys(reasons)) or "VERIFICACION_HUMANA_REQUERIDA",
             }
         )
         if accepted:
-            attempt(chosen["method"], "ACEPTADO", result["reason"], 1)
+            attempt(chosen["method"], "ACEPTADO", result["reason"], len(candidates))
     elif normalized.get("reference_truncated"):
         result.update(
             resolution="REVISION_REQUERIDA", evidence_band="REVISION", reason="BUSQUEDA_REFERENCIAL_TRUNCADA"
