@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { Search } from "lucide-react";
 import { request } from "../lib/api";
 import { label } from "../lib/format";
@@ -25,6 +26,7 @@ export function ResultsTable({
   live?: boolean;
   runVersion?: string;
 }) {
+  const location = useLocation();
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
@@ -124,7 +126,9 @@ export function ResultsTable({
                       <td>{label(result.precision)}</td>
                       <td>{label(result.product)}</td>
                       <td>
-                        <ViewLink to={`/results/${result.id}`}>
+                        <ViewLink
+                          to={`/results/${result.id}?back=${encodeURIComponent(location.pathname + location.search)}`}
+                        >
                           Examinar
                         </ViewLink>
                       </td>

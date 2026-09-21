@@ -5,7 +5,7 @@ import os
 from sqlalchemy import select
 
 from .db import SessionLocal, engine
-from .migrations import migrate
+from .migrations import SCHEMA_VERSION, migrate
 from .models import User
 from .security import password_hash
 
@@ -23,7 +23,7 @@ def main():
     args = parser.parse_args()
     if args.command == "init-db":
         migrate(engine)
-        print("Base de datos actualizada (versión 1).")
+        print(f"Base de datos actualizada (versión {SCHEMA_VERSION}).")
         return
     args.username = args.username.strip()
     if not args.username or len(args.username) > 100:

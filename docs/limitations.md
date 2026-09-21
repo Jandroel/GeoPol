@@ -16,7 +16,7 @@ El flujo cubre recepción, perfil y mapeo, ingesta, separación fila/unidad, nor
 | Cartografía institucional | Importación de archivos versionados y demo sintética | Obtener y validar capas oficiales |
 | Reproyección geográfica | EPSG:4326 explícito | Transformaciones controladas y pruebas por CRS |
 | Monitorización institucional | Salud API/base y estado persistido del trabajo | Métricas, alertas, trazas y retención |
-| Evolución de esquema | Inicialización del esquema de la versión inicial | Migraciones incrementales antes de una actualización con datos reales |
+| Evolución de esquema | Migraciones v1/v2 incrementales con backfill, idempotencia y rollback SQLite comprobados | Ejecutar la prueba equivalente sobre PostgreSQL y mantener migraciones por versión |
 
 ## Límites del motor
 

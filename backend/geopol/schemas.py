@@ -28,6 +28,10 @@ class RunInput(Input):
     crs: Literal["EPSG:4326"] | None = None
 
 
+class ReprocessInput(Input):
+    reference_id: str | None = None
+
+
 class DecisionInput(Input):
     expected_revision: int = Field(ge=1)
     action: Literal["accept_candidate", "manual_point", "address_only", "unresolved", "reopen"]

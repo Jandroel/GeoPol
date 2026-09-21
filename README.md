@@ -79,7 +79,7 @@ Ver [ejemplos](examples/README.md) para conocer cada caso sintético. Las coorde
 - Normalización determinística, componentes, coordenadas originales/textuales y separación de centroides heredados.
 - Matching conservador con catálogo elegido: puerta, cuadra y candidatos de otras familias según la referencia disponible.
 - Cola SQL persistente con API y worker separados; cancelación, reintento y nueva ejecución de reproceso.
-- Revisión con reserva, control de versión, motivo, evidencia e histórico.
+- Revisión por excepción, grupos según la acción necesaria, reserva, «Guardar y siguiente», cierre/reapertura e histórico.
 - Roles, auditoría, indicadores con denominadores explícitos y consultas paginadas.
 - Exportación asíncrona CSV con revisión, manifiesto y checksum; perfil ampliado restringido por rol.
 
@@ -109,6 +109,8 @@ geopol-mvp/
 ```
 
 La [arquitectura](docs/architecture.md) explica las decisiones y fronteras de los módulos. El [contrato de implementación](docs/implementation-contract.md) documenta los endpoints y la [guía de operación](docs/runbook.md) cubre recuperación y respaldo.
+
+El [flujo de revisión y reprocesamiento](docs/review-workflow.md) describe las reglas 2026.2, la selección de un nuevo catálogo y la migración v2 para instalaciones con datos. Los casos que requieren referencia permanecen visibles sin mezclarse con los que ya tienen candidatos revisables.
 
 La [evidencia de validación](docs/validation.md) detalla recuperación de trabajos, restauración SQLite y lectura real del CSV con GDAL, incluidos sus límites.
 

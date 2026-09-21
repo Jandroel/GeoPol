@@ -4,8 +4,261 @@ import { resolve } from "node:path";
 
 const username = process.env.GEOPOL_E2E_USER;
 const password = process.env.GEOPOL_E2E_PASSWORD;
-const artifacts = resolve(process.cwd(), "..", ".local");
+const artifacts = resolve(
+  process.env.GEOPOL_E2E_ARTIFACTS ?? resolve(process.cwd(), "..", ".local"),
+);
 const examples = resolve(process.cwd(), "..", "examples");
+
+test("review prerequisites, reference reprocessing, save-next and finalization", async ({
+  page,
+}) => {
+  test.skip(
+    !username || !password,
+    "Provide synthetic credentials for an isolated environment.",
+  );
+  const browserErrors: string[] = [];
+  page.on("pageerror", (error) => browserErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
+  const marker = Date.now().toString();
+  const catalogName = `QA revisión catálogo ${marker}`;
+  const runName = `QA revisión dos ubicaciones ${marker}`;
+  await mkdir(artifacts, { recursive: true });
+  await page.goto("/");
+  await page.getByLabel("Usuario", { exact: true }).fill(username!);
+  await page.getByLabel("Contraseña", { exact: true }).fill(password!);
+  await page
+    .getByRole("button", { name: "Ingresar al espacio de trabajo" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Una mirada a tu territorio" }),
+  ).toBeVisible();
+
+  await test.step("Prepare a documented reference and process without attaching it", async () => {
+    await page.getByRole("link", { name: "Catálogos de referencia" }).click();
+    await page
+      .getByRole("button", { name: "Importar catálogo", exact: true })
+      .click();
+    await page.getByLabel("Nombre", { exact: true }).fill(catalogName);
+    await page.getByLabel("Versión", { exact: true }).fill("review-qa");
+    await page
+      .getByLabel("Fuente y procedencia")
+      .fill("SINTÉTICO: prueba aislada del flujo de revisión");
+    await page
+      .getByLabel("Archivo CSV o GeoJSON")
+      .setInputFiles(resolve(examples, "referencias_sinteticas.geojson"));
+    await page
+      .getByRole("button", { name: "Importar y verificar catálogo" })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: catalogName, exact: true }),
+    ).toBeVisible();
+    await page.goto("/runs/new");
+    await page
+      .locator("#source-file")
+      .setInputFiles({
+        name: "revision-sintetica.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from(
+          "complaint_id,location_original,ubigeo,street_type,street_name,door_number\nQA-REV-1,CALLE AMBIGUA 50,150101,CALLE,AMBIGUA,50\nQA-REV-2,CALLE AMBIGUA 50,150101,CALLE,AMBIGUA,50\n",
+        ),
+      });
+    await page
+      .getByRole("button", { name: "Cargar y verificar columnas" })
+      .click();
+    await page.getByLabel("Nombre del procesamiento").fill(runName);
+    await page.getByLabel("Catálogo de referencia").selectOption("");
+    await page.getByRole("button", { name: "Iniciar procesamiento" }).click();
+    await expect(
+      page.getByRole("heading", { name: runName, exact: true }),
+    ).toBeVisible();
+    await expect(page.locator(".page-heading .badge")).toHaveText(
+      /Completado|Con incidencias|Fallido|Cancelado/,
+      { timeout: 120000 },
+    );
+    expect(await page.locator(".page-heading .badge").innerText()).toBe(
+      "Completado",
+    );
+  });
+  const parentRunUrl = page.url();
+  const parentId = new URL(parentRunUrl).pathname.split("/").at(-1)!;
+  await test.step("Missing references are visible but not presented as actionable decisions", async () => {
+    await page
+      .getByRole("link", { name: "Abrir revisión de esta ejecución" })
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: "No hay pendientes en esta selección",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Referencia pendiente/ }),
+    ).toContainText("2");
+    await page.getByRole("button", { name: /Referencia pendiente/ }).click();
+    await expect(
+      page.getByText(/Estos registros necesitan una fuente evaluable/),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Examinar", exact: true }),
+    ).toHaveCount(2);
+    await page.screenshot({
+      path: resolve(artifacts, "ui-review-prerequisites.png"),
+      fullPage: true,
+    });
+    await page
+      .getByRole("link", { name: "Examinar", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByText(/Falta una referencia evaluable/),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Tomar revisión", exact: true }),
+    ).not.toBeVisible();
+    await page
+      .getByRole("button", {
+        name: "Preparar nuevo procesamiento",
+        exact: true,
+      })
+      .click();
+  });
+  let currentId = "";
+  await test.step("Reprocessing selects the reference while preserving the former execution", async () => {
+    await page
+      .getByLabel("Catálogo del nuevo procesamiento")
+      .selectOption({ label: `${catalogName} · review-qa` });
+    await page
+      .getByRole("button", { name: "Crear nuevo procesamiento", exact: true })
+      .click();
+    await expect(page).not.toHaveURL(new RegExp(`${parentId}(?:\\?|$)`));
+    await expect(page.locator(".page-heading .badge")).toHaveText(
+      /Completado|Con incidencias|Fallido|Cancelado/,
+      { timeout: 120000 },
+    );
+    expect(await page.locator(".page-heading .badge").innerText()).toBe(
+      "Completado",
+    );
+    currentId = new URL(page.url()).pathname.split("/").at(-1)!;
+    await page.goto(parentRunUrl);
+    await expect(
+      page.getByText(/Esta ejecución se conserva como histórico/),
+    ).toBeVisible();
+    await page
+      .getByRole("link", { name: "Abrir la ejecución que la sustituye" })
+      .click();
+    await page
+      .getByRole("link", { name: "Abrir revisión de esta ejecución" })
+      .click();
+    await expect(
+      page.getByRole("button", { name: /Revisión accionable/ }),
+    ).toContainText("2");
+    await page.screenshot({
+      path: resolve(artifacts, "ui-review-queue.png"),
+      fullPage: true,
+    });
+  });
+  await test.step("Save-next persists the first decision and opens a clean, unclaimed second record", async () => {
+    await page
+      .getByRole("button", { name: "Abrir siguiente disponible" })
+      .click();
+    const firstTitle = await page.locator("h1").innerText();
+    await page
+      .getByRole("button", { name: "Tomar revisión", exact: true })
+      .click();
+    await page
+      .getByLabel("Candidato", { exact: true })
+      .selectOption({ index: 1 });
+    await page
+      .getByLabel("Motivo de la decisión")
+      .fill(
+        "Verificación artificial del candidato para el ensayo de revisión.",
+      );
+    await page
+      .getByRole("button", { name: "Guardar y siguiente", exact: true })
+      .click();
+    await expect(page.locator("h1")).not.toHaveText(firstTitle);
+    await expect(
+      page.getByRole("button", { name: "Tomar revisión", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByLabel("Motivo de la decisión")).not.toBeVisible();
+    await expect(page).toHaveURL(
+      new RegExp(encodeURIComponent(`run_id=${currentId}`)),
+    );
+    await page
+      .getByRole("button", { name: "Tomar revisión", exact: true })
+      .click();
+    await expect(page.getByLabel("Motivo de la decisión")).toHaveValue("");
+    await expect(page.getByLabel("Candidato", { exact: true })).toHaveValue("");
+    await page.getByLabel("Acción", { exact: true }).selectOption("unresolved");
+    await page
+      .getByLabel("Motivo de la decisión")
+      .fill(
+        "Ensayo sintético: se finaliza sin evidencia suficiente para elegir un punto.",
+      );
+    await page
+      .getByRole("button", { name: "Guardar y siguiente", exact: true })
+      .click();
+    await expect(
+      page.getByText(/No quedan pendientes disponibles con estos filtros/),
+    ).toBeVisible();
+    await expect(page.locator(".review-stage")).toHaveText("Finalizado");
+    await page.screenshot({
+      path: resolve(artifacts, "ui-review-finalized.png"),
+      fullPage: true,
+    });
+  });
+  await test.step("Closed records remain inspectable and can be explicitly reopened and released", async () => {
+    await page
+      .getByRole("button", { name: "Tomar revisión", exact: true })
+      .click();
+    await expect(page.getByLabel("Acción", { exact: true })).toHaveValue(
+      "reopen",
+    );
+    await page
+      .getByLabel("Motivo de la decisión")
+      .fill(
+        "Ensayo sintético: se solicita una verificación adicional documentada.",
+      );
+    await page
+      .getByRole("button", { name: "Registrar decisión", exact: true })
+      .click();
+    await expect(page.locator(".review-stage")).toHaveText("Pendiente");
+    await page
+      .getByRole("button", { name: "Tomar revisión", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Volver y liberar reserva", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", {
+        name: "Revisión de ubicaciones",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.getByText("Sin reserva", { exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 400, height: 900 });
+    await page.screenshot({
+      path: resolve(artifacts, "ui-review-mobile.png"),
+      fullPage: true,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.getByRole("button", { name: /Finalizados: 1/ }).click();
+    await expect(
+      page.getByRole("link", { name: "Examinar", exact: true }),
+    ).toHaveCount(1);
+    await page.getByRole("link", { name: "Examinar", exact: true }).click();
+    await expect(page.locator(".review-stage")).toHaveText("Finalizado");
+    await expect(
+      page.getByRole("heading", { name: "Historial de decisiones" }),
+    ).toBeVisible();
+    expect(browserErrors).toEqual([]);
+  });
+});
 
 test("synthetic operation: import, process, review, export and mobile navigation", async ({
   page,

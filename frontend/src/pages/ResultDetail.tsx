@@ -1,6 +1,11 @@
-import { lazy, Suspense, useState, type FormEvent } from "react";
+import { lazy, Suspense, useEffect, useState, type FormEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import {
   ArrowLeft,
   Check,
@@ -12,6 +17,13 @@ import {
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { date, displayValue, label } from "../lib/format";
+import {
+  nextReviewParams,
+  reservationIsLive,
+  reviewBuckets,
+  reviewReason,
+  validReviewReturn,
+} from "../lib/review";
 import type { LocationResult } from "../types";
 import {
   Badge,
@@ -35,11 +47,20 @@ const precisions = [
 ];
 export function ResultDetail() {
   const { id } = useParams();
+  return <ResultRecord key={id} />;
+}
+function ResultRecord() {
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
-  const [success, setSuccess] = useState("");
+  const [success, setSuccess] = useState(location.state?.reviewNotice ?? "");
+  const [nextEmpty, setNextEmpty] = useState(false);
+  const [clock, setClock] = useState(Date.now());
   const [action, setAction] = useState("accept_candidate");
   const [candidate, setCandidate] = useState("");
   const [latitude, setLatitude] = useState("");
@@ -52,6 +73,56 @@ export function ResultDetail() {
     queryKey: ["result", id],
     queryFn: () => request<LocationResult>(`/results/${id}`),
   });
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 15000);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (!query.data) return;
+    setAddress(
+      query.data.location_normalized || query.data.location_original || "",
+    );
+    setAction(
+      query.data.review_status === "CLOSED"
+        ? "reopen"
+        : query.data.candidates?.length
+          ? "accept_candidate"
+          : query.data.location_normalized
+            ? "address_only"
+            : "unresolved",
+    );
+  }, [query.data?.id]);
+  const back = validReviewReturn(
+    searchParams.get("back"),
+    query.data?.run_id ?? "",
+  );
+  async function invalidate() {
+    await Promise.all(
+      [
+        "result",
+        "results",
+        "review-queue",
+        "review-summary",
+        "dashboard",
+        "run",
+        "runs",
+      ].map((key) => client.invalidateQueries({ queryKey: [key] })),
+    );
+  }
+  async function release(destination?: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      if (query.data?.review_owner === user?.id)
+        await post(`/results/${id}/release`);
+      await invalidate();
+      if (destination) navigate(destination);
+    } catch (error) {
+      setError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function claim() {
     setBusy(true);
     setError(null);
@@ -74,6 +145,11 @@ export function ResultDetail() {
     setBusy(true);
     setError(null);
     setSuccess("");
+    setNextEmpty(false);
+    const openNext =
+      (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") ===
+      "next";
+    let saved = false;
     try {
       const payload: Record<string, unknown> = {
         expected_revision: query.data.revision,
@@ -89,14 +165,50 @@ export function ResultDetail() {
       }
       if (action === "address_only") payload.address = address;
       await post<LocationResult>(`/results/${id}/decisions`, payload);
+      saved = true;
       setSuccess(
         "Decisión registrada. La revisión anterior se conserva en el historial.",
       );
       setReason("");
-      await client.invalidateQueries({ queryKey: ["result", id] });
-      await client.invalidateQueries({ queryKey: ["results"] });
+      setEvidence("");
+      setCandidate("");
+      setLatitude("");
+      setLongitude("");
+      setPrecision("COORDENADA");
+      setAction(
+        action === "reopen"
+          ? query.data.candidates?.length
+            ? "accept_candidate"
+            : query.data.location_normalized
+              ? "address_only"
+              : "unresolved"
+          : "reopen",
+      );
+      await invalidate();
+      if (openNext) {
+        const next = await request<{ item: LocationResult | null }>(
+          `/review/next?${nextReviewParams(back, query.data.run_id, id!)}`,
+        );
+        if (next.item)
+          navigate(
+            `/results/${next.item.id}?back=${encodeURIComponent(back)}`,
+            {
+              state: {
+                reviewNotice:
+                  "Decisión anterior registrada. Examina este registro antes de tomar su revisión.",
+              },
+            },
+          );
+        else setNextEmpty(true);
+      }
     } catch (e) {
-      setError(e);
+      setError(
+        saved
+          ? new Error(
+              `La decisión se guardó, pero no se pudo abrir el siguiente registro. ${e instanceof Error ? e.message : "Vuelve a la bandeja para continuar."}`,
+            )
+          : e,
+      );
       await client.invalidateQueries({ queryKey: ["result", id] });
     } finally {
       setBusy(false);
@@ -106,24 +218,100 @@ export function ResultDetail() {
   if (query.isError) return <ErrorNotice error={query.error} />;
   const r = query.data;
   const canReview = ["admin", "reviewer"].includes(user?.role ?? "");
+  const canManage = ["admin", "operator"].includes(user?.role ?? "");
   const claimed =
     !!r.review_owner &&
     [user?.id, user?.username].includes(r.review_owner) &&
-    !!r.review_expires_at &&
-    Date.parse(r.review_expires_at) > Date.now();
+    reservationIsLive(r.review_expires_at, clock);
   const candidates = r.candidates ?? [];
+  const reservedByOther =
+    !!r.review_owner &&
+    r.review_owner !== user?.id &&
+    reservationIsLive(r.review_expires_at, clock);
+  const blocked = ["needs_reference", "technical"].includes(r.review_bucket);
   return (
     <>
-      <Link className="back-link" to={`/runs/${r.run_id}`}>
+      <button
+        className="back-link plain-button"
+        disabled={busy}
+        onClick={() => void release(back)}
+      >
         <ArrowLeft size={16} aria-hidden="true" />
-        Volver al procesamiento
-      </Link>
+        {claimed
+          ? "Volver y liberar reserva"
+          : back.startsWith("/review")
+            ? "Volver a la bandeja"
+            : "Volver al procesamiento"}
+      </button>
       <PageHeader
         eyebrow={`UBICACIÓN · REVISIÓN ${r.revision}`}
         title={r.complaint_id || "Ubicación sin identificador"}
         description={`${r.source_row_count ?? 0} filas de origen vinculadas · UBIGEO ${r.ubigeo || "no disponible"}`}
         actions={<Badge value={r.resolution} />}
       />
+      <div className="record-context">
+        <span
+          className={`review-stage ${r.review_status === "CLOSED" ? "closed" : ""}`}
+        >
+          {r.review_status === "CLOSED" ? "Finalizado" : "Pendiente"}
+        </span>
+        <span>
+          {r.review_bucket !== "none"
+            ? reviewBuckets[r.review_bucket]?.label
+            : "La decisión queda preservada en el historial"}
+        </span>
+        <button
+          className="text-link plain-button"
+          disabled={busy}
+          onClick={() =>
+            void release(`/review?run_id=${r.run_id}&bucket=all&stage=open`)
+          }
+        >
+          Ver pendientes de esta ejecución
+        </button>
+      </div>
+      {r.review_bucket === "needs_reference" && (
+        <Notice>
+          Falta una referencia evaluable. La vía principal es incorporar una
+          fuente documentada y crear un nuevo procesamiento con ella; revisar
+          uno por uno no reemplaza ese catálogo.
+          <div className="button-row">
+            <button
+              className="text-link plain-button"
+              onClick={() => void release("/references")}
+              disabled={busy}
+            >
+              Ver catálogos
+            </button>
+            {canManage ? (
+              <button
+                className="text-link plain-button"
+                onClick={() => void release(`/runs/${r.run_id}?tab=reprocess`)}
+                disabled={busy}
+              >
+                Preparar nuevo procesamiento
+              </button>
+            ) : (
+              <span>
+                Solicita a un operador que prepare el nuevo procesamiento.
+              </span>
+            )}
+          </div>
+        </Notice>
+      )}
+      {r.review_bucket === "needs_data" && (
+        <Notice>
+          Esta ubicación necesita información adicional de la fuente. Conservar
+          la dirección o cerrar sin punto exige una conclusión documentada; no
+          se completan coordenadas por suposición.
+        </Notice>
+      )}
+      {r.review_bucket === "technical" && (
+        <Notice>
+          Hay una limitación técnica del procesamiento. Consulta la ejecución y
+          su configuración antes de adoptar una decisión espacial.
+        </Notice>
+      )}
       <div className="detail-grid">
         <div className="stack">
           <section className="panel form-panel">
@@ -159,7 +347,7 @@ export function ResultDetail() {
                 <strong>{label(r.product)}</strong>
               </div>
             </div>
-            <p className="reason">{r.reason}</p>
+            <p className="reason">{reviewReason(r.reason)}</p>
             <div className="coordinate-row">
               <span>
                 Latitud <strong>{r.latitude ?? "—"}</strong>
@@ -194,15 +382,25 @@ export function ResultDetail() {
                       Puntaje técnico<strong>{c.score}</strong>
                       <small>No es probabilidad</small>
                     </div>
-                    <ul className="evidence-list">
+                    <ul
+                      className="evidence-list"
+                      aria-label="Evidencia del candidato"
+                    >
                       {c.evidence.map((e, i) => (
-                        <li key={i}>{displayValue(e)}</li>
+                        <li key={i}>
+                          {typeof e === "string"
+                            ? reviewReason(e)
+                            : displayValue(e)}
+                        </li>
                       ))}
                     </ul>
                     {canReview && (
                       <button
                         type="button"
                         className="button secondary"
+                        disabled={
+                          r.review_status === "CLOSED" || reservedByOther
+                        }
                         onClick={() => {
                           setCandidate(c.id);
                           setAction("accept_candidate");
@@ -266,6 +464,7 @@ export function ResultDetail() {
                 latitude={r.latitude}
                 longitude={r.longitude}
                 candidates={candidates}
+                selectedCandidateId={candidate}
               />
             </Suspense>
           </section>
@@ -279,33 +478,58 @@ export function ResultDetail() {
             </div>
             <ErrorNotice error={error} />
             {success && <Success>{success}</Success>}
+            {nextEmpty && (
+              <Notice>
+                No quedan pendientes disponibles con estos filtros. Puedes
+                volver a la bandeja para consultar reservas vigentes, otros
+                motivos o los finalizados.
+              </Notice>
+            )}
             {!canReview ? (
               <Notice>
                 Tu rol permite consultar esta ubicación. La decisión requiere un
                 revisor o administrador.
               </Notice>
             ) : (
-              <>
+              <details
+                className="review-decision-disclosure"
+                open={!blocked || claimed}
+              >
+                <summary>
+                  {blocked
+                    ? "Decisión manual excepcional"
+                    : "Registrar una decisión"}
+                </summary>
                 {!claimed ? (
                   <>
                     <Notice>
                       {r.review_owner
-                        ? `Esta ubicación está asignada a ${r.review_owner}. Vigencia: ${date(r.review_expires_at)}.`
+                        ? `Esta ubicación tiene una reserva ${reservedByOther ? "de otro revisor" : "vencida"}. Vigencia: ${date(r.review_expires_at)}.`
                         : "Toma la ubicación para reservarla durante la revisión."}
                     </Notice>
                     <button
                       className="button primary full"
                       onClick={() => void claim()}
-                      disabled={busy}
+                      disabled={busy || reservedByOther}
                     >
                       <LockKeyhole size={16} aria-hidden="true" />
-                      Tomar revisión
+                      {reservedByOther
+                        ? "Reservada por otro revisor"
+                        : "Tomar revisión"}
                     </button>
                   </>
                 ) : (
                   <form className="decision-form" onSubmit={submit}>
                     <div className="claimed">
                       Asignada a ti · hasta {date(r.review_expires_at)}
+                      <button
+                        type="button"
+                        className="plain-button inline-link"
+                        disabled={busy}
+                        onClick={() => void release()}
+                      >
+                        Liberar reserva
+                      </button>
                     </div>
                     <label>
                       Acción
@@ -314,19 +538,38 @@ export function ResultDetail() {
                         value={action}
                         onChange={(e) => setAction(e.target.value)}
                       >
-                        <option value="accept_candidate">
+                        <option
+                          value="accept_candidate"
+                          disabled={
+                            !candidates.length || r.review_status === "CLOSED"
+                          }
+                        >
                           Aceptar un candidato
                         </option>
-                        <option value="manual_point">
+                        <option
+                          value="manual_point"
+                          disabled={r.review_status === "CLOSED"}
+                        >
                           Registrar punto con evidencia
                         </option>
-                        <option value="address_only">
+                        <option
+                          value="address_only"
+                          disabled={r.review_status === "CLOSED"}
+                        >
                           Conservar dirección sin punto
                         </option>
-                        <option value="unresolved">
-                          Mantener sin resolver
+                        <option
+                          value="unresolved"
+                          disabled={r.review_status === "CLOSED"}
+                        >
+                          Finalizar sin punto resuelto
                         </option>
-                        <option value="reopen">Reabrir revisión</option>
+                        <option
+                          value="reopen"
+                          disabled={r.review_status !== "CLOSED"}
+                        >
+                          Reabrir revisión
+                        </option>
                       </select>
                     </label>
                     {action === "accept_candidate" && (
@@ -430,19 +673,33 @@ export function ResultDetail() {
                     </label>
                     <button
                       className="button primary full"
+                      type="submit"
+                      value="save"
                       disabled={
                         busy || (action === "accept_candidate" && !candidate)
                       }
                     >
                       {busy ? "Guardando…" : "Registrar decisión"}
                     </button>
+                    {r.review_status === "OPEN" && (
+                      <button
+                        className="button secondary full"
+                        type="submit"
+                        value="next"
+                        disabled={
+                          busy || (action === "accept_candidate" && !candidate)
+                        }
+                      >
+                        Guardar y siguiente
+                      </button>
+                    )}
                     <small className="field-hint">
                       Se conservará una nueva revisión. Los conflictos de
                       edición se validan antes de guardar.
                     </small>
                   </form>
                 )}
-              </>
+              </details>
             )}
           </section>
         </div>

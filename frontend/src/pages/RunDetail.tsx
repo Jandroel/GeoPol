@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { ArrowLeft, RotateCcw, Square } from "lucide-react";
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
@@ -15,14 +20,21 @@ import {
 } from "../components/ui";
 import { ResultsTable } from "../components/ResultsTable";
 import { ExportPanel } from "../components/ExportPanel";
+import { ReprocessPanel } from "../components/ReprocessPanel";
 export function RunDetail() {
   const { id } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const client = useQueryClient();
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState("results");
+  const tab = ["results", "exports", "config", "reprocess"].includes(
+    searchParams.get("tab") ?? "",
+  )
+    ? searchParams.get("tab")!
+    : "results";
+  const setTab = (value: string) => setSearchParams({ tab: value });
   const query = useQuery({
     queryKey: ["run", id],
     queryFn: () => request<Run>(`/runs/${id}`),
@@ -59,6 +71,53 @@ export function RunDetail() {
         actions={<Badge value={run.status} />}
       />
       <ErrorNotice error={error || run.error} />
+      {run.superseded_by && (
+        <Notice>
+          Esta ejecución se conserva como histórico y ya no aparece en la
+          bandeja vigente.{" "}
+          <Link className="inline-link" to={`/runs/${run.superseded_by}`}>
+            Abrir la ejecución que la sustituye
+          </Link>
+          .
+        </Notice>
+      )}
+      {run.parent_run_id && (
+        <Notice>
+          Este procesamiento procede de una ejecución anterior.{" "}
+          <Link className="inline-link" to={`/runs/${run.parent_run_id}`}>
+            Consultar su historial y decisiones
+          </Link>
+          .
+        </Notice>
+      )}
+      {!active && !run.reference_id && (
+        <Notice>
+          El procesamiento terminó sin un catálogo de referencia. Consulta los
+          motivos de atención antes de revisar registros individualmente.
+          {canManage && (
+            <button
+              className="text-link plain-button"
+              onClick={() => setTab("reprocess")}
+            >
+              Seleccionar referencia y preparar reproceso
+            </button>
+          )}
+        </Notice>
+      )}
+      {!active && (
+        <div className="run-review-link">
+          <Link
+            className="button secondary"
+            to={`/review?run_id=${run.id}&bucket=actionable&stage=open${run.superseded_by ? "&include_superseded=true" : ""}`}
+          >
+            Abrir revisión de esta ejecución
+          </Link>
+          <span>
+            Los bloqueos de referencia, datos y atención técnica se muestran por
+            separado.
+          </span>
+        </div>
+      )}
       {active && (
         <Notice>
           El trabajo se ejecuta en el servidor. Puedes cerrar esta ventana y
@@ -133,10 +192,10 @@ export function RunDetail() {
                 <button
                   className="button secondary"
                   disabled={busy}
-                  onClick={() => void action("reprocess")}
+                  onClick={() => setTab("reprocess")}
                 >
                   <RotateCcw size={15} aria-hidden="true" />
-                  Reprocesar
+                  Preparar reproceso
                 </button>
               </>
             )}
@@ -152,6 +211,9 @@ export function RunDetail() {
           ["results", "Resultados"],
           ["exports", "Exportaciones"],
           ["config", "Configuración"],
+          ...(canManage && !active
+            ? [["reprocess", "Nuevo procesamiento"]]
+            : []),
         ].map(([key, title]) => (
           <button
             role="tab"
@@ -175,6 +237,8 @@ export function RunDetail() {
           />
         ) : tab === "exports" ? (
           <ExportPanel runId={id!} />
+        ) : tab === "reprocess" && canManage && !active ? (
+          <ReprocessPanel key={run.id} run={run} />
         ) : (
           <section className="panel form-panel">
             <h2>Configuración preservada</h2>

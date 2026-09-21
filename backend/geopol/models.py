@@ -88,6 +88,8 @@ class Run(Base):
     name: Mapped[str] = mapped_column(String(200))
     status: Mapped[str] = mapped_column(String(32), default="QUEUED", index=True)
     reference_id: Mapped[str | None] = mapped_column(ForeignKey("catalogs.id"))
+    parent_run_id: Mapped[str | None] = mapped_column(ForeignKey("runs.id"))
+    superseded_by: Mapped[str | None] = mapped_column(ForeignKey("runs.id"))
     rules_version: Mapped[str] = mapped_column(String(32), default=RULES_VERSION)
     config: Mapped[dict] = mapped_column(JSON, default=dict)
     created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
@@ -126,12 +128,15 @@ class Location(Base):
     attempts: Mapped[list] = mapped_column(JSON, default=list)
     revision: Mapped[int] = mapped_column(Integer, default=0)
     manual: Mapped[bool] = mapped_column(Boolean, default=False)
+    review_status: Mapped[str] = mapped_column(String(12), default="OPEN", server_default="OPEN")
+    review_bucket: Mapped[str] = mapped_column(String(24), default="none", server_default="none")
     review_owner: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
     review_expires_at: Mapped[float | None] = mapped_column(Float)
     __table_args__ = (
         UniqueConstraint("run_id", "unit_key"),
         Index("ix_location_queue", "run_id", "resolution", "id"),
         Index("ix_location_complaint", "run_id", "complaint_id"),
+        Index("ix_location_review_queue", "run_id", "review_status", "review_bucket", "id"),
     )
 
 

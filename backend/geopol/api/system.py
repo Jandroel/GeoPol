@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .. import __version__
 from ..db import get_db
 from ..domain import RULES_VERSION
+from ..migrations import SCHEMA_VERSION
 from ..models import (
     Audit,
     Heartbeat,
@@ -19,7 +20,7 @@ from ..models import (
 )
 from ..security import current_user
 from ..serialization import iso, run_dict
-from .common import REVIEW_STATUSES, administrator, page_result
+from .common import FINISHED, REVIEW_STATUSES, administrator, page_result
 
 router = APIRouter()
 
@@ -27,8 +28,11 @@ router = APIRouter()
 @router.get("/api/health")
 def health(db: Session = Depends(get_db)):
     try:
-        db.execute(text("SELECT version FROM schema_versions WHERE version = 1")).scalar_one()
-        return {"status": "ok", "version": __version__, "database": "ok"}
+        db.execute(
+            text("SELECT version FROM schema_versions WHERE version = :version"),
+            {"version": SCHEMA_VERSION},
+        ).scalar_one()
+        return {"status": "ok", "version": __version__, "database": "ok", "schema_version": SCHEMA_VERSION}
     except SQLAlchemyError:
         raise HTTPException(503, "Base de datos no disponible o sin inicializar")
 
@@ -41,18 +45,31 @@ def worker_health(db: Session = Depends(get_db), _: User = Depends(current_user)
 
 @router.get("/api/dashboard")
 def dashboard(db: Session = Depends(get_db), _: User = Depends(current_user)):
-    counts = dict(db.execute(select(Location.resolution, func.count()).group_by(Location.resolution)).all())
+    current = (Run.superseded_by.is_(None), Run.status.in_(FINISHED))
+    locations = select(Location).join(Run, Location.run_id == Run.id).where(*current)
+    counts = dict(
+        db.execute(
+            locations.with_only_columns(Location.resolution, func.count()).group_by(Location.resolution)
+        ).all()
+    )
     totals = db.execute(
         select(
-            func.count(Run.id),
             func.coalesce(func.sum(Run.source_rows), 0),
             func.coalesce(func.sum(Run.location_units), 0),
-        )
+        ).where(*current)
     ).one()
     return {
-        "runs": totals[0],
-        "source_rows": totals[1],
-        "location_units": totals[2],
+        "runs": db.scalar(select(func.count()).select_from(Run)),
+        "source_rows": totals[0],
+        "location_units": totals[1],
+        "review_open": db.scalar(
+            locations.with_only_columns(func.count()).where(Location.review_status == "OPEN")
+        ),
+        "review_actionable": db.scalar(
+            locations.with_only_columns(func.count()).where(
+                Location.review_status == "OPEN", Location.review_bucket == "actionable"
+            )
+        ),
         "review_required": counts.get("REVISION_REQUERIDA", 0),
         "accepted": sum(counts.get(k, 0) for k in ("ACEPTADO_AUTOMATICO", "ACEPTADO_MANUAL")),
         "unresolved": sum(counts.get(k, 0) for k in REVIEW_STATUSES - {"REVISION_REQUERIDA"}),
@@ -104,15 +121,15 @@ def rules(_: User = Depends(current_user)):
             },
             {
                 "name": "Coincidencia y ambigüedad",
-                "description": "Puerta exacta, coordenadas corroboradas y cruces explícitos pueden aceptarse. Coincidencias aproximadas, múltiples candidatos, cuadras y sitios requieren revisión.",
+                "description": "Puerta exacta, coordenadas corroboradas y cruces explícitos pueden aceptarse. Las evidencias exactas del mismo punto, método y precisión conservan sus procedencias. Coincidencias aproximadas, candidatos distintos, cuadras y sitios requieren revisión.",
             },
             {
                 "name": "Revisión y exportación",
-                "description": "Asignación temporal, control de versión y evidencia manual. Exportación por instantánea; registros no resueltos conservados con coordenadas vacías.",
+                "description": "Bandeja por acción necesaria, reserva temporal, decisión y siguiente caso. Una decisión manual finaliza la tarea hasta su reapertura explícita. El reproceso conserva la historia y reemplaza la versión vigente solo al completarse. Exportación por instantánea; casos sin resolver conservados con coordenadas vacías.",
             },
         ],
         "limitations": [
-            "No se ha suministrado cartografía oficial INEI. Importe una referencia validada antes de evaluar métodos que la requieran.",
+            "Los métodos dependientes de cartografía requieren un catálogo validado y seleccionado para la ejecución; los límites distritales por sí solos no geocodifican direcciones sin coordenadas.",
             "Las bandas de evidencia no representan probabilidades calibradas.",
             "El mapa local no usa una base cartográfica pública ni geocodificadores externos.",
             "Un catálogo admite hasta 24 MiB y 100 000 entidades; búsqueda difusa acotada a 500 candidatos territoriales, con revisión obligatoria si se trunca.",

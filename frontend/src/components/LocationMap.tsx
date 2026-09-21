@@ -7,10 +7,12 @@ export default function LocationMap({
   latitude,
   longitude,
   candidates,
+  selectedCandidateId,
 }: {
   latitude: number | null;
   longitude: number | null;
   candidates: Candidate[];
+  selectedCandidateId?: string;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
@@ -37,7 +39,10 @@ export default function LocationMap({
               (c) =>
                 Number.isFinite(c.latitude) && Number.isFinite(c.longitude),
             )
-            .map((c) => ({ ...c, color: "#be841f" })),
+            .map((c) => ({
+              ...c,
+              color: c.id === selectedCandidateId ? "#137d76" : "#be841f",
+            })),
         ];
         try {
           const map = new Map({
@@ -96,7 +101,7 @@ export default function LocationMap({
       disposed = true;
       cleanup?.();
     };
-  }, [latitude, longitude, candidates]);
+  }, [latitude, longitude, candidates, selectedCandidateId]);
   return (
     <div className="location-map">
       <div

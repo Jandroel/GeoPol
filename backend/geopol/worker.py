@@ -34,6 +34,7 @@ from .models import (
     uid,
 )
 from .serialization import add_revision, audit, iso
+from .review_workflow import classify_review
 from .storage import checksum, storage_file
 
 logger = logging.getLogger("geopol.worker")
@@ -186,6 +187,25 @@ def ingest_batch(run_id, batch, job_id, token):
         db.commit()
 
 
+def supersede_parent(db, run):
+    """Publish a successful reprocessing run without hiding a newer successful child."""
+    if not run.parent_run_id or run.status not in {"COMPLETED", "COMPLETED_WITH_ISSUES"}:
+        return
+    # The parent lock serializes concurrent PostgreSQL children. SQLite's lease
+    # renewal already holds its write lock for this completion transaction.
+    parent = db.scalar(select(Run).where(Run.id == run.parent_run_id).with_for_update())
+    if parent is None:
+        return
+    current = db.get(Run, parent.superseded_by) if parent.superseded_by else None
+    if current is None or (run.created_at, run.id) > (current.created_at, current.id):
+        parent.superseded_by = run.id
+        if current is not None:
+            current.superseded_by = run.id
+    elif current.id != run.id:
+        # A late older sibling remains history, never a second current queue.
+        run.superseded_by = current.id
+
+
 def process_run(run_id, job_id, token):
     with SessionLocal() as db:
         renew(db, job_id, token)
@@ -300,6 +320,7 @@ def process_run(run_id, job_id, token):
             if not items:
                 run.status = "COMPLETED_WITH_ISSUES" if run.issue_rows else "COMPLETED"
                 run.finished_at = time.time()
+                supersede_parent(db, run)
                 audit(
                     db,
                     "worker",
@@ -353,6 +374,9 @@ def process_run(run_id, job_id, token):
                     if key in resolved:
                         setattr(item, key, resolved[key])
                 item.normalized, item.revision = normalized, 1
+                item.review_status, item.review_bucket = classify_review(
+                    item.resolution, item.manual, item.candidates, item.reason
+                )
                 add_revision(db, item, "worker", "automatic_resolution")
                 run.processed_units += 1
                 result_bytes += len(json.dumps(resolved, ensure_ascii=False).encode("utf-8"))
@@ -362,7 +386,7 @@ def process_run(run_id, job_id, token):
             db.commit()
 
 
-EXPORT_COLUMNS = (
+EXPORT_COLUMNS_V1 = (
     "id",
     "complaint_id",
     "location_original",
@@ -379,6 +403,7 @@ EXPORT_COLUMNS = (
     "revision",
     "source_row_count",
 )
+EXPORT_COLUMNS = EXPORT_COLUMNS_V1 + ("review_status", "review_bucket")
 
 
 def safe_cell(value, safe):
@@ -410,7 +435,8 @@ def process_export(export_id, job_id, token):
     row_count = 0
     with path.open("w", encoding="utf-8-sig", newline="") as stream:
         writer = csv.writer(stream)
-        headers = [f"GEOPOL_{x}" for x in EXPORT_COLUMNS]
+        columns = EXPORT_COLUMNS if manifest.get("schema_version", 1) >= 2 else EXPORT_COLUMNS_V1
+        headers = [f"GEOPOL_{x}" for x in columns]
         if profile == "source_rows":
             headers = ["SOURCE_ORDINAL", "SOURCE_ISSUE"] + source_columns + headers
         writer.writerow([safe_cell(header, safe) for header in headers])
@@ -437,7 +463,7 @@ def process_export(export_id, job_id, token):
                         values = (
                             [source_row.ordinal, source_row.issue]
                             + [source_row.raw.get(k) for k in source_columns]
-                            + [(snapshot or {}).get(k) for k in EXPORT_COLUMNS]
+                            + [(snapshot or {}).get(k) for k in columns]
                         )
                         writer.writerow([safe_cell(v, safe) for v in values])
                         cursor = source_row.ordinal
@@ -451,7 +477,7 @@ def process_export(export_id, job_id, token):
                         .limit(settings.batch_size)
                     ).yield_per(1)
                     for item in rows:
-                        writer.writerow([safe_cell(item.snapshot.get(k), safe) for k in EXPORT_COLUMNS])
+                        writer.writerow([safe_cell(item.snapshot.get(k), safe) for k in columns])
                         cursor = item.location_id
                         batch_count += 1
                     rows.close()

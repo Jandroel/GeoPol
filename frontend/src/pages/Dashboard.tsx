@@ -32,7 +32,7 @@ export function Dashboard() {
   );
   const segments = [
     { name: "Aceptadas", value: d.accepted, color: "var(--teal)" },
-    { name: "Por revisar", value: d.review_required, color: "var(--amber)" },
+    { name: "En evaluación", value: d.review_required, color: "var(--amber)" },
     { name: "Sin resolver", value: d.unresolved, color: "var(--slate)" },
     { name: "Otros estados", value: other, color: "var(--border)" },
   ];
@@ -53,20 +53,21 @@ export function Dashboard() {
       />
       <div className="scope-label">
         <span className="tiny-dot" />
-        Acumulado de todos los procesamientos · Datos del servidor
+        Ubicaciones de ejecuciones terminadas vigentes · Historial de
+        procesamientos completo
       </div>
       <div className="stats-grid">
         {[
           {
             title: "Procesamientos",
             value: d.runs,
-            subtitle: "Historial de archivos",
+            subtitle: "Historial completo",
             icon: Files,
           },
           {
             title: "Filas de origen",
             value: d.source_rows,
-            subtitle: "Registros preservados",
+            subtitle: "En ejecuciones vigentes",
             icon: Layers3,
           },
           {
@@ -76,9 +77,9 @@ export function Dashboard() {
             icon: MapPin,
           },
           {
-            title: "Requieren revisión",
-            value: d.review_required,
-            subtitle: "Decisiones por documentar",
+            title: "Listas para revisar",
+            value: d.review_actionable,
+            subtitle: "Pendientes con evidencia para decidir",
             icon: ClipboardCheck,
           },
         ].map((s, i) => (
@@ -100,7 +101,7 @@ export function Dashboard() {
           <div className="panel-heading">
             <div>
               <h2>Resolución de ubicaciones</h2>
-              <p>Estado acumulado de las unidades procesadas</p>
+              <p>Clasificación de ubicaciones vigentes</p>
             </div>
             <CheckCheck size={22} className="muted" aria-hidden="true" />
           </div>
@@ -146,8 +147,9 @@ export function Dashboard() {
             se construye al revisar.
           </h2>
           <p>
-            Contrasta candidatos, documenta tu decisión y conserva la historia
-            de cada ubicación.
+            {number(d.review_open)} pendientes en total. La bandeja distingue
+            decisiones accionables, referencias pendientes y datos por
+            completar.
           </p>
           <Link to="/review" className="button light">
             Abrir bandeja de revisión

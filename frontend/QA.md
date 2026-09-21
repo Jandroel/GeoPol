@@ -15,7 +15,9 @@ La prueba `e2e/workspace.spec.ts` ejecuta consecutivamente:
 7. Vista de 400 × 900 px, ausencia de desplazamiento horizontal global y navegación del menú mediante Tab, Enter y Escape.
 8. Ausencia de errores de consola/excepciones del navegador y de solicitudes HTTP a orígenes externos.
 
-El escenario crea un catálogo y un lote nuevos en cada ejecución. Se debe usar una base de pruebas y una cuenta con permisos administrativos o equivalentes para ejecutar todos los pasos.
+Un segundo escenario comprueba el flujo de revisión con dos ubicaciones sintéticas: procesamiento sin catálogo, categoría de referencia pendiente, reproceso con un catálogo explícito, conservación histórica del padre, aceptación y avance sin reserva automática, cierre sin punto, reapertura, liberación explícita y consulta de finalizados. Verifica también que el formulario no conserva el candidato ni el motivo anteriores y que la bandeja funciona a 400 × 900 px.
+
+Los escenarios crean catálogos y lotes nuevos en cada ejecución. Se debe usar una base de pruebas y una cuenta con permisos administrativos o equivalentes para ejecutar todos los pasos.
 
 ```powershell
 npm ci
@@ -23,6 +25,7 @@ npx playwright install chromium
 $env:GEOPOL_E2E_URL = 'http://127.0.0.1:5174'
 $env:GEOPOL_E2E_USER = '<usuario de pruebas>'
 $env:GEOPOL_E2E_PASSWORD = '<contraseña de pruebas>'
+$env:GEOPOL_E2E_ARTIFACTS = '<carpeta privada de capturas sintéticas>'
 npm run test:e2e
 ```
 
@@ -30,13 +33,16 @@ Antes de ejecutar se deben iniciar API, trabajador y Vite con la configuración 
 
 ## Evidencia local
 
-Las capturas se escriben en `.local/` del proyecto y se excluyen de Git:
+Actualización del 21 de septiembre de 2026: 11 pruebas Vitest, build y formato aprobados. Los dos escenarios Chromium pasaron en 47,1 segundos contra un entorno sintético temporal con API en 18001 y frontend en 15175. El runner privado mantuvo credenciales en memoria, desactivó trazas y cerró sus procesos al terminar; no modificó la base del usuario. La comprobación de acceso y bandeja en el despliegue local también pasó sin errores del navegador ni desbordamiento horizontal a 400 px.
+
+Las capturas se escriben en `GEOPOL_E2E_ARTIFACTS`, si se configura, o en `.local/` del proyecto; deben excluirse de Git:
 
 - `ui-login.png`: formulario de acceso.
 - `ui-dashboard.png`: vista general a 1440 × 1000 px.
 - `ui-run.png`: procesamiento finalizado con resultados.
 - `ui-review.png`: candidatos y marcadores del visor local.
 - `ui-mobile.png`: dashboard móvil a 400 × 900 px.
+- `ui-review-prerequisites.png`, `ui-review-queue.png`, `ui-review-finalized.png` y `ui-review-mobile.png`: separación de bloqueos, bandeja accionable, decisión finalizada y consulta móvil del nuevo flujo.
 
 Playwright genera su informe en `frontend/playwright-report/`. En caso de fallo conserva traza y captura en `frontend/test-results/`; estos archivos también se excluyen de Git y pueden contener la sesión sintética del test.
 

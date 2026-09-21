@@ -14,13 +14,13 @@ Backend: FastAPI + SQLAlchemy, persistent SQL job queue, dedicated worker. Postg
 
 POST /auth/login {username,password} -> {token,user:{id,username,role}}. GET /auth/me -> user. POST /auth/logout -> {ok}.
 
-GET /dashboard -> {runs,source_rows,location_units,review_required,accepted,unresolved,recent_runs:[run]}. Counts across history labelled.
+GET /dashboard -> {runs,source_rows,location_units,review_required,review_open,review_actionable,accepted,unresolved,recent_runs:[run]}. runs and recent_runs retain history; other counts include only completed, current runs (superseded_by null). review_required is geographic resolution; review_open and review_actionable count pending tasks.
 
 POST /uploads {filename,size} -> upload {id,filename,size,offset,status}. GET /uploads/{id} same. PATCH /uploads/{id} binary body, header Upload-Offset, bounded chunk <=8MiB -> upload. POST /uploads/{id}/complete -> upload plus sha256, profile. Profile uses header/bounded sample only. Bad sheet can be selected at run creation.
 
 GET /uploads/{id}/profile?sheet=&delimiter=&encoding= -> refreshed profile for a completed upload, scoped to its owner/admin. GET /uploads/{id}/download -> immutable original with permission check and audit. Source columns for exports follow the selected worksheet and parsing configuration.
 
-POST /runs {upload_id,name,sheet?,mapping?:{canonical:source column},delimiter?:',',encoding?:'utf-8-sig',reference_id?:string,crs?:'EPSG:4326'} -> run. GET /runs -> list. GET /runs/{id} -> run incl counters/status/error. POST /runs/{id}/cancel -> run. POST /runs/{id}/retry -> run (resume failed/cancelled same rules). POST /runs/{id}/reprocess -> new run, same file/config independent results.
+POST /runs {upload_id,name,sheet?,mapping?:{canonical:source column},delimiter?:',',encoding?:'utf-8-sig',reference_id?:string,crs?:'EPSG:4326'} -> run. GET /runs -> list. GET /runs/{id} -> run incl counters/status/error. POST /runs/{id}/cancel -> run. POST /runs/{id}/retry -> run (resume failed/cancelled same rules). POST /runs/{id}/reprocess with optional {reference_id?:string|null} -> new run, same file/config, current rules and independent results. Omit property/body to keep catalog; null clears it. Response includes parent_run_id/superseded_by. Only a successful child supersedes its parent; historical versions remain readable but not editable.
 
 run = {id,name,status,filename,created_at,started_at,finished_at,source_rows,location_units,processed_units,issue_rows,reference_id,rules_version,error,config,counts:{resolution:count}}. Status QUEUED/INGESTING/PROCESSING/COMPLETED/COMPLETED_WITH_ISSUES/FAILED/CANCELLED.
 
@@ -28,13 +28,21 @@ GET /runs/{id}/results?page=1&page_size=25&resolution=&q= -> list of result. GET
 
 POST /results/{id}/claim -> result. POST /results/{id}/decisions {expected_revision,action:'accept_candidate'|'manual_point'|'address_only'|'unresolved'|'reopen',candidate_id?,latitude?,longitude?,precision?,address?,reason,evidence?} -> result. Must claim first. Version conflict409. Keep audit and immutable revisions. Manual point evidence required. Review owner allowed admin/reviewer. GET /review? page/size/q -> list results pending review.
 
+Results also include review_status (OPEN/CLOSED), review_bucket (actionable/needs_reference/needs_data/technical/none), and candidate_count. Manual unresolved decisions close the task; reopen restores OPEN without erasing manual history. POST /results/{id}/release releases only the caller's reservation; an already free case is idempotent.
+
+GET /review filters: page/page_size/q, run_id, bucket (all/actionable/needs_reference/needs_data/technical; default all), stage (open/closed/all; default open), include_superseded (default false). Only completed runs are reviewable. GET /review/summary applies run_id/q/include_superseded and returns {open:{actionable,needs_reference,needs_data,technical},closed,total}. GET /review/next applies the same filters plus exclude_id and returns {item:result|null}; it selects only current OPEN cases, skips other reviewers' active reservations and does not claim anything. Closed-stage queries return null.
+
 GET /references -> list. POST /references multipart form fields name,version,source,file (CSV or FeatureCollection GeoJSON, finite documented catalog limit; uploaded files stay private) -> {id,name,version,source,feature_count,sha256}. GET /references/{id} -> metadata. GeoJSON properties match domain feature fields. No demo autoimport. UI separate catalogue page.
 
 POST /runs/{id}/exports {profile:'locations'|'source_rows',safe_spreadsheet:true} -> {id,status,run_id}. GET /exports/{id} -> {id,status,error,filename,row_count,sha256}. GET /exports/{id}/download -> file authenticated fetch; GET /exports/{id}/manifest -> JSON. Async snapshot export must include unresolved rows. CSV coordinates null when unresolved. Source-row export can access restricted originals for admin/operator only; analyst default location export excludes PII.
 
+New exports use manifest schema_version 2 and append GEOPOL_review_status/GEOPOL_review_bucket. Pending v1 exports retain the v1 columns. Older immutable revisions without queue state export empty values for those fields; historical snapshots are never rewritten.
+
 GET /audit?page=1&page_size=25 -> list audit {id,actor,action,entity_id,created_at,detail}; admin only. GET /rules -> {version,policies,limitations}. GET /health -> {status,version,database}.
 
 GET /health/worker -> {status,last_seen_at}, authenticated. The rule version has one canonical constant: `domain.RULES_VERSION`; a worker refuses a run created for an unavailable rules version. Source, normalized components and catalog coordinates use an explicit EPSG:4326 contract; declared conflicts require review or rejection, never an implicit reprojection.
+
+GET /health verifies migrations.SCHEMA_VERSION (currently 2) and also returns schema_version. Rule version 2026.2 adds audited numeric absence markers and strict equivalent-point consensus; approximate/conflicting points are still reviewed.
 
 ## Frontend
 

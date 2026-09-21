@@ -26,6 +26,8 @@ export interface Run {
   error?: string;
   counts: Record<string, number>;
   config: Record<string, unknown>;
+  parent_run_id?: string | null;
+  superseded_by?: string | null;
 }
 export interface Candidate {
   id: string;
@@ -62,6 +64,18 @@ export interface LocationResult {
   candidates?: Candidate[];
   history?: Record<string, unknown>[];
   source_row_count?: number;
+  review_status: "OPEN" | "CLOSED";
+  review_bucket:
+    "actionable" | "needs_reference" | "needs_data" | "technical" | "none";
+  candidate_count: number;
+}
+export interface ReviewSummary {
+  open: Record<
+    "actionable" | "needs_reference" | "needs_data" | "technical",
+    number
+  >;
+  closed: number;
+  total: number;
 }
 export interface Reference {
   id: string;
@@ -104,6 +118,8 @@ export interface Dashboard {
   source_rows: number;
   location_units: number;
   review_required: number;
+  review_open: number;
+  review_actionable: number;
   accepted: number;
   unresolved: number;
   recent_runs: Run[];

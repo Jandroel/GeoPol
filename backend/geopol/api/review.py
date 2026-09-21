@@ -2,9 +2,10 @@
 
 import math
 import time
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import or_, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -15,11 +16,51 @@ from ..models import (
     User,
 )
 from ..schemas import DecisionInput
+from ..review_workflow import classify_review
 from ..security import current_user
 from ..serialization import add_revision, audit, iso, location_dict
-from .common import FINISHED, REVIEW_STATUSES, filtered_locations, page_result, require, reviewer
+from .common import FINISHED, filtered_locations, page_result, require, reviewer
 
 router = APIRouter()
+
+BucketFilter = Literal["all", "actionable", "needs_reference", "needs_data", "technical"]
+StageFilter = Literal["open", "closed", "all"]
+
+
+def review_scope(db, run_id, q, include_superseded):
+    if run_id:
+        require(db, Run, run_id)
+    query = select(Location).join(Run, Location.run_id == Run.id).where(Run.status.in_(FINISHED))
+    if run_id:
+        query = query.where(Run.id == run_id)
+    if not include_superseded:
+        query = query.where(Run.superseded_by.is_(None))
+    return filtered_locations(query, q)
+
+
+def review_filters(query, stage, bucket):
+    if stage != "all":
+        query = query.where(Location.review_status == stage.upper())
+    if bucket != "all":
+        query = query.where(Location.review_bucket == bucket)
+    return query.order_by(None).order_by(
+        case(
+            (Location.review_bucket == "actionable", 0),
+            (Location.review_bucket == "needs_data", 1),
+            (Location.review_bucket == "needs_reference", 2),
+            else_=3,
+        ),
+        Location.id,
+    )
+
+
+def editable_run(db, item):
+    run = db.get(Run, item.run_id)
+    if run.status not in FINISHED:
+        raise HTTPException(409, "Espere a que termine el lote antes de revisarlo")
+    if run.superseded_by:
+        raise HTTPException(409, "Esta ejecución tiene una versión más reciente; revise la versión vigente")
+    return run
 
 
 @router.get("/api/review")
@@ -27,15 +68,72 @@ def review(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     q: str = Query("", max_length=100),
+    run_id: str | None = None,
+    bucket: BucketFilter = "all",
+    stage: StageFilter = "open",
+    include_superseded: bool = False,
     db: Session = Depends(get_db),
     _: User = Depends(current_user),
 ):
-    query = (
-        select(Location)
-        .join(Run, Location.run_id == Run.id)
-        .where(Location.resolution.in_(REVIEW_STATUSES), Run.status.in_(FINISHED))
+    query = review_filters(review_scope(db, run_id, q, include_superseded), stage, bucket)
+    return page_result(db, query, location_dict, page, page_size)
+
+
+@router.get("/api/review/summary")
+def review_summary(
+    run_id: str | None = None,
+    q: str = Query("", max_length=100),
+    include_superseded: bool = False,
+    db: Session = Depends(get_db),
+    _: User = Depends(current_user),
+):
+    query = review_scope(db, run_id, q, include_superseded)
+    counts = db.execute(
+        query.with_only_columns(Location.review_status, Location.review_bucket, func.count())
+        .order_by(None)
+        .group_by(Location.review_status, Location.review_bucket)
+    ).all()
+    result = {
+        "open": {"actionable": 0, "needs_reference": 0, "needs_data": 0, "technical": 0},
+        "closed": 0,
+        "total": 0,
+    }
+    for status, bucket, count in counts:
+        result["total"] += count
+        if status == "CLOSED":
+            result["closed"] += count
+        elif bucket in result["open"]:
+            result["open"][bucket] += count
+    return result
+
+
+@router.get("/api/review/next")
+def next_review(
+    run_id: str | None = None,
+    q: str = Query("", max_length=100),
+    bucket: BucketFilter = "all",
+    stage: StageFilter = "open",
+    exclude_id: str | None = None,
+    include_superseded: bool = False,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+):
+    if stage == "closed":
+        return {"item": None}
+    query = review_filters(review_scope(db, run_id, q, include_superseded), "open", bucket)
+    # Historical versions remain readable, but never become the next editable case.
+    query = query.where(
+        Run.superseded_by.is_(None),
+        or_(
+            Location.review_owner.is_(None),
+            Location.review_owner == user.id,
+            Location.review_expires_at < time.time(),
+        ),
     )
-    return page_result(db, filtered_locations(query, q), location_dict, page, page_size)
+    if exclude_id:
+        query = query.where(Location.id != exclude_id)
+    item = db.scalar(query.limit(1))
+    return {"item": location_dict(item) if item else None}
 
 
 @router.get("/api/results/{identifier}")
@@ -68,8 +166,7 @@ def get_result(identifier: str, db: Session = Depends(get_db), _: User = Depends
 @router.post("/api/results/{identifier}/claim")
 def claim_result(identifier: str, db: Session = Depends(get_db), user: User = Depends(reviewer)):
     item = require(db, Location, identifier)
-    if db.get(Run, item.run_id).status not in FINISHED:
-        raise HTTPException(409, "Espere a que termine el lote antes de revisarlo")
+    editable_run(db, item)
     now = time.time()
     changed = db.execute(
         update(Location)
@@ -91,13 +188,30 @@ def claim_result(identifier: str, db: Session = Depends(get_db), user: User = De
     return location_dict(item)
 
 
+@router.post("/api/results/{identifier}/release")
+def release_result(identifier: str, db: Session = Depends(get_db), user: User = Depends(reviewer)):
+    item = require(db, Location, identifier)
+    if item.review_owner is None:
+        return location_dict(item)
+    changed = db.execute(
+        update(Location)
+        .where(Location.id == identifier, Location.review_owner == user.id)
+        .values(review_owner=None, review_expires_at=None)
+    ).rowcount
+    if changed != 1:
+        raise HTTPException(409, "Solo puede liberar su propia asignación")
+    audit(db, user.username, "review.release", identifier)
+    db.commit()
+    db.refresh(item)
+    return location_dict(item)
+
+
 @router.post("/api/results/{identifier}/decisions")
 def decide(
     identifier: str, payload: DecisionInput, db: Session = Depends(get_db), user: User = Depends(reviewer)
 ):
     item = require(db, Location, identifier)
-    if db.get(Run, item.run_id).status not in FINISHED:
-        raise HTTPException(409, "El lote todavía no está completo")
+    editable_run(db, item)
     values = dict(
         resolution="ACEPTADO_MANUAL",
         method="MANUAL",
@@ -159,6 +273,13 @@ def decide(
         values.update(resolution="SIN_COINCIDENCIA", method=None, evidence_band="SIN_EVIDENCIA")
     elif payload.action == "reopen":
         values.update(resolution="REVISION_REQUERIDA", method=None)
+    values["review_status"], values["review_bucket"] = classify_review(
+        resolution=values["resolution"],
+        manual=True,
+        candidates=item.candidates,
+        reason=values["reason"],
+        latest_action=payload.action,
+    )
     changed = db.execute(
         update(Location)
         .where(

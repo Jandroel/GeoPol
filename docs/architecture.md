@@ -56,6 +56,10 @@ Los routers dependen de los servicios, modelos y dominio compartidos, sin import
 6. La revisión requiere reservar el resultado y enviar su revisión esperada. El servidor rechaza una decisión obsoleta con conflicto; registrar motivo y evidencia forma parte de la operación.
 7. La exportación fija un corte de resultados y escribe CSV y manifiesto. Los casos sin punto permanecen representados con coordenadas vacías.
 
+`review_workflow.py` clasifica el trabajo pendiente sin cambiar la resolución geográfica. `review_status` distingue abierto/finalizado y `review_bucket` identifica la acción necesaria. Worker, migración y decisiones HTTP utilizan el mismo clasificador. La última acción `reopen` conserva la historia manual y vuelve a abrir la tarea. La selección del siguiente caso es una consulta; reservarlo sigue siendo una acción explícita.
+
+Las ejecuciones guardan `parent_run_id` y `superseded_by`. El worker publica al sucesor y sustituye al anterior en la misma transacción de finalización correcta. Un fallo mantiene vigente al padre. Los resultados y revisiones anteriores permanecen consultables; las bandejas operativas excluyen las versiones sustituidas. Véase el [flujo completo](review-workflow.md).
+
 ## Cola y recuperación
 
 La cola en SQL evita agregar un broker en este MVP. Los trabajos, reservas y checkpoints sobreviven a la caída del proceso. Los reintentos deben seguir identificadores y restricciones de unicidad para no duplicar filas, unidades ni revisiones. Las reservas vencidas permiten recuperar trabajo abandonado.
@@ -70,7 +74,7 @@ Una frontera sintética permite ensayar validación territorial en las pruebas, 
 
 ## Evolución prevista
 
-- Introducir migraciones de esquema incrementales antes de actualizar una base institucional con datos persistentes.
+- Mantener migraciones incrementales con preservación de datos; v2 incorpora estado de revisión y linaje, con backfill por bloques.
 - Reemplazar el catálogo en memoria por índices espaciales y consultas PostGIS cuando lo exija su volumen.
 - Añadir proveedor OIDC, autorización territorial y políticas de retención acordadas.
 - Incorporar almacenamiento institucional, observabilidad y pruebas de recuperación y capacidad.

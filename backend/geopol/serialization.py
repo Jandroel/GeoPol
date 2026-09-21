@@ -33,9 +33,12 @@ def location_dict(item):
         "manual",
         "review_owner",
         "source_row_count",
+        "review_status",
+        "review_bucket",
     )
     result = {key: getattr(item, key) for key in fields}
     result["review_expires_at"] = iso(item.review_expires_at)
+    result["candidate_count"] = len(item.candidates or [])
     return result
 
 
@@ -70,6 +73,8 @@ def run_dict(db, run):
             "rules_version",
             "error",
             "config",
+            "parent_run_id",
+            "superseded_by",
         )
     }
     result.update({key: iso(getattr(run, key)) for key in ("created_at", "started_at", "finished_at")})
