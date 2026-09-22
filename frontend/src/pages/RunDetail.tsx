@@ -6,7 +6,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { ArrowLeft, RotateCcw, Square } from "lucide-react";
+import { ArrowLeft, Square } from "lucide-react";
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { date, isActiveRun, label, number } from "../lib/format";
@@ -65,9 +65,8 @@ export function RunDetail() {
         Procesamientos
       </Link>
       <PageHeader
-        eyebrow="DETALLE DEL PROCESAMIENTO"
         title={run.name}
-        description={`${run.filename} · Creado ${date(run.created_at)}`}
+        description={`Creado ${date(run.created_at)}`}
         actions={<Badge value={run.status} />}
       />
       <ErrorNotice error={error || run.error} />
@@ -94,14 +93,7 @@ export function RunDetail() {
         <Notice>
           El procesamiento terminó sin un catálogo de referencia. Consulta los
           motivos de atención antes de revisar registros individualmente.
-          {canManage && (
-            <button
-              className="text-link plain-button"
-              onClick={() => setTab("reprocess")}
-            >
-              Seleccionar referencia y preparar reproceso
-            </button>
-          )}
+          {canManage && " Puedes seleccionar un catálogo en Reprocesar."}
         </Notice>
       )}
       {!active && (
@@ -112,10 +104,6 @@ export function RunDetail() {
           >
             Abrir revisión de esta ejecución
           </Link>
-          <span>
-            Los bloqueos de referencia, datos y atención técnica se muestran por
-            separado.
-          </span>
         </div>
       )}
       {active && (
@@ -150,7 +138,6 @@ export function RunDetail() {
           <div>
             <span>Automáticas con punto</span>
             <strong>{number(run.counts_by_product.PUNTO ?? 0)}</strong>
-            <small>La precisión se conserva en cada resultado.</small>
           </div>
           <div>
             <span>Automáticas con área o tramo</span>
@@ -173,54 +160,31 @@ export function RunDetail() {
           </span>
         </div>
       )}
-      <div className="run-meta">
-        <span>
-          Reglas <strong>{run.rules_version}</strong>
-        </span>
-        <span>
-          Referencia{" "}
-          <strong>
-            {run.reference_id ? "Catálogo versionado" : "Sin catálogo"}
-          </strong>
-        </span>
-        <span>
-          Inicio <strong>{date(run.started_at)}</strong>
-        </span>
-        {canManage && (
-          <div className="button-row">
-            {active ? (
-              <button
-                className="button secondary"
-                disabled={busy}
-                onClick={() => void action("cancel")}
-              >
-                <Square size={14} aria-hidden="true" />
-                Cancelar
-              </button>
-            ) : (
-              <>
-                {["FAILED", "CANCELLED"].includes(run.status) && (
-                  <button
-                    className="button secondary"
-                    disabled={busy}
-                    onClick={() => void action("retry")}
-                  >
-                    Reanudar
-                  </button>
-                )}
+      {canManage &&
+        (active || ["FAILED", "CANCELLED"].includes(run.status)) && (
+          <div className="run-meta">
+            <div className="button-row">
+              {active ? (
                 <button
                   className="button secondary"
                   disabled={busy}
-                  onClick={() => setTab("reprocess")}
+                  onClick={() => void action("cancel")}
                 >
-                  <RotateCcw size={15} aria-hidden="true" />
-                  Preparar reproceso
+                  <Square size={14} aria-hidden="true" />
+                  Cancelar
                 </button>
-              </>
-            )}
+              ) : (
+                <button
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() => void action("retry")}
+                >
+                  Reanudar
+                </button>
+              )}
+            </div>
           </div>
         )}
-      </div>
       <div
         className="tabs"
         role="tablist"
@@ -230,9 +194,7 @@ export function RunDetail() {
           ["results", "Resultados"],
           ["exports", "Exportaciones"],
           ["config", "Configuración"],
-          ...(canManage && !active
-            ? [["reprocess", "Nuevo procesamiento"]]
-            : []),
+          ...(canManage && !active ? [["reprocess", "Reprocesar"]] : []),
         ].map(([key, title]) => (
           <button
             role="tab"
@@ -260,8 +222,31 @@ export function RunDetail() {
           <ReprocessPanel key={run.id} run={run} />
         ) : (
           <section className="panel form-panel">
-            <h2>Configuración preservada</h2>
-            <pre>{JSON.stringify(run.config, null, 2)}</pre>
+            <h2>Datos de la ejecución</h2>
+            <dl className="key-values">
+              <div>
+                <dt>Archivo de origen</dt>
+                <dd>{run.filename}</dd>
+              </div>
+              <div>
+                <dt>Versión de reglas</dt>
+                <dd>{run.rules_version}</dd>
+              </div>
+              <div>
+                <dt>Referencia</dt>
+                <dd>
+                  {run.reference_id ? "Catálogo versionado" : "Sin catálogo"}
+                </dd>
+              </div>
+              <div>
+                <dt>Inicio</dt>
+                <dd>{date(run.started_at)}</dd>
+              </div>
+            </dl>
+            <details>
+              <summary>Configuración técnica preservada</summary>
+              <pre>{JSON.stringify(run.config, null, 2)}</pre>
+            </details>
             <h3>Conteo por resolución</h3>
             <div className="key-values">
               {Object.entries(run.counts ?? {}).map(([key, value]) => (

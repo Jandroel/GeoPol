@@ -305,11 +305,9 @@ function ResultRecord() {
         >
           {r.review_status === "CLOSED" ? "Finalizado" : "Pendiente"}
         </span>
-        <span>
-          {r.review_bucket !== "none"
-            ? reviewBuckets[r.review_bucket]?.label
-            : "La decisión queda preservada en el historial"}
-        </span>
+        {r.review_bucket !== "none" && (
+          <span>{reviewBuckets[r.review_bucket]?.label}</span>
+        )}
         <button
           className="text-link plain-button"
           disabled={busy}
@@ -407,11 +405,9 @@ function ResultRecord() {
             )}
             {r.product === "AREA_TRAMO" || isAreaGeometry(r.geometry) ? (
               <Notice>
-                <strong>
-                  {geometryLabel(r.geometry)} · Precisión: {label(r.precision)}.
-                </strong>{" "}
-                La ubicación se representa mediante su geometría de referencia,
-                sin asignar un punto exacto.
+                <strong>{geometryLabel(r.geometry)}.</strong> La ubicación se
+                representa mediante su geometría de referencia, sin asignar un
+                punto exacto.
               </Notice>
             ) : (
               <div className="coordinate-row">

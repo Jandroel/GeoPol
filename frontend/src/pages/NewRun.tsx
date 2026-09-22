@@ -118,11 +118,7 @@ export function NewRun() {
   }
   return (
     <>
-      <PageHeader
-        eyebrow="NUEVO PROCESAMIENTO"
-        title="Del archivo a la ubicación"
-        description="Carga tus datos, verifica las columnas y elige las referencias de trabajo."
-      />
+      <PageHeader title="Nuevo procesamiento" />
       <ol className="steps">
         <li className={upload ? "done" : "current"}>
           <span>{upload ? <Check size={16} aria-hidden="true" /> : "1"}</span>
@@ -141,10 +137,7 @@ export function NewRun() {
           <div className="upload-illustration">
             <UploadCloud size={44} strokeWidth={1.4} aria-hidden="true" />
           </div>
-          <h2>Un nuevo punto de partida</h2>
-          <p>
-            Selecciona un archivo CSV o XLSX. Las filas originales se preservan.
-          </p>
+          <p>Las filas originales se conservarán con cada resultado.</p>
           {saved && (
             <Notice>
               Hay una carga pendiente: <strong>{saved.filename}</strong>.
@@ -158,7 +151,7 @@ export function NewRun() {
             <span>
               {file
                 ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
-                : "CSV o XLSX · Carga por bloques de hasta 8 MiB"}
+                : "CSV o XLSX"}
             </span>
             <input
               id="source-file"
@@ -194,8 +187,8 @@ export function NewRun() {
           <section className="panel form-panel">
             <div className="panel-heading">
               <div>
-                <h2>Configuración del procesamiento</h2>
-                <p>{upload.filename} · Archivo recibido y verificado</p>
+                <h2>Archivo y referencias</h2>
+                <p>{upload.filename}</p>
               </div>
               <Check size={22} className="teal" aria-hidden="true" />
             </div>

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import {
   BookOpen,
-  CircleHelp,
   ClipboardCheck,
   Database,
   Files,
@@ -28,7 +27,6 @@ export function Layout() {
   const [open, setOpen] = useState(false);
   const sidebar = useRef<HTMLElement>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
-  const location = useLocation();
   useEffect(() => {
     if (!open) return;
     let focusFrame = requestAnimationFrame(() => {
@@ -84,9 +82,7 @@ export function Layout() {
           <span className="brand-mark">
             <LocateFixed aria-hidden="true" />
           </span>
-          <span>
-            GeoPol<small>INTELIGENCIA TERRITORIAL</small>
-          </span>
+          <span>GeoPol</span>
         </NavLink>
         <button
           className="mobile-close icon"
@@ -95,7 +91,6 @@ export function Layout() {
         >
           <X />
         </button>
-        <div className="nav-label">ESPACIO DE TRABAJO</div>
         <nav aria-label="Navegación principal">
           {navigation.map((item) => (
             <NavLink
@@ -124,21 +119,6 @@ export function Layout() {
             </NavLink>
           )}
         </nav>
-        <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <ShieldCheck size={20} aria-hidden="true" />
-            <strong>Decisiones verificables</strong>
-            <p>Cada resultado conserva su método, evidencia y revisión.</p>
-          </div>
-          <NavLink
-            to="/rules"
-            className="help-link"
-            onClick={() => setOpen(false)}
-          >
-            <CircleHelp size={17} aria-hidden="true" />
-            Acerca de este MVP<span>0.1</span>
-          </NavLink>
-        </div>
       </aside>
       <div className="workspace">
         <header className="topbar">
@@ -153,17 +133,6 @@ export function Layout() {
             >
               <Menu size={22} />
             </button>
-            <span>Espacio de trabajo</span>
-            <span className="crumb-divider">/</span>
-            <strong>
-              {location.pathname === "/"
-                ? "Vista general"
-                : location.pathname.includes("/results/")
-                  ? "Detalle de ubicación"
-                  : (navigation.find(
-                      (n) => n.to !== "/" && location.pathname.startsWith(n.to),
-                    )?.label ?? "Auditoría")}
-            </strong>
           </div>
           <div className="account">
             <div className="avatar">
@@ -186,10 +155,6 @@ export function Layout() {
         <main id="main-content" className="main-content">
           <Outlet />
         </main>
-        <footer className="workspace-footer">
-          <span>GeoPol · Normalización y geocodificación</span>
-          <span>Los resultados expresan evidencia, no certeza absoluta.</span>
-        </footer>
       </div>
     </div>
   );

@@ -34,9 +34,7 @@ test("synthetic geometry renders in WebGL and explicit address reuse can be revo
     .getByRole("button", { name: "Ingresar al espacio de trabajo" })
     .click();
   await expect(page.getByLabel("Contraseña", { exact: true })).toHaveCount(0);
-  await expect(
-    page.getByRole("heading", { name: "Una mirada a tu territorio" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Resumen" })).toBeVisible();
   const token = await page.evaluate(() =>
     sessionStorage.getItem("geopol.session"),
   );
@@ -343,7 +341,7 @@ test("synthetic geometry renders in WebGL and explicit address reuse can be revo
 
 async function assertRenderedGeometry(page: Page) {
   // Check pixels from the real WebGL canvas, not a mock or hidden map instance.
-  // The blank background and navigation controls cannot satisfy this teal stroke threshold.
+  // The blank background and navigation controls cannot satisfy this blue stroke threshold.
   await expect
     .poll(
       async () => {
@@ -367,10 +365,10 @@ async function assertRenderedGeometry(page: Page) {
           for (let i = 0; i < data.length; i += 4)
             if (
               data[i] < 70 &&
-              data[i + 1] > 90 &&
-              data[i + 1] < 170 &&
-              data[i + 2] > 60 &&
-              data[i + 2] < 155
+              data[i + 1] > 25 &&
+              data[i + 1] < 105 &&
+              data[i + 2] > 75 &&
+              data[i + 2] < 145
             )
               pixels++;
           bitmap.close();

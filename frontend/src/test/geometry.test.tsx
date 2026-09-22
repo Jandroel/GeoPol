@@ -114,7 +114,7 @@ describe("real spatial geometry rendering", () => {
     ]);
     expect(mapCalls.marker).not.toHaveBeenCalled();
     expect(mapCalls.bounds).toHaveBeenCalledWith([-77.03, -12.01]);
-    expect(screen.getByText(/no una puerta exacta/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Leyenda del visor")).toBeInTheDocument();
     view.unmount();
     expect(mapCalls.remove).toHaveBeenCalledOnce();
   });
@@ -168,7 +168,7 @@ describe("real spatial geometry rendering", () => {
         screen.getByRole("link", { name: "OpenStreetMap contributors" }),
       ).toHaveAttribute("href", "https://www.openstreetmap.org/copyright");
       expect(
-        screen.getByText("Cartografía base no configurada"),
+        screen.getByText("WGS84 · Sin cartografía base"),
       ).toBeInTheDocument();
       await waitFor(() => expect(mapCalls.source).toHaveBeenCalledOnce());
       expect(mapCalls.source.mock.calls[0][1].type).toBe("geojson");

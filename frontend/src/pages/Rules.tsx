@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { request } from "../lib/api";
 import { ErrorNotice, Loading, PageHeader } from "../components/ui";
 interface RulesData {
@@ -15,9 +15,12 @@ export function Rules() {
   return (
     <>
       <PageHeader
-        eyebrow="CRITERIOS EXPLÍCITOS"
         title="Reglas y metodología"
-        description="Conoce cómo se interpreta una dirección y qué puede afirmar un resultado."
+        actions={
+          query.data && (
+            <span className="version-chip">Versión {query.data.version}</span>
+          )
+        }
       />
       {query.isPending ? (
         <Loading />
@@ -25,19 +28,6 @@ export function Rules() {
         <ErrorNotice error={query.error} />
       ) : (
         <>
-          <section className="methodology-hero">
-            <BookOpen size={35} aria-hidden="true" />
-            <div>
-              <div className="eyebrow">
-                REGLAS VERSIONADAS · {query.data.version}
-              </div>
-              <h2>La ubicación es una conclusión documentada.</h2>
-              <p>
-                La resolución, el método, la precisión y la evidencia se
-                conservan de forma independiente en cada resultado.
-              </p>
-            </div>
-          </section>
           <div className="rules-grid">
             {query.data.policies.map((policy, i) => (
               <article className="panel policy" key={i}>

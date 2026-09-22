@@ -22,7 +22,6 @@ export function Audit() {
   return (
     <>
       <PageHeader
-        eyebrow="TRAZABILIDAD"
         title="Auditoría"
         description="Registro de acciones sobre archivos, referencias, resultados y exportaciones."
       />

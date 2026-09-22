@@ -61,9 +61,8 @@ export function References() {
   return (
     <>
       <PageHeader
-        eyebrow="FUENTES TERRITORIALES"
         title="Catálogos de referencia"
-        description="Fuentes versionadas para contrastar direcciones y verificar ubicaciones."
+        description="Fuentes para contrastar direcciones y verificar su ubicación."
         actions={
           ["admin", "operator"].includes(user?.role ?? "") && (
             <button
@@ -82,7 +81,7 @@ export function References() {
       {success && <Success>{success}</Success>}
       {show && (
         <form className="panel form-panel stack" onSubmit={submit}>
-          <h2>Importar referencia</h2>
+          <h2>Datos del catálogo</h2>
           <ErrorNotice error={error} />
           <div className="form-grid">
             <label>
@@ -122,18 +121,21 @@ export function References() {
             </label>
           </div>
           <Notice>
-            Usa las columnas id, kind, ubigeo, street_type, street_name,
-            door_number, block_number, cross_street, name, latitude y longitude.
-            En GeoJSON, los atributos corresponden a properties; las geometrías
-            se expresan en WGS84.
+            Las coordenadas y geometrías deben estar en WGS84 (EPSG:4326).
           </Notice>
           <details>
-            <summary>Tipos de referencia admitidos</summary>
+            <summary>Formato del archivo y ejemplo</summary>
             <p>
-              door (puerta), block (cuadra), intersection (intersección), site
-              (sitio), nucleus (núcleo), jurisdiction (jurisdicción), boundary
-              (límite). Las coordenadas deben ser numéricas; boundary requiere
-              una geometría Polygon o MultiPolygon en GeoJSON.
+              Usa las columnas id, kind, ubigeo, street_type, street_name,
+              door_number, block_number, cross_street, name, latitude y
+              longitude. En GeoJSON, los atributos corresponden a properties.
+            </p>
+            <p>
+              Tipos admitidos: door (puerta), block (cuadra), intersection
+              (intersección), street (vía), manzana, site (sitio), nucleus
+              (núcleo), jurisdiction (jurisdicción) y boundary (límite). Las
+              coordenadas deben ser numéricas; las vías requieren líneas, y las
+              manzanas y límites requieren polígonos en GeoJSON.
             </p>
             <a href="/reference-demo.csv" download className="text-link">
               Descargar catálogo sintético de ejemplo
@@ -183,7 +185,7 @@ export function References() {
             ) : (
               <Empty
                 title="Aún no hay referencias"
-                text="Importa un catálogo documentado para habilitar búsquedas y corroboración territorial."
+                text="Los procesamientos sin catálogo registrarán esta limitación."
               />
             )}
             <Pagination

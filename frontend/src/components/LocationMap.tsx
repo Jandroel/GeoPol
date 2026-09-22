@@ -48,10 +48,19 @@ export default function LocationMap({
           if (disposed || !container.current) return;
           // Vite must bundle the ESM worker and its shared dependencies locally.
           setWorkerUrl(workerUrl);
+          const theme = getComputedStyle(document.documentElement);
+          const resultColor = theme.getPropertyValue("--map-result").trim();
+          const candidateColor = theme
+            .getPropertyValue("--map-candidate")
+            .trim();
+          const backgroundColor = theme
+            .getPropertyValue("--map-background")
+            .trim();
           const items = [
             ...candidates.map((c) => ({
               ...c,
-              color: c.id === selectedCandidateId ? "#137d76" : "#be841f",
+              color:
+                c.id === selectedCandidateId ? resultColor : candidateColor,
             })),
             {
               latitude,
@@ -59,7 +68,7 @@ export default function LocationMap({
               precision,
               geometry,
               label: "Ubicación resultante",
-              color: "#117d77",
+              color: resultColor,
             },
           ];
           const points = items.flatMap((item) => {
@@ -93,7 +102,7 @@ export default function LocationMap({
                   {
                     id: "background",
                     type: "background",
-                    paint: { "background-color": "#edf1ef" },
+                    paint: { "background-color": backgroundColor },
                   },
                 ],
               },
@@ -184,13 +193,7 @@ export default function LocationMap({
             </p>
           </div>
         )}
-        <div className="map-label">
-          <span className="tiny-dot" />
-          Cartografía base no configurada
-        </div>
-        <div className="map-caption">
-          WGS84 · Vista local sin servicios cartográficos externos
-        </div>
+        <div className="map-caption">WGS84 · Sin cartografía base</div>
       </div>
       <div className="map-legend" aria-label="Leyenda del visor">
         <span>
@@ -201,10 +204,6 @@ export default function LocationMap({
           <i className="candidate-key" />
           Otros candidatos
         </span>
-        <small>
-          Las líneas y superficies representan tramos y áreas; no una puerta
-          exacta.
-        </small>
         {usesOpenStreetMap && (
           <span className="map-attribution">
             ©{" "}

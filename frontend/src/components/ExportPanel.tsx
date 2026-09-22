@@ -4,7 +4,7 @@ import { Download, FileCheck2 } from "lucide-react";
 import { useAuth } from "../auth";
 import { downloadAuthenticated, post, request } from "../lib/api";
 import type { ExportJob } from "../types";
-import { ErrorNotice, Notice } from "./ui";
+import { ErrorNotice } from "./ui";
 import { label, number } from "../lib/format";
 export function ExportPanel({ runId }: { runId: string }) {
   const { user } = useAuth();
@@ -58,11 +58,8 @@ export function ExportPanel({ runId }: { runId: string }) {
     <section className="panel form-panel">
       <div className="panel-heading">
         <div>
-          <h2>Exportar resultados</h2>
-          <p>
-            Una instantánea trazable que también incluye las ubicaciones sin
-            resolver.
-          </p>
+          <h2>Archivo de salida</h2>
+          <p>Incluye los casos sin resolver, con sus coordenadas vacías.</p>
         </div>
         <FileCheck2 size={23} className="teal" aria-hidden="true" />
       </div>
@@ -117,11 +114,14 @@ export function ExportPanel({ runId }: { runId: string }) {
           )}
         </div>
       )}
-      <Notice>
-        CSV protegido para hojas de cálculo. Las coordenadas sin resolver se
-        exportan vacías; el manifiesto conserva la configuración y huellas de
-        integridad.
-      </Notice>
+      <details>
+        <summary>Contenido y trazabilidad de la descarga</summary>
+        <p>
+          El CSV está protegido para abrirlo en hojas de cálculo. El manifiesto
+          conserva la configuración y las huellas de integridad de la
+          exportación.
+        </p>
+      </details>
     </section>
   );
 }

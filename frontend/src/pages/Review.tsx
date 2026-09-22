@@ -103,9 +103,7 @@ export function Review() {
   return (
     <>
       <PageHeader
-        eyebrow="CONTROL DE CALIDAD"
         title="Revisión de ubicaciones"
-        description="Prioriza las decisiones posibles y resuelve los bloqueos desde su origen."
         actions={
           canReview &&
           filters.stage !== "closed" && (

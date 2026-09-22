@@ -35,6 +35,34 @@ Antes de ejecutar se deben iniciar API, trabajador y Vite con la configuración 
 
 ## Evidencia local
 
+### Interfaz INEI y reducción de contenido repetido · 22 de septiembre de 2026
+
+La paleta final usa el logotipo aportado por el usuario: azul oscuro, celeste y
+blanco. La procedencia, los tonos derivados y los criterios de jerarquía están
+documentados en [DESIGN.md](DESIGN.md).
+
+- **26 pruebas Vitest aprobadas**, formato y build TypeScript/Vite correctos.
+- **340 pruebas de backend aprobadas y una omitida**. No se cambió lógica de backend.
+- **Tres escenarios Chromium aprobados contra el build de producción en 32,1 s**:
+  importación, procesamiento, revisión, exportación, reutilización y revocación,
+  geometrías reales en WebGL y navegación móvil. Se actualizó la comprobación de
+  píxeles al azul oscuro de la referencia final.
+- Comprobación adicional del despliegue local en escritorio (1440 × 1000) y móvil
+  (400 × 900): acceso, resumen, carga inicial, procesamientos, referencias, revisión,
+  reglas y menú. Sin excepciones del navegador, errores de consola, peticiones a
+  otros orígenes ni desplazamiento horizontal global en las pantallas comprobadas.
+- Se verificaron el foco visible y la apertura/cierre del menú mediante teclado.
+  Las capturas se inspeccionaron tras finalizar las transiciones de la interfaz.
+
+Los escenarios que escriben datos usaron API 18001, frontend 15175, credenciales y
+base sintéticas aisladas. Sus procesos se cerraron al terminar. La comprobación del
+despliegue 5174 solo leyó datos y abrió/cerró su propia sesión; no importó archivos
+ni creó procesamientos o catálogos. Las capturas y el informe privado están en
+`.local/inei-ui/` y quedan excluidos de Git. El aviso conocido de tamaño del paquete
+MapLibre no impide el build; no se modificó su dependencia.
+
+### Verificaciones anteriores
+
 Actualización del 22 de septiembre de 2026: **20 pruebas Vitest, build TypeScript/Vite y formato aprobados**. Los tres escenarios Chromium pasaron contra Vite en 26,8 segundos y contra el build de producción en 26,1 segundos. La última ejecución incluye el parque poligonal además del tramo. El entorno sintético temporal usó schema 3, API en 18001 y frontend en 15175. El runner privado mantuvo credenciales en memoria, desactivó trazas y cerró exclusivamente los procesos que creó; ambos puertos quedaron libres y la base operativa no fue modificada. Las capturas de tramo en escritorio/móvil y polígono se inspeccionaron visualmente.
 
 Evidencia histórica del 21 de septiembre: 11 pruebas Vitest y los dos escenarios anteriores de Chromium pasaron en 47,1 segundos; la comprobación de acceso y bandeja en el despliegue local tampoco mostró errores del navegador ni desbordamiento horizontal a 400 px.

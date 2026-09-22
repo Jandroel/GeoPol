@@ -18,9 +18,7 @@ export function Runs() {
   return (
     <>
       <PageHeader
-        eyebrow="PROCESAMIENTO DE DATOS"
         title="Procesamientos"
-        description="Cada ejecución conserva sus reglas, referencias y resultados."
         actions={
           ["admin", "operator"].includes(user?.role ?? "") && (
             <Link className="button primary" to="/runs/new">
