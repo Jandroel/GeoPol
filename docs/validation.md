@@ -2,6 +2,14 @@
 
 Fechas: 18 a 22 de septiembre de 2026. Entorno de estas comprobaciones: Windows, Python 3.11, base SQLite y archivos temporales con datos sintéticos. Los resultados siguientes corresponden a las pruebas concretas indicadas; no son un benchmark de volumen nacional.
 
+## Actualización del 22 de septiembre: diccionario y preparación de puertas
+
+La suite completa del backend aprobó **340 pruebas en 99,13 segundos**, con una omisión de PostgreSQL/PostGIS y dos avisos de deprecación de dependencias. Ruff y su comprobación de formato pasan. La compilación TypeScript/Vite del frontend pasa, con el aviso conocido de tamaño del paquete de MapLibre. Esta actualización no modifica la interfaz ni el motor operativo y no repite los E2E de la sección siguiente.
+
+Las **73 pruebas nuevas**, con datos sintéticos, comprueban el mapeo del diccionario, conservación del original, número y letra de puerta, códigos y valores ausentes, ejes y rangos, separación de `MANZANA` y `P21`, tratamiento de campos alternativos, rechazo de tipos de vía no soportados, conservación de conflictos y exclusión de puntos sin metadatos confirmados. La prueba de integración genera un catálogo sintético, lo lee con el importador vigente y obtiene una coincidencia de puerta con procedencia y geometría compatibles con el motor. No se asigna un CRS a partir de los rangos numéricos.
+
+La ejecución privada sobre el Excel de puertas conservó las **3.000 filas**. Una lectura independiente verificó valores y tipos del original, ordinales completos y SHA-256 de entrada, diccionario y preparación. Los 3.000 pares numéricos están dentro de rangos de latitud/longitud; 327 filas tienen vía y número con sufijo válido. Doce sufijos numéricos contradicen la descripción de letra y permanecen pendientes; se identifican 17 claves con coordenadas diferentes que afectan a 35 filas. Los conteos de incidencias se superponen. No se generó GeoJSON ni se importaron referencias: siguen pendientes CRS, fuente, versión y dominio de categorías. Esta preparación no cambia los resultados de geocodificación previos. La evidencia y los datos reales permanecen fuera de Git, en `.local/institutional-samples-20260922/`.
+
 ## Actualización del 22 de septiembre: reglas 2026.3 y geometrías
 
 La suite completa aprobó **267 pruebas**, con una omisión de PostgreSQL/PostGIS por falta de una base de prueba configurada, y dos avisos de deprecación de dependencias. Ruff, formato y comprobación de dependencias pasan. La interfaz aprobó **20 pruebas**, compilación TypeScript/Vite y formato. Los **tres recorridos E2E de Chromium** aprobaron tanto con el servidor de desarrollo como con el build de producción, contra API, worker y SQLite sintéticos temporales. No se ejecutó CI remoto ni PostgreSQL/PostGIS.
