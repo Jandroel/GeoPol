@@ -90,6 +90,8 @@ export function nextReviewParams(
   return params;
 }
 const reasons: Record<string, string> = {
+  MEMORIA_DIRECCION_VALIDADA:
+    "Coincidencia con una dirección validada previamente mediante revisión documentada.",
   REFERENCIA_NO_DISPONIBLE_O_POLITICA_NO_CONFIRMADA:
     "No hay una referencia evaluable para resolver esta ubicación.",
   REFERENCIA_NO_DISPONIBLE: "Falta una fuente de referencia.",
@@ -105,5 +107,10 @@ const reasons: Record<string, string> = {
   COINCIDENCIA_UNICA_CON_EVIDENCIA_TERRITORIAL:
     "Coincidencia única respaldada por evidencia territorial.",
 };
-export const reviewReason = (reason: string) =>
-  reasons[reason] ?? reason.replaceAll("_", " ");
+export const reviewReason = (reason: string) => {
+  if (reason.startsWith("MEMORIA:"))
+    return `Referencia de validación: ${reason.slice(8)}`;
+  if (reason.startsWith("REVISION_ORIGEN:"))
+    return `Revisión de origen: ${reason.slice(16)}`;
+  return reasons[reason] ?? reason.replaceAll("_", " ");
+};

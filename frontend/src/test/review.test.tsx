@@ -141,6 +141,7 @@ describe("review workflow", () => {
       action: "accept_candidate",
       candidate_id: "candidate-1",
       reason: "Verificado en catálogo sintético documentado",
+      learn_address: false,
     });
     expect(await screen.findByText(/Decisión registrada/)).toBeInTheDocument();
   });
@@ -233,6 +234,11 @@ describe("review workflow", () => {
       await screen.findByLabelText("Acción"),
       "manual_point",
     );
+    await user.click(
+      screen.getByLabelText(
+        "Reutilizar esta dirección validada en futuros lotes",
+      ),
+    );
     await user.type(screen.getByLabelText("Latitud"), "-12.3");
     await user.type(screen.getByLabelText("Longitud"), "-77.2");
     await user.type(
@@ -255,6 +261,7 @@ describe("review workflow", () => {
       expected_revision: 3,
       latitude: -12.3,
       longitude: -77.2,
+      learn_address: true,
     });
     const next = new URL(
       requests.find((url) => url.includes("/review/next"))!,
@@ -280,6 +287,93 @@ describe("review workflow", () => {
     expect(screen.getByLabelText("Precisión espacial")).toHaveValue(
       "COORDENADA",
     );
+    expect(
+      screen.getByLabelText(
+        "Reutilizar esta dirección validada en futuros lotes",
+      ),
+    ).not.toBeChecked();
+  });
+  it("allows explicit reuse of a candidate with a real area geometry and clears consent on action changes", async () => {
+    const writes: Record<string, unknown>[] = [];
+    const areaResult = {
+      ...result,
+      candidates: [
+        {
+          ...result.candidates![0],
+          precision: "MANZANA",
+          latitude: null,
+          longitude: null,
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [-77, -12],
+                [-77.01, -12],
+                [-77.01, -12.01],
+                [-77, -12],
+              ],
+            ],
+          },
+        },
+      ],
+      review_owner: "reviewer-1",
+      review_expires_at: new Date(Date.now() + 600000).toISOString(),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options: RequestInit = {}) => {
+        if (url.endsWith("/decisions"))
+          writes.push(JSON.parse(options.body as string));
+        return Response.json(areaResult);
+      }),
+    );
+    setup();
+    const user = userEvent.setup();
+    await user.selectOptions(
+      await screen.findByLabelText("Candidato"),
+      "candidate-1",
+    );
+    expect(
+      screen.getByText(/Área de referencia · No representa un punto exacto/),
+    ).toBeInTheDocument();
+    const consent = screen.getByLabelText(
+      "Reutilizar esta dirección validada en futuros lotes",
+    );
+    expect(consent).not.toBeChecked();
+    await user.click(consent);
+    await user.selectOptions(screen.getByLabelText("Acción"), "unresolved");
+    expect(
+      screen.queryByLabelText(
+        "Reutilizar esta dirección validada en futuros lotes",
+      ),
+    ).not.toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByLabelText("Acción"),
+      "accept_candidate",
+    );
+    expect(
+      screen.getByLabelText(
+        "Reutilizar esta dirección validada en futuros lotes",
+      ),
+    ).not.toBeChecked();
+    await user.click(
+      screen.getByLabelText(
+        "Reutilizar esta dirección validada en futuros lotes",
+      ),
+    );
+    await user.type(
+      screen.getByLabelText("Motivo de la decisión"),
+      "Área sintética verificada mediante polígono de referencia",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Registrar decisión" }),
+    );
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({
+      action: "accept_candidate",
+      candidate_id: "candidate-1",
+      learn_address: true,
+    });
   });
   it("releases the current reservation before explicitly returning to the filtered queue", async () => {
     const releases: string[] = [];
@@ -305,5 +399,55 @@ describe("review workflow", () => {
       expect(screen.getByTestId("path").textContent).toBe(back),
     );
     expect(releases).toEqual(["/api/results/loc-1/release"]);
+  });
+  it("revokes a reused reference explicitly without taking a review reservation or changing a result", async () => {
+    const calls: { url: string; body: Record<string, unknown> }[] = [];
+    const memoryId = "synthetic-memory-id";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, options: RequestInit = {}) => {
+        if (options.method === "POST") {
+          calls.push({ url, body: JSON.parse(options.body as string) });
+          return Response.json({ id: memoryId, active: false });
+        }
+        return Response.json({
+          ...result,
+          normalized: { learned_reference_id: memoryId },
+          candidates: [
+            {
+              ...result.candidates![0],
+              id: `memory:${memoryId}`,
+              score: null,
+              method: "DIRECCION_VALIDADA",
+            },
+          ],
+        });
+      }),
+    );
+    setup();
+    const revoke = await screen.findByRole("button", {
+      name: "Desactivar reutilización",
+    });
+    expect(
+      screen.getAllByRole("button", { name: "Desactivar reutilización" }),
+    ).toHaveLength(1);
+    await userEvent.setup().click(revoke);
+    expect(
+      await screen.findByText("Reutilización desactivada"),
+    ).toBeInTheDocument();
+    expect(calls).toEqual([
+      {
+        url: `/api/address-memory/${memoryId}/revoke`,
+        body: {
+          reason: "Desactivación solicitada desde la ficha de ubicación",
+        },
+      },
+    ]);
+    expect(
+      screen.queryByRole("button", { name: "Desactivar reutilización" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Tomar revisión" }),
+    ).toBeInTheDocument();
   });
 });

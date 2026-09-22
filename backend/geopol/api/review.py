@@ -9,19 +9,34 @@ from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..address_memory import remember_address, retire_memory, usable_geometry
 from ..models import (
+    AddressMemory,
     Location,
     Revision,
     Run,
     User,
 )
-from ..schemas import DecisionInput
+from ..schemas import DecisionInput, MemoryRevokeInput
+from ..domain.normalization import normalize_record
 from ..review_workflow import classify_review
 from ..security import current_user
 from ..serialization import add_revision, audit, iso, location_dict
 from .common import FINISHED, filtered_locations, page_result, require, reviewer
 
 router = APIRouter()
+
+
+@router.post("/api/address-memory/{identifier}/revoke")
+def revoke_memory(
+    identifier: str, payload: MemoryRevokeInput, db: Session = Depends(get_db), user: User = Depends(reviewer)
+):
+    item = require(db, AddressMemory, identifier)
+    item.active = False
+    audit(db, user.username, "address_memory.revoked", identifier, {"reason": payload.reason})
+    db.commit()
+    return {"id": item.id, "active": False}
+
 
 BucketFilter = Literal["all", "actionable", "needs_reference", "needs_data", "technical"]
 StageFilter = Literal["open", "closed", "all"]
@@ -212,12 +227,15 @@ def decide(
 ):
     item = require(db, Location, identifier)
     editable_run(db, item)
+    if payload.learn_address and payload.action not in {"accept_candidate", "manual_point"}:
+        raise HTTPException(422, "Solo una ubicación geográfica confirmada se puede reutilizar")
     values = dict(
         resolution="ACEPTADO_MANUAL",
         method="MANUAL",
         manual=True,
         latitude=None,
         longitude=None,
+        geometry=None,
         product="NINGUNO",
         precision=payload.precision or "DESCONOCIDA",
         evidence_band="REVISION",
@@ -226,12 +244,23 @@ def decide(
         review_expires_at=None,
         revision=payload.expected_revision + 1,
     )
+    candidate = None
     if payload.action == "accept_candidate":
         candidate = next((x for x in item.candidates if str(x.get("id")) == payload.candidate_id), None)
         if candidate is None:
             raise HTTPException(422, "Candidato no encontrado")
         lat, lon = candidate.get("latitude"), candidate.get("longitude")
-        if (
+        area = candidate.get("product") == "AREA_TRAMO"
+        if area and not usable_geometry(candidate.get("geometry"), "AREA_TRAMO"):
+            raise HTTPException(422, "El candidato de área o tramo no contiene una geometría válida")
+        if area and usable_geometry(candidate.get("geometry"), "AREA_TRAMO"):
+            values.update(
+                geometry=candidate["geometry"],
+                product="AREA_TRAMO",
+                precision=candidate.get("precision", "DESCONOCIDA"),
+                method=candidate.get("method") or "MANUAL",
+            )
+        elif (
             lat is None
             or lon is None
             or not math.isfinite(lat)
@@ -240,14 +269,18 @@ def decide(
             or not -180 <= lon <= 180
         ):
             raise HTTPException(422, "El candidato no contiene un punto válido")
-        values.update(
-            latitude=lat,
-            longitude=lon,
-            product="PUNTO",
-            precision=candidate.get("precision", "DESCONOCIDA"),
-            method=candidate.get("method") or "MANUAL",
-        )
+        else:
+            values.update(
+                latitude=lat,
+                longitude=lon,
+                product="PUNTO",
+                geometry={"type": "Point", "coordinates": [lon, lat]},
+                precision=candidate.get("precision", "DESCONOCIDA"),
+                method=candidate.get("method") or "MANUAL",
+            )
     elif payload.action == "manual_point":
+        if payload.precision in {"VIA", "CUADRA", "MANZANA", "NUCLEO"}:
+            raise HTTPException(422, "Una precisión de área o tramo requiere la geometría de un candidato")
         if (
             payload.latitude is None
             or payload.longitude is None
@@ -260,6 +293,7 @@ def decide(
         values.update(
             latitude=payload.latitude,
             longitude=payload.longitude,
+            geometry={"type": "Point", "coordinates": [payload.longitude, payload.latitude]},
             product="PUNTO",
             precision=payload.precision or "COORDENADA",
             reason=f"{payload.reason}\nEvidencia: {payload.evidence}",
@@ -268,7 +302,26 @@ def decide(
         address = payload.address or item.location_normalized
         if not address:
             raise HTTPException(422, "Indique la dirección normalizada")
-        values.update(product="DIRECCION_SIN_PUNTO", location_normalized=address)
+        corrected = normalize_record(
+            {"location_original": address, "ubigeo": item.ubigeo, "district": item.normalized.get("district")}
+        )
+        corrected["legacy"] = item.normalized.get("legacy", {})
+        corrected["complaint_id"] = item.complaint_id
+        corrected["manual_address_before"] = item.location_normalized
+        corrected["warnings"] = sorted(
+            set(corrected.get("warnings", []))
+            | (
+                set(item.normalized.get("warnings", []))
+                & {"UBIGEO_CONFLICTIVO_ORIGEN", "FILA_ORIGEN_CON_INCIDENCIA"}
+            )
+        )
+        values.update(
+            product="DIRECCION_SIN_PUNTO",
+            location_normalized=corrected["location_normalized"],
+            normalized=corrected,
+            candidates=[],
+            attempts=[],
+        )
     elif payload.action == "unresolved":
         values.update(resolution="SIN_COINCIDENCIA", method=None, evidence_band="SIN_EVIDENCIA")
     elif payload.action == "reopen":
@@ -295,13 +348,20 @@ def decide(
             409, "La revisión cambió o su asignación expiró. Recargue y vuelva a tomar el registro"
         )
     db.refresh(item)
+    retire_memory(db, item.id)
+    memory_id = None
+    if payload.learn_address:
+        try:
+            memory_id = remember_address(db, item, user, candidate)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
     add_revision(db, item, user.username, payload.action)
     audit(
         db,
         user.username,
         "review.decision",
         identifier,
-        {"action": payload.action, "revision": item.revision},
+        {"action": payload.action, "revision": item.revision, "learned_reference_id": memory_id},
     )
     db.commit()
     return location_dict(item)

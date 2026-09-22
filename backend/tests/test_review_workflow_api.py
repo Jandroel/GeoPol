@@ -1,6 +1,7 @@
 """Synthetic API workflows for review ownership, queue state and run lineage."""
 
 import time
+import json
 
 import pytest
 from test_api import harness as harness
@@ -18,16 +19,39 @@ def get(harness, path, **params):
 
 
 def catalog(harness, version="1", latitude=-12.04, longitude=-77.03):
-    content = (
-        "kind,ubigeo,street_type,street_name,door_number,latitude,longitude\n"
-        f"door,150101,AVENIDA,DEMOSTRACION,120,{latitude},{longitude}\n"
+    content = json.dumps(
+        {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "id": "door",
+                        "kind": "door",
+                        "ubigeo": "150101",
+                        "street_type": "AVENIDA",
+                        "street_name": "DEMOSTRACION",
+                        "door_number": "120",
+                    },
+                    "geometry": {"type": "Point", "coordinates": [longitude, latitude]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {"id": "boundary", "kind": "boundary", "ubigeo": "150101"},
+                    "geometry": {
+                        "type": "Polygon",
+                        "coordinates": [[[-78, -13], [-76, -13], [-76, -11], [-78, -11], [-78, -13]]],
+                    },
+                },
+            ],
+        }
     ).encode()
     return checked(
         harness.client.post(
             "/api/references",
             headers=harness.headers["admin"],
             data={"name": "Referencia sintética de integración", "version": version, "source": "SINTETICO"},
-            files={"file": ("reference.csv", content, "text/csv")},
+            files={"file": ("reference.geojson", content, "application/geo+json")},
         ),
         201,
     )["id"]

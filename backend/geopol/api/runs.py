@@ -171,6 +171,8 @@ def reprocess_run(
     if payload is not None and "reference_id" in payload.model_fields_set:
         reference_id = payload.reference_id
     config = {key: value for key, value in item.config.items() if key in RunInput.model_fields}
+    if payload is not None and "crs" in payload.model_fields_set:
+        config["crs"] = payload.crs
     return new_run(
         db,
         RunInput(

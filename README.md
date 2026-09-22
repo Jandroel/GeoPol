@@ -110,7 +110,7 @@ geopol-mvp/
 
 La [arquitectura](docs/architecture.md) explica las decisiones y fronteras de los módulos. El [contrato de implementación](docs/implementation-contract.md) documenta los endpoints y la [guía de operación](docs/runbook.md) cubre recuperación y respaldo.
 
-El [flujo de revisión y reprocesamiento](docs/review-workflow.md) describe las reglas 2026.2, la selección de un nuevo catálogo y la migración v2 para instalaciones con datos. Los casos que requieren referencia permanecen visibles sin mezclarse con los que ya tienen candidatos revisables.
+El [flujo de revisión y reprocesamiento](docs/review-workflow.md) describe la selección de catálogos y el historial. La ampliación [2026.3](docs/automation-2026.3.md) añade geometrías por precisión, búsqueda territorial y direcciones validadas reutilizables; requiere migración v3. Los casos que requieren referencia permanecen visibles sin mezclarse con los que ya tienen candidatos revisables.
 
 La [evidencia de validación](docs/validation.md) detalla recuperación de trabajos, restauración SQLite y lectura real del CSV con GDAL, incluidos sus límites.
 

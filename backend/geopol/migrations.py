@@ -7,7 +7,7 @@ from .models import Location, Revision, SchemaVersion
 from .review_workflow import classify_review
 
 BACKFILL_BATCH_SIZE = 500
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def migrate(engine):
@@ -23,9 +23,19 @@ def migrate(engine):
         if 1 not in versions:
             _version_one(conn)
             conn.execute(SchemaVersion.__table__.insert().values(version=1))
-        if SCHEMA_VERSION not in versions:
+        if 2 not in versions:
             _version_two(conn)
-            conn.execute(SchemaVersion.__table__.insert().values(version=SCHEMA_VERSION))
+            conn.execute(SchemaVersion.__table__.insert().values(version=2))
+        if 3 not in versions:
+            _version_three(conn)
+            conn.execute(SchemaVersion.__table__.insert().values(version=3))
+
+
+def _version_three(conn):
+    """Preserve area/line results without rewriting historical point snapshots."""
+    existing = {column["name"] for column in inspect(conn).get_columns("locations")}
+    if "geometry" not in existing:
+        conn.execute(text("ALTER TABLE locations ADD COLUMN geometry JSON"))
 
 
 def _version_one(conn):

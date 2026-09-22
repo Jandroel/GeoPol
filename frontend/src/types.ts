@@ -9,6 +9,11 @@ export interface Page<T> {
   page: number;
   page_size: number;
 }
+export type SpatialGeometry =
+  | { type: "Point"; coordinates: number[] }
+  | { type: "LineString" | "MultiPoint"; coordinates: number[][] }
+  | { type: "MultiLineString" | "Polygon"; coordinates: number[][][] }
+  | { type: "MultiPolygon"; coordinates: number[][][][] };
 export interface Run {
   id: string;
   name: string;
@@ -25,6 +30,8 @@ export interface Run {
   rules_version: string;
   error?: string;
   counts: Record<string, number>;
+  /** Product counts restricted to ACEPTADO_AUTOMATICO results. */
+  counts_by_product?: Record<string, number>;
   config: Record<string, unknown>;
   parent_run_id?: string | null;
   superseded_by?: string | null;
@@ -34,9 +41,12 @@ export interface Candidate {
   label: string;
   method: string;
   precision: string;
-  latitude: number;
-  longitude: number;
-  score: number;
+  latitude: number | null;
+  longitude: number | null;
+  geometry?: SpatialGeometry | null;
+  source?: string;
+  version?: string;
+  score: number | null;
   evidence: unknown[];
 }
 export interface LocationResult {
@@ -53,6 +63,7 @@ export interface LocationResult {
   product: string;
   latitude: number | null;
   longitude: number | null;
+  geometry?: SpatialGeometry | null;
   reason: string;
   revision: number;
   manual: boolean;

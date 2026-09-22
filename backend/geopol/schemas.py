@@ -30,6 +30,7 @@ class RunInput(Input):
 
 class ReprocessInput(Input):
     reference_id: str | None = None
+    crs: Literal["EPSG:4326"] | None = None
 
 
 class DecisionInput(Input):
@@ -39,14 +40,29 @@ class DecisionInput(Input):
     latitude: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
     longitude: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     precision: (
-        Literal["PUERTA", "INTERSECCION", "SITIO", "CUADRA", "NUCLEO", "VIA", "COORDENADA", "DESCONOCIDA"]
+        Literal[
+            "PUERTA",
+            "INTERSECCION",
+            "SITIO",
+            "CUADRA",
+            "MANZANA",
+            "NUCLEO",
+            "VIA",
+            "COORDENADA",
+            "DESCONOCIDA",
+        ]
         | None
     ) = None
     address: str | None = Field(default=None, max_length=3000)
     reason: str = Field(min_length=8, max_length=3000)
     evidence: str | None = Field(default=None, max_length=3000)
+    learn_address: bool = False
 
 
 class ExportInput(Input):
     profile: Literal["locations", "source_rows"] = "locations"
     safe_spreadsheet: bool = True
+
+
+class MemoryRevokeInput(Input):
+    reason: str = Field(min_length=8, max_length=3000)

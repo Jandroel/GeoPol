@@ -123,6 +123,7 @@ class Location(Base):
     product: Mapped[str] = mapped_column(String(40), default="NINGUNO")
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)
+    geometry: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     reason: Mapped[str] = mapped_column(Text, default="Pendiente de procesamiento")
     candidates: Mapped[list] = mapped_column(JSON, default=list)
     attempts: Mapped[list] = mapped_column(JSON, default=list)
@@ -138,6 +139,18 @@ class Location(Base):
         Index("ix_location_complaint", "run_id", "complaint_id"),
         Index("ix_location_review_queue", "run_id", "review_status", "review_bucket", "id"),
     )
+
+
+class AddressMemory(Base):
+    __tablename__ = "address_memory"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    signature: Mapped[str] = mapped_column(String(64), index=True)
+    location_id: Mapped[str] = mapped_column(ForeignKey("locations.id"), index=True)
+    source_revision: Mapped[int] = mapped_column(Integer)
+    payload: Mapped[dict] = mapped_column(JSON)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[float] = mapped_column(Float, default=time.time)
 
 
 class SourceRow(Base):

@@ -181,9 +181,14 @@ describe("review queue scope", () => {
   });
 });
 describe("reference-aware reprocessing", () => {
-  it.each(["ref-2", ""])(
-    "creates a new execution with the explicitly selected reference %s",
-    async (selected) => {
+  it.each([
+    ["ref-2", "preserve"],
+    ["", "preserve"],
+    ["ref-2", "EPSG:4326"],
+    ["ref-2", "clear"],
+  ])(
+    "creates a new execution with reference %s and CRS choice %s",
+    async (selected, crs) => {
       const writes: unknown[] = [];
       vi.stubGlobal(
         "fetch",
@@ -222,6 +227,15 @@ describe("reference-aware reprocessing", () => {
       );
       await waitFor(() => expect(select).toBeEnabled());
       await userEvent.setup().selectOptions(select, selected);
+      expect(
+        screen.getByLabelText("Sistema de coordenadas originales"),
+      ).toHaveValue("preserve");
+      await userEvent
+        .setup()
+        .selectOptions(
+          screen.getByLabelText("Sistema de coordenadas originales"),
+          crs,
+        );
       await userEvent
         .setup()
         .click(
@@ -230,7 +244,12 @@ describe("reference-aware reprocessing", () => {
       await waitFor(() =>
         expect(screen.getByTestId("path")).toHaveTextContent("/runs/run-2"),
       );
-      expect(writes).toEqual([{ reference_id: selected || null }]);
+      expect(writes).toEqual([
+        {
+          reference_id: selected || null,
+          ...(crs === "preserve" ? {} : { crs: crs === "clear" ? null : crs }),
+        },
+      ]);
     },
   );
 });

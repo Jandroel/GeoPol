@@ -142,6 +142,25 @@ export function RunDetail() {
           <strong>{number(run.issue_rows)}</strong>
         </div>
       </div>
+      {run.counts_by_product && (
+        <section
+          className="automatic-summary panel"
+          aria-label="Aceptaciones automáticas por producto"
+        >
+          <div>
+            <span>Automáticas con punto</span>
+            <strong>{number(run.counts_by_product.PUNTO ?? 0)}</strong>
+            <small>La precisión se conserva en cada resultado.</small>
+          </div>
+          <div>
+            <span>Automáticas con área o tramo</span>
+            <strong>{number(run.counts_by_product.AREA_TRAMO ?? 0)}</strong>
+            <small>
+              Geometría de referencia; no representa una puerta exacta.
+            </small>
+          </div>
+        </section>
+      )}
       {active && (
         <div className="processing-progress">
           <progress

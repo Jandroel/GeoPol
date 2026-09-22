@@ -31,6 +31,15 @@ ORIGINAL_WITHOUT_BOUNDARY = {
         ("ACEPTADO_MANUAL", True, [], "", "reopen", ("OPEN", "needs_data")),
         ("NO_EVALUABLE_REFERENCIA", False, [], "", None, ("OPEN", "needs_reference")),
         ("ERROR_TECNICO", False, [], "", None, ("OPEN", "technical")),
+        ("REVISION_REQUERIDA", False, [], "BUSQUEDA_REFERENCIAL_TRUNCADA", None, ("OPEN", "technical")),
+        (
+            "REVISION_REQUERIDA",
+            False,
+            [{"method": "COORD_ORIGINAL", "evidence": ["CRS_NO_CONFIRMADO"]}],
+            "",
+            None,
+            ("OPEN", "needs_reference"),
+        ),
         ("INFORMACION_INSUFICIENTE", False, [], "", None, ("OPEN", "needs_data")),
         ("SIN_COINCIDENCIA", False, None, None, None, ("OPEN", "needs_data")),
         ("REVISION_REQUERIDA", False, [{"method": "PUERTA"}], "", None, ("OPEN", "actionable")),
@@ -219,6 +228,7 @@ def test_v1_upgrade_preserves_data_and_latest_manual_action(legacy_engine, monke
         assert conn.execute(text("SELECT version FROM schema_versions ORDER BY version")).scalars().all() == [
             1,
             2,
+            3,
         ]
         assert conn.scalar(text("SELECT applied_at FROM schema_versions WHERE version=1")) == 123456
         assert conn.scalar(text("SELECT manual FROM locations WHERE id='reopened'")) == 1
@@ -271,12 +281,37 @@ def test_fresh_database_versions_and_defaults(tmp_path):
         migrations.migrate(engine)
         migrations.migrate(engine)
         with engine.connect() as conn:
-            assert list(conn.scalars(select(SchemaVersion.version).order_by(SchemaVersion.version))) == [1, 2]
+            assert list(conn.scalars(select(SchemaVersion.version).order_by(SchemaVersion.version))) == [
+                1,
+                2,
+                3,
+            ]
         columns = {column["name"]: column for column in inspect(engine).get_columns("locations")}
         assert columns["review_status"]["default"] == "'OPEN'"
         assert columns["review_bucket"]["default"] == "'none'"
     finally:
         engine.dispose()
+
+
+def test_v2_geometry_upgrade_is_additive_and_preserves_closed_queue(legacy_engine):
+    migrations.migrate(legacy_engine)
+    with legacy_engine.begin() as conn:
+        conn.execute(text("DROP TABLE address_memory"))
+        conn.execute(text("ALTER TABLE locations DROP COLUMN geometry"))
+        conn.execute(text("DELETE FROM schema_versions WHERE version=3"))
+        conn.execute(
+            text("UPDATE locations SET review_status='CLOSED', review_bucket='none' WHERE id='data'")
+        )
+    before = contents(legacy_engine)
+    migrations.migrate(legacy_engine)
+    after = contents(legacy_engine)
+    for table, rows in before.items():
+        for old, new in zip(rows, after[table], strict=True):
+            assert {key: new[key] for key in old} == old
+    with legacy_engine.connect() as conn:
+        assert conn.scalar(text("SELECT review_status FROM locations WHERE id='data'")) == "CLOSED"
+        assert conn.scalar(text("SELECT count(*) FROM locations WHERE geometry IS NOT NULL")) == 0
+    assert "address_memory" in inspect(legacy_engine).get_table_names()
 
 
 def test_worker_supersedes_parent_only_after_success_and_keeps_newest_child(legacy_engine, monkeypatch):

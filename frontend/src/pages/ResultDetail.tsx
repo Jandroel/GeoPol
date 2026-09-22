@@ -18,6 +18,13 @@ import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { date, displayValue, label } from "../lib/format";
 import {
+  canReuseCandidate,
+  geometryLabel,
+  isAreaGeometry,
+  isAreaPrecision,
+  pointPrecisions,
+} from "../lib/geometry";
+import {
   nextReviewParams,
   reservationIsLive,
   reviewBuckets,
@@ -39,9 +46,6 @@ const precisions = [
   "PUERTA",
   "INTERSECCION",
   "SITIO",
-  "CUADRA",
-  "NUCLEO",
-  "VIA",
   "COORDENADA",
   "DESCONOCIDA",
 ];
@@ -69,10 +73,21 @@ function ResultRecord() {
   const [address, setAddress] = useState("");
   const [reason, setReason] = useState("");
   const [evidence, setEvidence] = useState("");
+  const [learnAddress, setLearnAddress] = useState(false);
+  const [revokedMemory, setRevokedMemory] = useState<string[]>([]);
   const query = useQuery({
     queryKey: ["result", id],
     queryFn: () => request<LocationResult>(`/results/${id}`),
   });
+  const mayLearn =
+    !!query.data?.ubigeo &&
+    !!query.data.location_normalized &&
+    ((action === "accept_candidate" &&
+      canReuseCandidate(
+        query.data.candidates?.find((item) => item.id === candidate),
+      )) ||
+      (action === "manual_point" && pointPrecisions.includes(precision)));
+  useEffect(() => setLearnAddress(false), [action, candidate, precision]);
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 15000);
     return () => clearInterval(timer);
@@ -139,6 +154,25 @@ function ResultRecord() {
       setBusy(false);
     }
   }
+  async function revokeMemory(memoryId: string) {
+    setBusy(true);
+    setError(null);
+    setSuccess("");
+    try {
+      await post(`/address-memory/${encodeURIComponent(memoryId)}/revoke`, {
+        reason: "Desactivación solicitada desde la ficha de ubicación",
+      });
+      setRevokedMemory((previous) => [...previous, memoryId]);
+      setSuccess(
+        "Reutilización desactivada. Los resultados y las decisiones históricas se conservan.",
+      );
+      await invalidate();
+    } catch (error) {
+      setError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!query.data) return;
@@ -155,6 +189,7 @@ function ResultRecord() {
         expected_revision: query.data.revision,
         action,
         reason,
+        learn_address: mayLearn && learnAddress,
       };
       if (action === "accept_candidate") payload.candidate_id = candidate;
       if (action === "manual_point") {
@@ -170,6 +205,7 @@ function ResultRecord() {
         "Decisión registrada. La revisión anterior se conserva en el historial.",
       );
       setReason("");
+      setLearnAddress(false);
       setEvidence("");
       setCandidate("");
       setLatitude("");
@@ -224,6 +260,20 @@ function ResultRecord() {
     [user?.id, user?.username].includes(r.review_owner) &&
     reservationIsLive(r.review_expires_at, clock);
   const candidates = r.candidates ?? [];
+  const memoryReferences = new Map<string, string>();
+  const ownMemory = r.normalized?.learned_reference_id;
+  if (typeof ownMemory === "string" && ownMemory)
+    memoryReferences.set(ownMemory, "Validación registrada desde esta ficha");
+  candidates.forEach((item, index) => {
+    if (
+      item.id.startsWith("memory:") &&
+      !memoryReferences.has(item.id.slice(7))
+    )
+      memoryReferences.set(
+        item.id.slice(7),
+        `Candidato ${index + 1} · ${item.label}`,
+      );
+  });
   const reservedByOther =
     !!r.review_owner &&
     r.review_owner !== user?.id &&
@@ -348,14 +398,37 @@ function ResultRecord() {
               </div>
             </div>
             <p className="reason">{reviewReason(r.reason)}</p>
-            <div className="coordinate-row">
-              <span>
-                Latitud <strong>{r.latitude ?? "—"}</strong>
-              </span>
-              <span>
-                Longitud <strong>{r.longitude ?? "—"}</strong>
-              </span>
-            </div>
+            {r.method === "DIRECCION_VALIDADA" && (
+              <Notice>
+                Resultado procedente de una dirección validada previamente.
+                Conserva la precisión y la referencia de la revisión de origen
+                para una coincidencia de dirección normalizada y UBIGEO.
+              </Notice>
+            )}
+            {r.product === "AREA_TRAMO" || isAreaGeometry(r.geometry) ? (
+              <Notice>
+                <strong>
+                  {geometryLabel(r.geometry)} · Precisión: {label(r.precision)}.
+                </strong>{" "}
+                La ubicación se representa mediante su geometría de referencia,
+                sin asignar un punto exacto.
+              </Notice>
+            ) : (
+              <div className="coordinate-row">
+                <span>
+                  Latitud <strong>{r.latitude ?? "—"}</strong>
+                </span>
+                <span>
+                  Longitud <strong>{r.longitude ?? "—"}</strong>
+                </span>
+              </div>
+            )}
+            {r.geometry && (
+              <details>
+                <summary>Ver geometría GeoJSON de la ubicación</summary>
+                <pre>{JSON.stringify(r.geometry, null, 2)}</pre>
+              </details>
+            )}
           </section>
           <section className="panel form-panel">
             <div className="panel-heading">
@@ -374,12 +447,26 @@ function ResultRecord() {
                       <p>
                         {label(c.method)} · Precisión: {label(c.precision)}
                       </p>
-                      <small className="mono">
-                        {c.latitude}, {c.longitude}
-                      </small>
+                      {isAreaPrecision(c.precision) ||
+                      isAreaGeometry(c.geometry) ? (
+                        <small>
+                          {geometryLabel(c.geometry)} · No representa un punto
+                          exacto.
+                        </small>
+                      ) : (
+                        <small className="mono">
+                          {c.latitude ?? "—"}, {c.longitude ?? "—"}
+                        </small>
+                      )}
+                      {c.method === "DIRECCION_VALIDADA" && (
+                        <p className="field-hint">
+                          Referencia de una revisión previa; consulta su
+                          evidencia de origen.
+                        </p>
+                      )}
                     </div>
                     <div className="candidate-score">
-                      Puntaje técnico<strong>{c.score}</strong>
+                      Puntaje técnico<strong>{c.score ?? "No aplica"}</strong>
                       <small>No es probabilidad</small>
                     </div>
                     <ul
@@ -425,6 +512,34 @@ function ResultRecord() {
                 text="Consulta los intentos de búsqueda y la razón de resolución antes de decidir."
               />
             )}
+            {canReview && memoryReferences.size > 0 && (
+              <div className="memory-management">
+                <h3>Reutilización de direcciones</h3>
+                <p className="field-hint">
+                  Desactiva una referencia para que deje de resolver futuros
+                  lotes. Los resultados históricos conservan su evidencia.
+                </p>
+                {Array.from(memoryReferences, ([memoryId, description]) => (
+                  <div className="memory-entry" key={memoryId}>
+                    <span>{description}</span>
+                    {revokedMemory.includes(memoryId) ? (
+                      <strong className="teal">
+                        Reutilización desactivada
+                      </strong>
+                    ) : (
+                      <button
+                        className="button secondary"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void revokeMemory(memoryId)}
+                      >
+                        Desactivar reutilización
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
           <section className="panel form-panel">
             <div className="panel-heading">
@@ -465,6 +580,8 @@ function ResultRecord() {
                 longitude={r.longitude}
                 candidates={candidates}
                 selectedCandidateId={candidate}
+                geometry={r.geometry}
+                precision={r.precision}
               />
             </Suspense>
           </section>
@@ -671,6 +788,27 @@ function ResultRecord() {
                         placeholder="Explica qué verificaste y por qué corresponde esta decisión."
                       />
                     </label>
+                    {mayLearn && (
+                      <div className="reuse-address">
+                        <label className="checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={learnAddress}
+                            onChange={(event) =>
+                              setLearnAddress(event.target.checked)
+                            }
+                            disabled={busy}
+                          />
+                          Reutilizar esta dirección validada en futuros lotes
+                        </label>
+                        <p className="field-hint">
+                          Se conservará una referencia para la misma dirección
+                          normalizada y UBIGEO, con esta precisión y revisión de
+                          origen. La opción se aplica únicamente a esta
+                          decisión.
+                        </p>
+                      </div>
+                    )}
                     <button
                       className="button primary full"
                       type="submit"

@@ -55,15 +55,13 @@ test("review prerequisites, reference reprocessing, save-next and finalization",
       page.getByRole("heading", { name: catalogName, exact: true }),
     ).toBeVisible();
     await page.goto("/runs/new");
-    await page
-      .locator("#source-file")
-      .setInputFiles({
-        name: "revision-sintetica.csv",
-        mimeType: "text/csv",
-        buffer: Buffer.from(
-          "complaint_id,location_original,ubigeo,street_type,street_name,door_number\nQA-REV-1,CALLE AMBIGUA 50,150101,CALLE,AMBIGUA,50\nQA-REV-2,CALLE AMBIGUA 50,150101,CALLE,AMBIGUA,50\n",
-        ),
-      });
+    await page.locator("#source-file").setInputFiles({
+      name: "revision-sintetica.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(
+        "complaint_id,location_original,ubigeo,street_type,street_name,door_number\nQA-REV-1,CALLE AMBIGUA 50,150101,CALLE,AMBIGUA,50\nQA-REV-2,CALLE AMBIGUA 50,150101,CALLE,AMBIGUA,50\n",
+      ),
+    });
     await page
       .getByRole("button", { name: "Cargar y verificar columnas" })
       .click();
@@ -236,6 +234,9 @@ test("review prerequisites, reference reprocessing, save-next and finalization",
         exact: true,
       }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Examinar", exact: true }),
+    ).toHaveCount(1);
     await expect(page.getByText("Sin reserva", { exact: true })).toBeVisible();
     await page.setViewportSize({ width: 400, height: 900 });
     await page.screenshot({

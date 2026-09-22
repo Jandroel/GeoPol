@@ -10,7 +10,7 @@ from shapely.errors import ShapelyError
 
 from .domain.normalization import canonical_street_type, street_parts
 
-KINDS = {"door", "block", "intersection", "site", "nucleus", "jurisdiction", "boundary"}
+KINDS = {"door", "block", "intersection", "site", "nucleus", "jurisdiction", "boundary", "street", "manzana"}
 
 
 def search_key(value):
@@ -71,6 +71,19 @@ def read_catalog(data: bytes, filename: str, source: str, version: str):
                 feature[key] = street
                 if key == "street_name" and inferred_type and not feature.get("street_type"):
                     feature["street_type"] = inferred_type
+        for key in ("aliases", "cross_aliases"):
+            if key in feature:
+                aliases = json.loads(feature[key]) if isinstance(feature[key], str) else feature[key]
+                if (
+                    not isinstance(aliases, list)
+                    or len(aliases) > 200
+                    or any(
+                        not isinstance(alias, str) or not alias.strip() or len(alias) > 500
+                        for alias in aliases
+                    )
+                ):
+                    raise ValueError(f"Alias inválidos en entidad {ordinal}")
+                feature[key] = list(dict.fromkeys(search_key(alias) for alias in aliases))
         if isinstance(feature.get("geometry"), str):
             feature["geometry"] = json.loads(feature["geometry"])
         geometry = feature.get("geometry")
@@ -94,8 +107,17 @@ def read_catalog(data: bytes, filename: str, source: str, version: str):
                 raise ValueError(f"Geometría fuera de EPSG:4326 en entidad {ordinal}")
             if feature["kind"] == "boundary" and parsed.geom_type not in {"Polygon", "MultiPolygon"}:
                 raise ValueError("Los límites territoriales deben ser polígonos")
-        if feature["kind"] == "boundary" and not geometry:
-            raise ValueError("Un límite territorial requiere geometría GeoJSON")
+            required_geometry = {
+                "street": {"LineString", "MultiLineString"},
+                "manzana": {"Polygon", "MultiPolygon"},
+            }
+            if (
+                feature["kind"] in required_geometry
+                and parsed.geom_type not in required_geometry[feature["kind"]]
+            ):
+                raise ValueError(f"Geometría incompatible con {feature['kind']} en entidad {ordinal}")
+        if feature["kind"] in {"boundary", "street", "manzana"} and not geometry:
+            raise ValueError(f"La entidad {feature['kind']} requiere geometría GeoJSON")
         if ("latitude" in feature) != ("longitude" in feature):
             raise ValueError(f"Par de coordenadas incompleto en entidad {ordinal}")
         if "latitude" in feature:
@@ -108,9 +130,22 @@ def read_catalog(data: bytes, filename: str, source: str, version: str):
             ):
                 raise ValueError(f"Coordenadas inválidas en entidad {ordinal}")
             feature.update(latitude=lat, longitude=lon)
+            point_reference = feature["kind"] in {"door", "intersection"} or (
+                feature["kind"] == "site" and feature.get("point_role") in {"mapped_poi", "entrance"}
+            )
+            if not geometry and point_reference:
+                # These are the reference's explicit axes, not a computed
+                # centroid. Areas and street segments never use this fallback.
+                feature["geometry"] = {"type": "Point", "coordinates": [lon, lat]}
+                feature.setdefault("geometry_transform", "point_from_explicit_reference_coordinates")
         if "connects_at_grade" in feature:
             feature["connects_at_grade"] = str(feature["connects_at_grade"]).lower() in {"true", "1"}
-        feature.update(source=source, version=version, crs="EPSG:4326")
+        for key, fallback in (("source", source), ("version", version)):
+            value = feature.get(key, fallback)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Procedencia inválida en entidad {ordinal}")
+            feature[key] = value.strip()
+        feature["crs"] = "EPSG:4326"
         yield feature
     if not seen:
         raise ValueError("El catálogo no contiene entidades")

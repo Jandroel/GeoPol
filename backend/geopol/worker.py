@@ -9,11 +9,12 @@ import os
 import signal
 import socket
 import time
-from functools import lru_cache
 
 from sqlalchemy import and_, func, insert, or_, select, update
 
 from .catalogs import search_key
+from .address_memory import resolve_memory
+from .reference_search import ReferenceSearch
 from .config import settings
 from .db import SessionLocal
 from .domain import RULES_VERSION
@@ -24,7 +25,6 @@ from .models import (
     Catalog,
     Export,
     ExportItem,
-    Feature,
     Heartbeat,
     Job,
     Location,
@@ -111,6 +111,8 @@ def unit_key(normalized, ordinal):
         "street_name",
         "door_number",
         "block_number",
+        "manzana_code",
+        "lot_number",
         "cross_street",
         "site_name",
         "urban_core",
@@ -262,38 +264,7 @@ def process_run(run_id, job_id, token):
             run.ingested, run.status = True, "PROCESSING"
             db.commit()
 
-    @lru_cache(maxsize=32)
-    def territorial_features(catalog_id, ubigeo, boundaries_only):
-        with SessionLocal() as db:
-            query = select(Feature).where(Feature.catalog_id == catalog_id, Feature.ubigeo == ubigeo)
-            query = query.where(Feature.kind == "boundary" if boundaries_only else Feature.kind != "boundary")
-            limit = 50 if boundaries_only else 500
-            rows = list(db.scalars(query.order_by(Feature.id).limit(limit + 1)))
-            return [row.payload for row in rows[:limit]], len(rows) > limit
-
-    @lru_cache(maxsize=64)
-    def lookup(catalog_id, ubigeo, names):
-        if not catalog_id or not ubigeo:
-            return [], False
-        boundaries, boundaries_truncated = territorial_features(catalog_id, ubigeo, True)
-        with SessionLocal() as db:
-            base = select(Feature).where(Feature.catalog_id == catalog_id, Feature.ubigeo == ubigeo)
-            exact = (
-                list(
-                    db.scalars(
-                        base.where(Feature.kind != "boundary", Feature.search_key.in_(names))
-                        .order_by(Feature.id)
-                        .limit(501)
-                    )
-                )
-                if names
-                else []
-            )
-        if exact:
-            rows, rows_truncated = [x.payload for x in exact[:500]], len(exact) > 500
-        else:
-            rows, rows_truncated = territorial_features(catalog_id, ubigeo, False)
-        return rows + boundaries, rows_truncated or boundaries_truncated
+    references = ReferenceSearch(SessionLocal)
 
     while True:
         with SessionLocal() as db:
@@ -344,10 +315,13 @@ def process_run(run_id, job_id, token):
             for item in items:
                 normalized = dict(item.normalized)
                 names = tuple(search_key(n) for n in normalized.get("search_names", []) if n)
-                features, truncated = lookup(run.reference_id, item.ubigeo, names)
+                features, truncated = references.lookup(
+                    run.reference_id, item.ubigeo, names, normalized.get("manzana_code")
+                )
                 normalized["reference_truncated"] = truncated
                 normalized["available_reference_kinds"] = catalog.kinds if catalog else []
                 resolved = resolve_location(normalized, features, reference_available=bool(catalog))
+                resolved = resolve_memory(db, normalized, resolved, run.created_at)
                 if item.complaint_id in conflicts or {"FILA_ORIGEN_CON_INCIDENCIA", "CRS_CONFLICTIVO"} & set(
                     normalized.get("warnings", [])
                 ):
@@ -355,6 +329,7 @@ def process_run(run_id, job_id, token):
                         resolution="REVISION_REQUERIDA",
                         latitude=None,
                         longitude=None,
+                        geometry=None,
                         product="DIRECCION_SIN_PUNTO" if item.location_normalized else "NINGUNO",
                         evidence_band="REVISION",
                         reason="Ubicaciones contradictorias, CRS en conflicto o incidencia en la fila de origen; requiere conciliación",
@@ -367,6 +342,7 @@ def process_run(run_id, job_id, token):
                     "product",
                     "latitude",
                     "longitude",
+                    "geometry",
                     "reason",
                     "candidates",
                     "attempts",
@@ -403,7 +379,8 @@ EXPORT_COLUMNS_V1 = (
     "revision",
     "source_row_count",
 )
-EXPORT_COLUMNS = EXPORT_COLUMNS_V1 + ("review_status", "review_bucket")
+EXPORT_COLUMNS_V2 = EXPORT_COLUMNS_V1 + ("review_status", "review_bucket")
+EXPORT_COLUMNS = EXPORT_COLUMNS_V2 + ("geometry",)
 
 
 def safe_cell(value, safe):
@@ -435,7 +412,8 @@ def process_export(export_id, job_id, token):
     row_count = 0
     with path.open("w", encoding="utf-8-sig", newline="") as stream:
         writer = csv.writer(stream)
-        columns = EXPORT_COLUMNS if manifest.get("schema_version", 1) >= 2 else EXPORT_COLUMNS_V1
+        schema = manifest.get("schema_version", 1)
+        columns = EXPORT_COLUMNS if schema >= 3 else EXPORT_COLUMNS_V2 if schema == 2 else EXPORT_COLUMNS_V1
         headers = [f"GEOPOL_{x}" for x in columns]
         if profile == "source_rows":
             headers = ["SOURCE_ORDINAL", "SOURCE_ISSUE"] + source_columns + headers

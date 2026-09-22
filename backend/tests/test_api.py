@@ -505,6 +505,17 @@ def test_reference_import_preserves_version_and_rejects_malformed_input(harness)
         ],
     }
     metadata = {"name": "Catálogo sintético", "source": "Prueba", "version": "test-1"}
+    geojson["features"].append(
+        {
+            "type": "Feature",
+            "id": "synthetic-boundary",
+            "properties": {"kind": "boundary", "ubigeo": "150101"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[-78, -13], [-76, -13], [-76, -11], [-78, -11], [-78, -13]]],
+            },
+        }
+    )
     response = harness.client.post(
         "/api/references",
         data=metadata,
@@ -513,7 +524,7 @@ def test_reference_import_preserves_version_and_rejects_malformed_input(harness)
     )
     assert response.status_code in (200, 201), response.text
     assert response.json()["version"] == "test-1"
-    assert response.json()["feature_count"] == 1
+    assert response.json()["feature_count"] == 2
     run = harness.run(reference_id=response.json()["id"])
     results = harness.results(run["id"])
     exact = next(item for item in results if item["complaint_id"] == "DEMO-A")

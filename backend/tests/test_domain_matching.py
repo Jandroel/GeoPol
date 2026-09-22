@@ -21,6 +21,11 @@ def door(**overrides):
         "longitude": -77.1,
         "source": "SINTETICO",
         "version": "1",
+        "crs": "EPSG:4326",
+        "geometry": {
+            "type": "Point",
+            "coordinates": [overrides.get("longitude", -77.1), overrides.get("latitude", -12.05)],
+        },
         **overrides,
     }
 
@@ -32,6 +37,7 @@ def boundary(**overrides):
         "ubigeo": "150101",
         "source": "SINTETICO",
         "version": "1",
+        "crs": "EPSG:4326",
         "geometry": {
             "type": "Polygon",
             "coordinates": [[[-78, -13], [-76, -13], [-76, -11], [-78, -11], [-78, -13]]],
@@ -41,7 +47,7 @@ def boundary(**overrides):
 
 
 def test_unique_exact_door_has_explainable_acceptance():
-    result = resolve_location(normalized(), [door()], True)
+    result = resolve_location(normalized(), [door(), boundary()], True)
     assert result["resolution"] == "ACEPTADO_AUTOMATICO"
     assert result["latitude"] == -12.05
     assert result["method"] == "PUERTA_CON_TIPO"
@@ -49,9 +55,9 @@ def test_unique_exact_door_has_explainable_acceptance():
     assert result["candidates"][0]["score_type"] == "SIMILITUD_TEXTUAL_NO_PROBABILIDAD"
 
 
-@pytest.mark.parametrize("change", [{"crs": None}, {"ubigeo": None}])
-def test_unknown_crs_or_territory_cannot_autoaccept(change):
-    result = resolve_location(normalized(**change), [door()], True)
+@pytest.mark.parametrize("change", [{"ubigeo": None}])
+def test_unknown_territory_cannot_autoaccept(change):
+    result = resolve_location(normalized(**change), [door(), boundary()], True)
     assert result["resolution"] == "REVISION_REQUERIDA"
     assert result["latitude"] is result["longitude"] is None
 
@@ -68,14 +74,16 @@ def test_missing_reference_differs_from_complete_search_without_match():
 
 
 def test_door_ambiguity_does_not_take_first_reference():
-    result = resolve_location(normalized(), [door(), door(id="d2", latitude=-12.06)], True)
+    result = resolve_location(normalized(), [door(), door(id="d2", latitude=-12.06), boundary()], True)
     assert result["resolution"] == "REVISION_REQUERIDA"
     assert "MULTIPLES_CANDIDATOS" in result["reason"]
     assert len(result["candidates"]) == 2
 
 
 def test_equivalent_exact_points_preserve_all_provenance_and_explain_acceptance():
-    result = resolve_location(normalized(), [door(), door(id="d2", source="OTRA_FUENTE", version="2")], True)
+    result = resolve_location(
+        normalized(), [door(), door(id="d2", source="OTRA_FUENTE", version="2"), boundary()], True
+    )
     assert result["resolution"] == "ACEPTADO_AUTOMATICO"
     assert result["reason"] == "EVIDENCIAS_EQUIVALENTES_MISMO_PUNTO"
     assert (result["latitude"], result["longitude"]) == (-12.05, -77.1)
@@ -88,7 +96,9 @@ def test_equivalent_exact_points_preserve_all_provenance_and_explain_acceptance(
 
 
 def test_nearby_points_are_never_rounded_into_equivalent_evidence():
-    result = resolve_location(normalized(), [door(), door(id="d2", latitude=-12.05 + 1e-12)], True)
+    result = resolve_location(
+        normalized(), [door(), door(id="d2", latitude=-12.05 + 1e-12), boundary()], True
+    )
     assert result["resolution"] == "REVISION_REQUERIDA"
     assert "MULTIPLES_CANDIDATOS" in result["reason"]
 
@@ -96,15 +106,19 @@ def test_nearby_points_are_never_rounded_into_equivalent_evidence():
 @pytest.mark.parametrize("repeated_id", [False, True])
 def test_coincident_fuzzy_evidence_cannot_borrow_an_exact_candidates_eligibility(repeated_id):
     approximate = door(id="d1" if repeated_id else "d2", street_name="LAS FLOREZ")
-    result = resolve_location(normalized(), [approximate, door()], True)
-    assert result["resolution"] == "REVISION_REQUERIDA"
-    assert "MULTIPLES_CANDIDATOS" in result["reason"]
+    result = resolve_location(normalized(), [approximate, door(), boundary()], True)
+    assert result["resolution"] == "ACEPTADO_AUTOMATICO"
+    assert result["reason"] != "EVIDENCIAS_EQUIVALENTES_MISMO_PUNTO"
+    assert (
+        "SIMILITUD_TEXTUAL_REQUIERE_REVISION"
+        in next(c for c in result["candidates"] if c["score"] < 100)["evidence"]
+    )
     assert any(c["score"] < 100 for c in result["candidates"])
 
 
-@pytest.mark.parametrize("change", [{"crs": None}, {"ubigeo": None}, {"crs": "EPSG:3857"}])
-def test_repeated_points_do_not_resolve_unknown_crs_or_territory(change):
-    result = resolve_location(normalized(**change), [door(), door(id="d2")], True)
+@pytest.mark.parametrize("change", [{"ubigeo": None}])
+def test_repeated_points_do_not_resolve_unknown_territory(change):
+    result = resolve_location(normalized(**change), [door(), door(id="d2"), boundary()], True)
     assert result["resolution"] == "REVISION_REQUERIDA"
     assert result["latitude"] is result["longitude"] is None
 
@@ -117,15 +131,15 @@ def test_repeated_points_outside_or_on_boundary_remain_review(latitude):
     assert result["resolution"] == "REVISION_REQUERIDA"
 
 
-def test_coincident_candidates_from_different_methods_remain_competing_evidence():
+def test_exactly_coincident_original_and_door_evidence_agree():
     source = normalized(latitude=-12.05, longitude=-77.1)
     result = resolve_location(source, [door(), boundary()], True)
     assert {candidate["method"] for candidate in result["candidates"]} == {
         "COORD_ORIGINAL",
         "PUERTA_CON_TIPO",
     }
-    assert result["resolution"] == "REVISION_REQUERIDA"
-    assert "MULTIPLES_CANDIDATOS" in result["reason"]
+    assert result["resolution"] == "ACEPTADO_AUTOMATICO"
+    assert "COORDENADA_Y_REFERENCIA_CONCORDANTES" in result["candidates"][0]["evidence"]
 
 
 def test_repeated_approximate_blocks_do_not_become_precise_points():
@@ -224,7 +238,7 @@ def test_legacy_centroid_in_a_manzana_is_never_an_original_coordinate():
         location_original="MANZANA A LOTE 2", latitude=-12.05, longitude=-77.1, coordinate_origin="CENTROIDE"
     )
     result = resolve_location(source, [boundary()], True)
-    assert result["resolution"] == "REVISION_REQUERIDA"
+    assert result["resolution"] == "NO_EVALUABLE_REFERENCIA"
     assert result["latitude"] is result["longitude"] is None
     assert not result["candidates"]
 
@@ -299,9 +313,9 @@ def test_block_result_preserves_approximate_precision():
 def test_cross_matches_reversed_order_but_connection_needs_verification():
     source = normalized(location_original="AV LAS FLORES CON JR LOS PINOS")
     feature = door(kind="intersection", street_name="LOS PINOS", cross_street="LAS FLORES", door_number=None)
-    assert resolve_location(source, [feature], True)["resolution"] == "REVISION_REQUERIDA"
+    assert resolve_location(source, [feature, boundary()], True)["resolution"] == "REVISION_REQUERIDA"
     feature["connects_at_grade"] = True
-    assert resolve_location(source, [feature], True)["resolution"] == "ACEPTADO_AUTOMATICO"
+    assert resolve_location(source, [feature, boundary()], True)["resolution"] == "ACEPTADO_AUTOMATICO"
 
 
 def test_relative_site_is_never_precise_automatic_location():

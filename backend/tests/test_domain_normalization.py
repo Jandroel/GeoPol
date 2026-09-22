@@ -45,7 +45,8 @@ def test_sidpol_absent_block_is_audited_without_an_invalid_component_warning():
     assert result["legacy"]["block_number_original"] == "NULL"
     assert result["legacy"]["street_type_original"] == "Otros"
     assert "CUADRA_ESTRUCTURADA_INVALIDA" not in result["warnings"]
-    assert "TIPO_VIA_ESTRUCTURADO_NO_RECONOCIDO" in result["warnings"]
+    assert "TIPO_VIA_ESTRUCTURADO_NO_RECONOCIDO" not in result["warnings"]
+    assert any(c["rule"] == "TIPO_VIA_GENERICO_SIN_RESTRICCION" for c in result["transformations"])
     assert {
         "rule": "SENTINELA_AUSENCIA_ESTRUCTURADA",
         "field": "block_number",
@@ -78,7 +79,7 @@ def test_numeric_absence_markers_preserve_raw_and_auditable_originals(marker):
     original = dict(raw)
     result = normalize_record(raw)
     assert raw == original
-    assert result["rules_version"] == RULES_VERSION == "2026.2"
+    assert result["rules_version"] == RULES_VERSION == "2026.3"
     for field in ("block_number", "door_number", "latitude", "longitude", "ubigeo"):
         assert result[field] is None
         assert result["legacy"][field + "_original"] == marker

@@ -8,6 +8,7 @@ import { ErrorNotice, Notice } from "./ui";
 
 export function ReprocessPanel({ run }: { run: Run }) {
   const [reference, setReference] = useState(run.reference_id ?? "");
+  const [crs, setCrs] = useState("preserve");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ export function ReprocessPanel({ run }: { run: Run }) {
     try {
       const result = await post<Run>(`/runs/${run.id}/reprocess`, {
         reference_id: reference || null,
+        ...(crs === "preserve" ? {} : { crs: crs === "clear" ? null : crs }),
       });
       await client.invalidateQueries({ queryKey: ["runs"] });
       navigate(`/runs/${result.id}`);
@@ -71,6 +73,29 @@ export function ReprocessPanel({ run }: { run: Run }) {
               </option>
             ))}
           </select>
+        </label>
+        <label>
+          Sistema de coordenadas originales
+          <select
+            aria-label="Sistema de coordenadas originales"
+            value={crs}
+            onChange={(event) => setCrs(event.target.value)}
+            disabled={busy}
+          >
+            <option value="preserve">Conservar la configuración actual</option>
+            <option value="clear">
+              Sin confirmar el sistema de coordenadas
+            </option>
+            <option value="EPSG:4326">Confirmo WGS84 · EPSG:4326</option>
+          </select>
+          <span className="field-hint">
+            Configuración actual:{" "}
+            {run.config.crs === "EPSG:4326"
+              ? "WGS84 · EPSG:4326"
+              : "sin confirmación de WGS84"}
+            . Confirma WGS84 únicamente si conoces el sistema de origen. Esta
+            opción no transforma coordenadas UTM ni otros sistemas.
+          </span>
         </label>
       </div>
       {references.hasNextPage && (

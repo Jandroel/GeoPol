@@ -74,7 +74,9 @@ def import_reference(
                     external_id=feature["id"],
                     kind=feature["kind"],
                     ubigeo=feature["ubigeo"],
-                    search_key=search_key(feature.get("street_name") or feature.get("name")),
+                    search_key=search_key(
+                        feature.get("street_name") or feature.get("name") or feature.get("urban_core")
+                    ),
                     payload=feature,
                 )
             )

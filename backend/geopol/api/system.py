@@ -117,11 +117,15 @@ def rules(_: User = Depends(current_user)):
             },
             {
                 "name": "Normalización",
-                "description": "Mayúsculas, tildes, espacios, tipo de vía, puerta, cuadra, cruces y UBIGEO de seis dígitos; transformaciones registradas por unidad.",
+                "description": "Mayúsculas, tildes, espacios, tipo de vía, puerta, cuadra, manzana/lote, cruces y UBIGEO de seis dígitos; transformaciones registradas por unidad.",
             },
             {
                 "name": "Coincidencia y ambigüedad",
-                "description": "Puerta exacta, coordenadas corroboradas y cruces explícitos pueden aceptarse. Las evidencias exactas del mismo punto, método y precisión conservan sus procedencias. Coincidencias aproximadas, candidatos distintos, cuadras y sitios requieren revisión.",
+                "description": "La aceptación combina componentes, territorio, geometría, procedencia y ausencia de ambigüedad. Los resultados distinguen puntos de áreas y tramos; una vía no se presenta como puerta exacta. La similitud textual ordena candidatos y no expresa una probabilidad de acierto.",
+            },
+            {
+                "name": "Direcciones validadas reutilizables",
+                "description": "El revisor puede habilitar explícitamente la reutilización de una dirección y su territorio. Se conserva la revisión de origen; cambios, reaperturas, contradicciones o confirmaciones incompatibles impiden su reutilización automática.",
             },
             {
                 "name": "Revisión y exportación",
@@ -132,7 +136,7 @@ def rules(_: User = Depends(current_user)):
             "Los métodos dependientes de cartografía requieren un catálogo validado y seleccionado para la ejecución; los límites distritales por sí solos no geocodifican direcciones sin coordenadas.",
             "Las bandas de evidencia no representan probabilidades calibradas.",
             "El mapa local no usa una base cartográfica pública ni geocodificadores externos.",
-            "Un catálogo admite hasta 24 MiB y 100 000 entidades; búsqueda difusa acotada a 500 candidatos territoriales, con revisión obligatoria si se trunca.",
+            "Un catálogo admite hasta 24 MiB y 100 000 entidades; la búsqueda ordena nombres y alias dentro del distrito, conserva competidores y exige revisión si alcanza sus límites de recuperación.",
             "El despliegue local SQLite admite un solo worker. PostgreSQL/PostGIS se utiliza para el despliegue institucional.",
         ],
     }

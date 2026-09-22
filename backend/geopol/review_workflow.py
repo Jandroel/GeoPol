@@ -4,6 +4,12 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 MISSING_BOUNDARY = frozenset({"LIMITE_TERRITORIAL_NO_DISPONIBLE", "LIMITE_TERRITORIAL_INVALIDO"})
+MISSING_REFERENCE = MISSING_BOUNDARY | {
+    "LIMITE_TERRITORIAL_INVALIDO_O_CRS_NO_CONFIRMADO",
+    "CRS_NO_CONFIRMADO",
+    "CRS_REFERENCIA_NO_CONFIRMADO",
+    "PROCEDENCIA_REFERENCIA_INCOMPLETA",
+}
 ORIGINAL_COORDINATE_METHODS = frozenset({"COORD_ORIGINAL", "COORD_TEXTO"})
 
 
@@ -33,9 +39,11 @@ def classify_review(
         else []
     )
     reason = reason if isinstance(reason, str) else ""
+    if "BUSQUEDA_REFERENCIAL_TRUNCADA" in reason:
+        return "OPEN", "technical"
     for candidate in items:
         method = candidate.get("method")
-        if not isinstance(method, str) or method not in ORIGINAL_COORDINATE_METHODS:
+        if not isinstance(method, str):
             continue
         raw_evidence = candidate.get("evidence")
         evidence = (
@@ -45,6 +53,6 @@ def classify_review(
             if isinstance(raw_evidence, str)
             else set()
         )
-        if MISSING_BOUNDARY.intersection(evidence) or any(code in reason for code in MISSING_BOUNDARY):
+        if MISSING_REFERENCE.intersection(evidence) or any(code in reason for code in MISSING_REFERENCE):
             return "OPEN", "needs_reference"
     return "OPEN", "actionable" if items else "needs_data"

@@ -31,7 +31,7 @@ npm run build
 npm run format:check
 ```
 
-Las pruebas verifican interrupción y reanudación de una carga, separación entre usuarios, límite de bloques, autenticación expirada, conflictos de revisión, conservación de candidatos, filtros de bandeja, selección explícita de referencia al reprocesar y el reinicio del formulario al guardar y avanzar. `build` comprueba tipos y produce `dist/`. El visor MapLibre se carga de forma diferida; su dependencia genera un aviso de tamaño de Vite, sin afectar la compilación.
+Las pruebas verifican interrupción y reanudación de una carga, separación entre usuarios, límite de bloques, autenticación expirada, conflictos de revisión, conservación de candidatos, filtros de bandeja, selección explícita de referencia al reprocesar y el reinicio del formulario al guardar y avanzar. `build` comprueba tipos y produce `dist/`. El visor MapLibre se carga de forma diferida; su dependencia genera un aviso de tamaño de Vite, sin afectar la compilación. Su worker ESM se incluye mediante `?worker&url` y se configura antes de crear el mapa; debe desplegarse todo `dist/`, incluido ese asset local.
 
 La prueba integrada en Chromium se ejecuta con `npm run test:e2e` contra un entorno local aislado. Configuración, alcance y evidencias se describen en [QA.md](QA.md).
 
@@ -46,6 +46,12 @@ La bandeja abre primero las revisiones accionables y muestra por separado los pe
 Desde una ejecución se puede preparar un nuevo procesamiento y seleccionar otro catálogo. Los resultados anteriores conservan su historial y salen de la bandeja vigente solo al terminar correctamente su sustituto. El dashboard cuenta ubicaciones de ejecuciones terminadas vigentes; el contador de procesamientos conserva el historial completo.
 
 El mapa muestra únicamente las coordenadas y candidatos recibidos de la API. La cartografía base está sin configurar: no se hacen solicitudes a mapas o geocodificadores públicos. El estado vacío y la degradación por falta de WebGL son explícitos. Las fuentes tipográficas son del sistema y no requieren red.
+
+Las aceptaciones automáticas se distinguen entre **puntos** y **áreas o tramos** en el detalle del procesamiento. `counts_by_product` cuenta únicamente resultados `ACEPTADO_AUTOMATICO`. Los polígonos y líneas se dibujan desde su GeoJSON; una precisión de vía, cuadra, manzana o núcleo no se representa mediante un centroide artificial. La ficha conserva acceso a la geometría y a la precisión incluso si el visor no está disponible.
+
+El revisor puede marcar **Reutilizar esta dirección validada en futuros lotes** al aceptar un candidato con geometría válida o registrar un punto con precisión puntual. La opción permanece desmarcada por defecto y se reinicia al cambiar la decisión o avanzar a otra ubicación. La referencia se vincula a la dirección normalizada, UBIGEO y revisión de origen; los resultados que la reutilizan indican **Dirección validada previamente** y muestran su evidencia. Al reprocesar, el sistema de coordenadas puede conservarse, quedar sin confirmar o confirmarse explícitamente como WGS84/EPSG:4326; la interfaz no realiza transformaciones desde UTM.
+
+Los revisores y administradores pueden **Desactivar reutilización** desde la ficha que registró una referencia o desde uno de sus candidatos reutilizados. La acción queda documentada, no requiere reservar la ubicación y conserva los resultados históricos. Cuando los candidatos o su evidencia identifican OpenStreetMap, OSM o Geofabrik como procedencia, el visor muestra la atribución y el enlace a OpenStreetMap, incluso sin cartografía base remota.
 
 ## Ejemplo sintético
 

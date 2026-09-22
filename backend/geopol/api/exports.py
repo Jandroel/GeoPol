@@ -47,7 +47,7 @@ def create_export(
         safe_spreadsheet=payload.safe_spreadsheet,
         created_by=user.id,
         manifest={
-            "schema_version": 2,
+            "schema_version": 3,
             "run_id": identifier,
             "source_sha256": upload.sha256,
             "rules_version": run.rules_version,

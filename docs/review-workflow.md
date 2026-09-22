@@ -40,6 +40,9 @@ El lote anterior sigue vigente hasta que el nuevo termina como `COMPLETED` o `CO
 
 Detener API y worker de esa instalación, obtener una copia consistente de la base y conservar sus objetos, desplegar el código y ejecutar `python -m geopol.cli init-db` antes de reiniciar los servicios. La migración v2 añade campos e índices y clasifica los casos existentes en bloques; no reemplaza filas de origen ni revisiones. Reconoce la última acción manual por número de revisión para conservar las reaperturas. Se comprueban idempotencia y reversión de una migración interrumpida en SQLite. La comprobación equivalente de PostgreSQL requiere el servicio de prueba dedicado.
 
-Los lotes antiguos conservan su versión de reglas. Un nuevo reproceso aplica 2026.2; la migración del esquema por sí sola no recalcula sus resultados geográficos. Los límites distritales permiten corroborar coordenadas existentes, pero no sustituyen un catálogo de vías, puertas o cruces para direcciones sin punto.
+Los lotes antiguos conservan su versión de reglas. Un nuevo reproceso aplica la versión vigente (2026.3); la migración del esquema por sí sola no recalcula sus resultados geográficos. Los límites distritales permiten corroborar coordenadas existentes, pero no sustituyen un catálogo de vías, puertas o cruces para direcciones sin punto.
 
 El manifiesto de las nuevas exportaciones identifica el formato CSV como `schema_version: 2`. Una exportación v1 ya solicitada conserva sus columnas originales al reanudarse. Las revisiones históricas anteriores a v2 no se modifican: sus campos de tarea pueden estar vacíos al exportarlas con el formato nuevo.
+
+
+La [ampliación 2026.3](automation-2026.3.md) requiere migración v3 aditiva. Las confirmaciones reutilizables son optativas y revocables; las áreas y tramos mantienen su geometría y coordenadas puntuales vacías. El reproceso permite conservar, borrar o confirmar el CRS original; no lo deduce de los valores del archivo.

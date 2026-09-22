@@ -13,7 +13,7 @@ El flujo cubre recepción, perfil y mapeo, ingesta, separación fila/unidad, nor
 | Objetos institucionales S3/NAS | Filesystem privado en volumen persistente | Integrar almacenamiento, políticas y respaldo aprobados |
 | OIDC y permisos territoriales | Usuarios locales con roles en toda la instancia | SSO y autorización por ámbito |
 | Canal SSE/eventos | Consulta periódica del estado | Ajustar frecuencia o incorporar SSE según carga |
-| Cartografía institucional | Importación de archivos versionados y demo sintética | Obtener y validar capas oficiales |
+| Cartografía institucional | Importación versionada y constructor local OSM/MINAM | Validar vigencia, cobertura y cartografía censal institucional |
 | Reproyección geográfica | EPSG:4326 explícito | Transformaciones controladas y pruebas por CRS |
 | Monitorización institucional | Salud API/base y estado persistido del trabajo | Métricas, alertas, trazas y retención |
 | Evolución de esquema | Migraciones v1/v2 incrementales con backfill, idempotencia y rollback SQLite comprobados | Ejecutar la prueba equivalente sobre PostgreSQL y mantener migraciones por versión |
@@ -22,10 +22,10 @@ El flujo cubre recepción, perfil y mapeo, ingesta, separación fila/unidad, nor
 
 - No atribuye una probabilidad de acierto a una similitud textual. La evidencia se expresa de forma categórica y conserva el motivo.
 - Los centroides heredados no se aceptan como coordenadas originales del hecho.
-- Un punto original plausible sin corroboración territorial queda para revisión. Una coincidencia aproximada o ambigua no debe convertirse en una aceptación automática.
+- Un punto original sin CRS confirmado o corroboración territorial queda para revisión. La versión 2026.3 admite similitud fuerte con componentes independientes y margen entre candidatos; su umbral es una regla determinista, no una tasa de acierto calibrada. La ambigüedad no resuelta exige revisión.
 - Puertas, cuadras, cruces, sitios y núcleos dependen de la cobertura real del catálogo. La inexistencia de catálogo no se reporta como búsqueda exitosa sin coincidencias.
 - Las reglas de extracción son un baseline para español y direcciones peruanas; no garantizan interpretar todos los textos, manzanas/lotes ni referencias relativas.
-- No se descargan capas INEI, PNP, calles ni mapas base. Las geometrías sintéticas son escenarios de prueba, sin validez geográfica oficial.
+- El constructor opcional descarga OSM Perú y límites referenciales MINAM, con manifiestos y selección posterior local. No usa geocodificadores públicos ni envía direcciones de origen. No incorpora automáticamente la cartografía censal INEI/PNP ni atribuye una fecha censal a capas sin metadatos. Las geometrías sintéticas siguen limitadas a pruebas.
 - No hay integración en línea con SIDPOL ni escritura directa en el GIS. El contrato de exportación debe validarse con su consumidor real.
 
 ## Capacidad y operación
@@ -48,3 +48,7 @@ SQLite está destinado al desarrollo con un solo worker. Para varios procesos co
 6. Compatibilidad GIS: identificadores como texto, nulos, codificación, fórmulas escapadas y CRS.
 
 Estas decisiones no se completan inventando cartografía, confianza estadística o tasas de recuperación.
+
+## Precisión y reutilización
+
+Los resultados de área/tramo son automáticos solo en la precisión declarada; no equivalen a puertas o coordenadas exactas del hecho. La cobertura automática debe medirse separada de la exactitud geográfica mediante una muestra validada independiente. Las confirmaciones humanas se reutilizan únicamente con opt-in explícito, firma de dirección/territorio, procedencia y revisión de origen, y se pueden revocar. No constituyen un modelo de aprendizaje entrenado ni garantizan cobertura futura.

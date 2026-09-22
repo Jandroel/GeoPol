@@ -28,6 +28,7 @@ def location_dict(item):
         "product",
         "latitude",
         "longitude",
+        "geometry",
         "reason",
         "revision",
         "manual",
@@ -85,6 +86,13 @@ def run_dict(db, run):
             select(Location.resolution, func.count())
             .where(Location.run_id == run.id)
             .group_by(Location.resolution)
+        ).all()
+    )
+    result["counts_by_product"] = dict(
+        db.execute(
+            select(Location.product, func.count())
+            .where(Location.run_id == run.id, Location.resolution == "ACEPTADO_AUTOMATICO")
+            .group_by(Location.product)
         ).all()
     )
     return result
