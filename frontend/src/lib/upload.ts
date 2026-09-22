@@ -1,4 +1,4 @@
-import { post, request } from "./api";
+import { ApiError, post, request } from "./api";
 import type { Upload } from "../types";
 export const CHUNK_SIZE = 8 * 1024 * 1024;
 const storageKey = "geopol.upload.resume";
@@ -45,15 +45,21 @@ export async function uploadFile(
 ): Promise<Upload> {
   const fingerprint = await fileFingerprint(file);
   const saved = getResume(userId);
-  let upload: Upload;
+  let upload: Upload | undefined;
   if (
     saved &&
     saved.filename === file.name &&
     saved.size === file.size &&
     saved.fingerprint === fingerprint
-  )
-    upload = await request<Upload>(`/uploads/${saved.uploadId}`, { signal });
-  else {
+  ) {
+    try {
+      upload = await request<Upload>(`/uploads/${saved.uploadId}`, { signal });
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 404) throw error;
+      clearResume();
+    }
+  }
+  if (!upload) {
     upload = await post<Upload>("/uploads", {
       filename: file.name,
       size: file.size,
@@ -72,7 +78,7 @@ export async function uploadFile(
   }
   onProgress(upload.offset);
   while (upload.offset < file.size) {
-    const previousOffset = upload.offset;
+    const previousOffset: number = upload.offset;
     upload = await request<Upload>(`/uploads/${upload.id}`, {
       method: "PATCH",
       headers: {
