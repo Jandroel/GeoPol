@@ -167,6 +167,8 @@ test("synthetic geometry renders in WebGL and explicit address reuse can be revo
         name: `QA geometría ${complaint}`,
         reference_id: referenceId,
         crs: "EPSG:4326",
+        crs_evidence:
+          "Metadatos de fixture sintética: coordenadas WGS84 EPSG:4326",
       },
     });
     expect(started.status()).toBe(201);

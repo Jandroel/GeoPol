@@ -229,6 +229,7 @@ def test_v1_upgrade_preserves_data_and_latest_manual_action(legacy_engine, monke
             1,
             2,
             3,
+            4,
         ]
         assert conn.scalar(text("SELECT applied_at FROM schema_versions WHERE version=1")) == 123456
         assert conn.scalar(text("SELECT manual FROM locations WHERE id='reopened'")) == 1
@@ -285,6 +286,7 @@ def test_fresh_database_versions_and_defaults(tmp_path):
                 1,
                 2,
                 3,
+                4,
             ]
         columns = {column["name"]: column for column in inspect(engine).get_columns("locations")}
         assert columns["review_status"]["default"] == "'OPEN'"
@@ -411,3 +413,18 @@ def test_worker_assigns_queue_classification_before_revision(legacy_engine, monk
         revision = db.scalar(select(Revision).where(Revision.location_id == "pending"))
         assert revision.snapshot["review_status"] == "OPEN"
         assert revision.snapshot["review_bucket"] == "needs_data"
+
+
+def test_version_four_creates_unconfigured_default_and_preserves_version_three_runs(legacy_engine):
+    migrations.migrate(legacy_engine)
+    with legacy_engine.begin() as conn:
+        before = list(conn.execute(text("SELECT id, reference_id, config FROM runs ORDER BY id")))
+        conn.execute(text("DROP TABLE processing_defaults"))
+        conn.execute(text("DELETE FROM schema_versions WHERE version=4"))
+    migrations.migrate(legacy_engine)
+    migrations.migrate(legacy_engine)
+    with legacy_engine.connect() as conn:
+        assert list(conn.execute(text("SELECT id, reference_id, config FROM runs ORDER BY id"))) == before
+        assert conn.execute(
+            text("SELECT id, reference_id, updated_by, updated_at FROM processing_defaults")
+        ).all() == [("global", None, None, None)]

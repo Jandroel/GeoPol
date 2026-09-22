@@ -42,7 +42,11 @@ GET /audit?page=1&page_size=25 -> list audit {id,actor,action,entity_id,created_
 
 GET /health/worker -> {status,last_seen_at}, authenticated. The rule version has one canonical constant: `domain.RULES_VERSION`; a worker refuses a run created for an unavailable rules version. Original coordinates require a confirmed EPSG:4326 input CRS; each reference has its own validated CRS. Geocoding address text does not require an input CRS. Declared coordinate conflicts require review or rejection, never an implicit reprojection.
 
-GET /health verifies migrations.SCHEMA_VERSION (currently 3) and also returns schema_version. Rule version 2026.3 retains audited normalization and adds the geometric and reusable-address contracts below; unresolved conflicts still require review.
+GET /health verifies migrations.SCHEMA_VERSION (currently 4) and also returns schema_version. Rule version 2026.3 retains audited normalization and adds the geometric and reusable-address contracts below; unresolved conflicts still require review.
+
+Schema 4 adds the persistent processing-default singleton. GET `/api/processing-defaults` is authenticated; PUT/PATCH accepts `{reference_id:string|null}` for administrators and audits updates. A new run with omitted `reference_id` snapshots the configured default; explicit null skips references. Confirming `crs:'EPSG:4326'` now requires `crs_evidence` (8–500 characters). Reprocessing preserves documented CRS only; legacy assumptions without evidence become null. GET `/api/runs/{id}/readiness` returns aggregate reference, CRS, review-cause and automatic-product diagnostics.
+
+GET `/api/results/{id}/review-group/preview` returns eligible equivalent locations, source-row counts, candidates and an actor-bound token. POST `/api/results/{id}/review-group/decide` accepts `{token,candidate_id,reason}` and revalidates the entire group transactionally. Decisions remain manual with per-location histories; groups exceeding 200 are blocked. GET `/api/runs/{id}/map-context?ubigeo=` returns local catalog lines/polygons only, marked `context_only`, with truncation and provenance. See [operation and limitations](automation-operation.md) for full behavior and the disabled optional geocoding pilot.
 
 ## Frontend
 

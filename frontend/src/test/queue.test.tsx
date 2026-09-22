@@ -182,10 +182,9 @@ describe("review queue scope", () => {
 });
 describe("reference-aware reprocessing", () => {
   it.each([
-    ["ref-2", "preserve"],
-    ["", "preserve"],
+    ["ref-2", "unconfirmed"],
+    ["", "unconfirmed"],
     ["ref-2", "EPSG:4326"],
-    ["ref-2", "clear"],
   ])(
     "creates a new execution with reference %s and CRS choice %s",
     async (selected, crs) => {
@@ -229,13 +228,20 @@ describe("reference-aware reprocessing", () => {
       await userEvent.setup().selectOptions(select, selected);
       expect(
         screen.getByLabelText("Sistema de coordenadas originales"),
-      ).toHaveValue("preserve");
+      ).toHaveValue("unconfirmed");
       await userEvent
         .setup()
         .selectOptions(
           screen.getByLabelText("Sistema de coordenadas originales"),
           crs,
         );
+      if (crs === "EPSG:4326")
+        await userEvent
+          .setup()
+          .type(
+            screen.getByLabelText("Fuente de confirmación de WGS84"),
+            "Metadatos sintéticos de prueba WGS84",
+          );
       await userEvent
         .setup()
         .click(
@@ -247,7 +253,11 @@ describe("reference-aware reprocessing", () => {
       expect(writes).toEqual([
         {
           reference_id: selected || null,
-          ...(crs === "preserve" ? {} : { crs: crs === "clear" ? null : crs }),
+          crs: crs === "unconfirmed" ? null : crs,
+          crs_evidence:
+            crs === "unconfirmed"
+              ? null
+              : "Metadatos sintéticos de prueba WGS84",
         },
       ]);
     },

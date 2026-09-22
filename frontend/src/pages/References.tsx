@@ -4,7 +4,7 @@ import { Database, Plus, Upload } from "lucide-react";
 import { useAuth } from "../auth";
 import { request } from "../lib/api";
 import { number } from "../lib/format";
-import type { Page, Reference } from "../types";
+import type { Page, ProcessingDefaults, Reference } from "../types";
 import {
   Empty,
   ErrorNotice,
@@ -31,6 +31,31 @@ export function References() {
     queryFn: () =>
       request<Page<Reference>>(`/references?page=${page}&page_size=25`),
   });
+  const defaults = useQuery({
+    queryKey: ["processing-defaults"],
+    queryFn: () => request<ProcessingDefaults>("/processing-defaults"),
+  });
+  async function setDefault(referenceId: string | null) {
+    setBusy(true);
+    setError(null);
+    setSuccess("");
+    try {
+      await request("/processing-defaults", {
+        method: "PUT",
+        body: JSON.stringify({ reference_id: referenceId }),
+      });
+      await client.invalidateQueries({ queryKey: ["processing-defaults"] });
+      setSuccess(
+        referenceId
+          ? "Referencia base configurada para nuevos procesamientos. Las ejecuciones existentes conservan su configuración."
+          : "Referencia base retirada. Las nuevas cargas deberán elegir una referencia o el modo sin catálogo.",
+      );
+    } catch (error) {
+      setError(error);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!file) return;
@@ -79,10 +104,44 @@ export function References() {
         }
       />
       {success && <Success>{success}</Success>}
+      <ErrorNotice error={error || defaults.error} />
+      <section
+        className="panel form-panel reference-default-panel"
+        aria-label="Referencia base de nuevas cargas"
+      >
+        <h2>Referencia base de nuevas cargas</h2>
+        {defaults.isPending ? (
+          <Loading />
+        ) : defaults.data?.status === "ready" && defaults.data.catalog ? (
+          <>
+            <p>
+              <strong>{defaults.data.catalog.name}</strong>
+              <br />
+              Se seleccionará automáticamente en las nuevas cargas.
+            </p>
+            {user?.role === "admin" && (
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => void setDefault(null)}
+              >
+                Quitar referencia base
+              </button>
+            )}
+          </>
+        ) : (
+          <p>
+            No hay una referencia base disponible.{" "}
+            {user?.role === "admin"
+              ? "Elige un catálogo de la lista para preseleccionarlo al importar."
+              : "Un administrador puede configurar el catálogo que se preseleccionará al importar."}
+          </p>
+        )}
+      </section>
       {show && (
         <form className="panel form-panel stack" onSubmit={submit}>
           <h2>Datos del catálogo</h2>
-          <ErrorNotice error={error} />
           <div className="form-grid">
             <label>
               Nombre
@@ -165,6 +224,9 @@ export function References() {
                     </div>
                     <span className="version-chip">{r.version}</span>
                     <h2>{r.name}</h2>
+                    {defaults.data?.default_reference_id === r.id && (
+                      <span className="version-chip">Referencia base</span>
+                    )}
                     <p>{r.source}</p>
                     <div className="reference-count">
                       <strong>{number(r.feature_count)}</strong> elementos de
@@ -179,6 +241,19 @@ export function References() {
                         <dd className="mono break-word">{r.sha256}</dd>
                       </dl>
                     </details>
+                    {user?.role === "admin" &&
+                      defaults.data?.default_reference_id !== r.id && (
+                        <button
+                          type="button"
+                          className="button secondary"
+                          disabled={
+                            busy || r.feature_count === 0 || defaults.isPending
+                          }
+                          onClick={() => void setDefault(r.id)}
+                        >
+                          Usar como referencia base
+                        </button>
+                      )}
                   </article>
                 ))}
               </div>

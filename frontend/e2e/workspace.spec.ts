@@ -361,6 +361,12 @@ test("synthetic operation: import, process, review, export and mobile navigation
     await expect(page.getByLabel("Dirección / lugar del hecho")).toHaveValue(
       "location_original",
     );
+    await page
+      .getByLabel("Sistema de coordenadas originales")
+      .selectOption("EPSG:4326");
+    await page
+      .getByLabel("Fuente de confirmación de WGS84")
+      .fill("Metadatos de fixture sintética: coordenadas WGS84 EPSG:4326");
     await page.getByRole("button", { name: "Iniciar procesamiento" }).click();
     await expect(
       page.getByRole("heading", { name: runName, exact: true }),

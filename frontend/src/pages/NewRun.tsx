@@ -5,8 +5,17 @@ import { ArrowRight, Check, FileUp, UploadCloud } from "lucide-react";
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { clearResume, getResume, uploadFile } from "../lib/upload";
-import type { Page, Profile, Reference, Run, Upload } from "../types";
+import type {
+  Page,
+  ProcessingDefaults,
+  Profile,
+  Reference,
+  Run,
+  Upload,
+} from "../types";
 import { ErrorNotice, Notice, PageHeader } from "../components/ui";
+import { CoordinatePolicy } from "../components/CoordinatePolicy";
+import { ReferenceCapability } from "../components/ReferenceCapability";
 const fields: [string, string][] = [
   ["complaint_id", "Identificador de denuncia"],
   ["location_original", "Dirección / lugar del hecho"],
@@ -32,7 +41,9 @@ export function NewRun() {
   const [error, setError] = useState<unknown>();
   const [offset, setOffset] = useState(0);
   const [name, setName] = useState("");
-  const [reference, setReference] = useState("");
+  const [reference, setReference] = useState("default");
+  const [crsConfirmed, setCrsConfirmed] = useState(false);
+  const [crsEvidence, setCrsEvidence] = useState("");
   const [sheet, setSheet] = useState("");
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [delimiter, setDelimiter] = useState(",");
@@ -42,6 +53,16 @@ export function NewRun() {
     queryKey: ["references"],
     queryFn: () => request<Page<Reference>>("/references?page_size=100"),
   });
+  const defaults = useQuery({
+    queryKey: ["processing-defaults"],
+    queryFn: () => request<ProcessingDefaults>("/processing-defaults"),
+  });
+  const selectedCatalog =
+    reference === "default"
+      ? defaults.data?.catalog
+      : refs.data?.items.find((r) => r.id === reference);
+  const defaultUnavailable =
+    reference === "default" && defaults.data?.status !== "ready";
   function applyProfile(profile?: Profile) {
     if (!profile) return;
     setMapping(profile.suggested_mapping ?? {});
@@ -103,10 +124,11 @@ export function NewRun() {
         mapping: Object.fromEntries(
           Object.entries(mapping).filter(([, value]) => value),
         ),
-        reference_id: reference || undefined,
+        ...(reference === "default" ? {} : { reference_id: reference || null }),
         delimiter,
         encoding,
-        crs: "EPSG:4326",
+        crs: crsConfirmed ? "EPSG:4326" : null,
+        crs_evidence: crsConfirmed ? crsEvidence.trim() : null,
       });
       clearResume();
       navigate(`/runs/${run.id}`);
@@ -207,11 +229,15 @@ export function NewRun() {
                 <select
                   aria-label="Catálogo de referencia"
                   value={reference}
+                  disabled={busy || defaults.isPending || refs.isPending}
                   onChange={(e) => setReference(e.target.value)}
                 >
-                  <option value="">
-                    Sin catálogo · se indicará la limitación
+                  <option value="default">
+                    {defaults.data?.status === "ready"
+                      ? `Referencia base · ${defaults.data.catalog?.name}`
+                      : "Referencia base no disponible"}
                   </option>
+                  <option value="">Procesar explícitamente sin catálogo</option>
                   {refs.data?.items.map((r) => (
                     <option key={r.id} value={r.id}>
                       {r.name} · {r.version}
@@ -272,7 +298,17 @@ export function NewRun() {
                 </>
               )}
             </div>
-            <ErrorNotice error={refs.error} />
+            <ErrorNotice error={refs.error || defaults.error} />
+            {selectedCatalog && (
+              <ReferenceCapability catalog={selectedCatalog} />
+            )}
+            {defaultUnavailable && (
+              <Notice>
+                No hay una referencia base disponible. Configúrala en Catálogos
+                de referencia, selecciona otra fuente o elige explícitamente
+                procesar sin catálogo.
+              </Notice>
+            )}
             {!reference && (
               <Notice>
                 La falta de cartografía se registrará como limitación de
@@ -314,11 +350,13 @@ export function NewRun() {
                 </label>
               ))}
             </div>
-            <Notice>
-              Las coordenadas se interpretan como WGS84 (EPSG:4326). En archivos
-              SIDPOL: xx = latitud, yy = longitud. Los centroides forzados no se
-              consideran coordenadas originales.
-            </Notice>
+            <CoordinatePolicy
+              confirmed={crsConfirmed}
+              evidence={crsEvidence}
+              onConfirmed={setCrsConfirmed}
+              onEvidence={setCrsEvidence}
+              disabled={busy}
+            />
           </section>
           <div className="form-actions">
             <button
@@ -329,7 +367,17 @@ export function NewRun() {
             >
               Cambiar archivo
             </button>
-            <button className="button primary" disabled={busy || !name.trim()}>
+            <button
+              className="button primary"
+              disabled={
+                busy ||
+                !name.trim() ||
+                defaults.isPending ||
+                refs.isPending ||
+                defaultUnavailable ||
+                (crsConfirmed && crsEvidence.trim().length < 8)
+              }
+            >
               {busy ? "Creando procesamiento…" : "Iniciar procesamiento"}
               <ArrowRight size={18} aria-hidden="true" />
             </button>

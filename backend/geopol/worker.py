@@ -16,6 +16,7 @@ from .catalogs import search_key
 from .address_memory import resolve_memory
 from .reference_search import ReferenceSearch
 from .config import settings
+from .domain.coordinate_context import apply_coordinate_declaration
 from .db import SessionLocal
 from .domain import RULES_VERSION
 from .domain.ingestion import iter_records
@@ -137,14 +138,9 @@ def ingest_batch(run_id, batch, job_id, token):
             raise Cancelled()
         entries = []
         for ordinal, raw, issue in batch:
-            normalized = normalize_record(raw, run.config.get("mapping"))
-            normalized["source_crs"] = normalized.get("crs")
-            if normalized.get("crs") and run.config.get("crs") and normalized["crs"] != run.config["crs"]:
-                normalized["warnings"] = normalized.get("warnings", []) + ["CRS_CONFLICTIVO"]
-                normalized["decision_constraints"] = normalized.get("decision_constraints", []) + [
-                    "CRS_CONFLICTIVO"
-                ]
-            normalized["crs"] = run.config.get("crs") or normalized.get("crs")
+            normalized = apply_coordinate_declaration(
+                normalize_record(raw, run.config.get("mapping")), run.config
+            )
             key = unit_key(normalized, ordinal)
             entries.append((ordinal, raw, issue, normalized, key))
         existing = {
@@ -313,7 +309,9 @@ def process_run(run_id, job_id, token):
             )
             result_bytes, batch_started = 0, time.monotonic()
             for item in items:
-                normalized = dict(item.normalized)
+                # Resumed, already-ingested legacy work must not revive a CRS
+                # assigned by an old browser without a documented declaration.
+                normalized = apply_coordinate_declaration(item.normalized, run.config)
                 names = tuple(search_key(n) for n in normalized.get("search_names", []) if n)
                 features, truncated = references.lookup(
                     run.reference_id, item.ubigeo, names, normalized.get("manzana_code")

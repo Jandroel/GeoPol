@@ -95,6 +95,71 @@ export interface Reference {
   source: string;
   feature_count: number;
   sha256: string;
+  kinds?: string[];
+}
+export interface ProcessingDefaults {
+  default_reference_id: string | null;
+  catalog: Reference | null;
+  status: "ready" | "not_configured" | "missing" | "empty";
+  updated_at?: string | null;
+  updated_by?: string | null;
+}
+export interface RunReadiness {
+  run_id: string;
+  reference: {
+    reference_id: string | null;
+    catalog: Reference | null;
+    status: ProcessingDefaults["status"];
+  };
+  processing_defaults: ProcessingDefaults;
+  coordinates: {
+    crs: string | null;
+    evidence: string | null;
+    confirmed: boolean;
+    legacy_unconfirmed: boolean;
+  };
+  review: {
+    total_open: number;
+    by_bucket: Record<string, number>;
+    causes: { bucket: string; count: number; action: string }[];
+  };
+  automatic: { points: number; areas: number };
+}
+export interface ReviewGroupPreview {
+  base_id: string;
+  run_id: string;
+  eligible: boolean;
+  reason: string | null;
+  token: string | null;
+  members: {
+    id: string;
+    complaint_id: string;
+    location_normalized: string;
+    ubigeo: string;
+    revision: number;
+    source_row_count: number;
+  }[];
+  count: number;
+  source_rows: number;
+  limit: number;
+  truncated: boolean;
+  excluded_count: number;
+  candidates: Pick<
+    Candidate,
+    "id" | "label" | "precision" | "method" | "source" | "version"
+  >[];
+}
+export interface MapContext {
+  type: "FeatureCollection";
+  features: {
+    type: "Feature";
+    id: string;
+    geometry: SpatialGeometry;
+    properties: { kind: string; name: string; source: string; version: string };
+  }[];
+  truncated: boolean;
+  reference_id: string | null;
+  sources: string[];
 }
 export interface Profile {
   columns: string[];

@@ -3,11 +3,11 @@
 from sqlalchemy import bindparam, inspect, select, text, update
 
 from .db import Base
-from .models import Location, Revision, SchemaVersion
+from .models import Location, ProcessingDefaults, Revision, SchemaVersion
 from .review_workflow import classify_review
 
 BACKFILL_BATCH_SIZE = 500
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def migrate(engine):
@@ -29,6 +29,17 @@ def migrate(engine):
         if 3 not in versions:
             _version_three(conn)
             conn.execute(SchemaVersion.__table__.insert().values(version=3))
+        if 4 not in versions:
+            _version_four(conn)
+            conn.execute(SchemaVersion.__table__.insert().values(version=4))
+
+
+def _version_four(conn):
+    """Add a default catalog without changing any historical run configuration."""
+    table = ProcessingDefaults.__table__
+    table.create(conn, checkfirst=True)
+    if conn.scalar(select(table.c.id).where(table.c.id == "global")) is None:
+        conn.execute(table.insert().values(id="global"))
 
 
 def _version_three(conn):

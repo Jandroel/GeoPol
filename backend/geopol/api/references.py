@@ -2,10 +2,11 @@
 
 import csv
 import hashlib
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -15,15 +16,52 @@ from ..db import get_db
 from ..models import (
     Catalog,
     Feature,
+    ProcessingDefaults,
     User,
     uid,
 )
 from ..security import current_user
-from ..serialization import audit, catalog_dict
+from ..schemas import ProcessingDefaultsInput
+from ..serialization import audit, catalog_dict, processing_defaults_dict
 from ..storage import storage_file
-from .common import operator, page_result, require
+from .common import administrator, operator, page_result, require
 
 router = APIRouter()
+
+
+@router.get("/api/processing-defaults")
+def processing_defaults(db: Session = Depends(get_db), _: User = Depends(current_user)):
+    return processing_defaults_dict(db)
+
+
+@router.put("/api/processing-defaults")
+@router.patch("/api/processing-defaults")
+def set_processing_defaults(
+    payload: ProcessingDefaultsInput,
+    db: Session = Depends(get_db),
+    user: User = Depends(administrator),
+):
+    if payload.reference_id is not None:
+        catalog = require(db, Catalog, payload.reference_id)
+        if catalog.feature_count <= 0:
+            raise HTTPException(422, "El catálogo predeterminado debe contener referencias")
+    # The seeded singleton serializes edits on SQLite as well as PostgreSQL.
+    db.execute(update(ProcessingDefaults).where(ProcessingDefaults.id == "global").values(id="global"))
+    item = require(db, ProcessingDefaults, "global")
+    db.refresh(item)
+    previous = item.reference_id
+    item.reference_id = payload.reference_id
+    item.updated_by = user.id
+    item.updated_at = time.time()
+    audit(
+        db,
+        user.username,
+        "processing_defaults.updated",
+        item.id,
+        {"previous_reference_id": previous, "reference_id": item.reference_id},
+    )
+    db.commit()
+    return processing_defaults_dict(db)
 
 
 @router.get("/api/references")

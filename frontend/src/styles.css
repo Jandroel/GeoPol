@@ -29,6 +29,7 @@
   --map-result: var(--primary);
   --map-candidate: var(--amber);
   --map-background: #eef4f8;
+  --map-context: #7c93a8;
   --radius: 12px;
 }
 * {
@@ -2755,4 +2756,48 @@ progress::-webkit-progress-value {
 .stat-card > .text-link {
   display: flex;
   margin-top: 4px;
+}
+.reference-capability {
+  margin: 16px 0;
+  padding: 14px 18px;
+  background: var(--primary-light);
+  border-radius: 8px;
+}
+.reference-capability p {
+  margin: 0 0 8px;
+}
+.reference-capability p:last-child {
+  margin-bottom: 0;
+}
+.readiness-panel {
+  margin-bottom: 24px;
+}
+.reference-default-panel {
+  margin-bottom: 24px;
+}
+.readiness-causes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 16px;
+}
+.readiness-causes article {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.readiness-causes article h3 {
+  margin-top: 0;
+}
+.group-preview-table {
+  max-height: 320px;
+  margin: 12px 0;
+}
+.group-preview-table td {
+  white-space: normal;
+}
+.equivalent-review > .button {
+  margin: 12px 0;
+}
+.map-legend .context-key {
+  background: var(--map-context);
 }

@@ -135,7 +135,7 @@ def rules(_: User = Depends(current_user)):
         "limitations": [
             "Los métodos dependientes de cartografía requieren un catálogo validado y seleccionado para la ejecución; los límites distritales por sí solos no geocodifican direcciones sin coordenadas.",
             "Las bandas de evidencia no representan probabilidades calibradas.",
-            "El mapa local no usa una base cartográfica pública ni geocodificadores externos.",
+            "El visor muestra contexto del catálogo local cuando está disponible; no consulta mapas ni geocodificadores externos durante el procesamiento.",
             "Un catálogo admite hasta 24 MiB y 100 000 entidades; la búsqueda ordena nombres y alias dentro del distrito, conserva competidores y exige revisión si alcanza sus límites de recuperación.",
             "El despliegue local SQLite admite un solo worker. PostgreSQL/PostGIS se utiliza para el despliegue institucional.",
         ],

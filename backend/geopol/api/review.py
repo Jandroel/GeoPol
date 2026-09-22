@@ -227,6 +227,18 @@ def decide(
 ):
     item = require(db, Location, identifier)
     editable_run(db, item)
+    result = apply_decision(db, item, payload, user)
+    db.commit()
+    return result
+
+
+def apply_decision(db, item, payload, user, *, group_id=None):
+    """Apply one owned revision in the caller's transaction; never commit here.
+
+    Group callers hold the run and location locks and reserve every member before
+    invoking this same decision path. Any failure rolls back the entire group.
+    """
+    identifier = item.id
     if payload.learn_address and payload.action not in {"accept_candidate", "manual_point"}:
         raise HTTPException(422, "Solo una ubicación geográfica confirmada se puede reutilizar")
     values = dict(
@@ -355,13 +367,28 @@ def decide(
             memory_id = remember_address(db, item, user, candidate)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+    if group_id:
+        item.normalized = {
+            **item.normalized,
+            "review_group": {"id": group_id, "candidate_id": payload.candidate_id},
+        }
     add_revision(db, item, user.username, payload.action)
+    if group_id:
+        # The reference is retained in the immutable revision snapshot as well as
+        # in the current result, so later individual decisions preserve its origin.
+        for revision in db.new:
+            if isinstance(revision, Revision) and revision.location_id == item.id:
+                revision.snapshot = {**revision.snapshot, "review_group_id": group_id}
     audit(
         db,
         user.username,
         "review.decision",
         identifier,
-        {"action": payload.action, "revision": item.revision, "learned_reference_id": memory_id},
+        {
+            "action": payload.action,
+            "revision": item.revision,
+            "learned_reference_id": memory_id,
+            **({"review_group_id": group_id, "candidate_id": payload.candidate_id} if group_id else {}),
+        },
     )
-    db.commit()
     return location_dict(item)

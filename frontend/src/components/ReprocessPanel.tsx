@@ -1,14 +1,23 @@
 import { useState, type FormEvent } from "react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Database } from "lucide-react";
 import { post, request } from "../lib/api";
-import type { Page, Reference, Run } from "../types";
+import type { Page, ProcessingDefaults, Reference, Run } from "../types";
 import { ErrorNotice, Notice } from "./ui";
+import { CoordinatePolicy, documentedCrs } from "./CoordinatePolicy";
+import { ReferenceCapability } from "./ReferenceCapability";
 
 export function ReprocessPanel({ run }: { run: Run }) {
-  const [reference, setReference] = useState(run.reference_id ?? "");
-  const [crs, setCrs] = useState("preserve");
+  const [reference, setReference] = useState(run.reference_id ?? "default");
+  const [crsConfirmed, setCrsConfirmed] = useState(documentedCrs(run.config));
+  const [crsEvidence, setCrsEvidence] = useState(
+    documentedCrs(run.config) ? String(run.config.crs_evidence) : "",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const navigate = useNavigate();
@@ -22,14 +31,28 @@ export function ReprocessPanel({ run }: { run: Run }) {
       last.page * last.page_size < last.total ? last.page + 1 : undefined,
   });
   const items = references.data?.pages.flatMap((page) => page.items) ?? [];
+  const defaults = useQuery({
+    queryKey: ["processing-defaults"],
+    queryFn: () => request<ProcessingDefaults>("/processing-defaults"),
+  });
+  const selectedCatalog =
+    reference === "default"
+      ? defaults.data?.catalog
+      : items.find((item) => item.id === reference);
+  const defaultUnavailable =
+    reference === "default" && defaults.data?.status !== "ready";
   async function submit(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
       const result = await post<Run>(`/runs/${run.id}/reprocess`, {
-        reference_id: reference || null,
-        ...(crs === "preserve" ? {} : { crs: crs === "clear" ? null : crs }),
+        reference_id:
+          reference === "default"
+            ? defaults.data?.default_reference_id
+            : reference || null,
+        crs: crsConfirmed ? "EPSG:4326" : null,
+        crs_evidence: crsConfirmed ? crsEvidence.trim() : null,
       });
       await client.invalidateQueries({ queryKey: ["runs"] });
       navigate(`/runs/${result.id}`);
@@ -50,7 +73,7 @@ export function ReprocessPanel({ run }: { run: Run }) {
         </div>
         <Database size={24} className="teal" aria-hidden="true" />
       </div>
-      <ErrorNotice error={error || references.error} />
+      <ErrorNotice error={error || references.error || defaults.error} />
       <div className="form-grid">
         <label>
           Catálogo del nuevo procesamiento
@@ -60,7 +83,12 @@ export function ReprocessPanel({ run }: { run: Run }) {
             onChange={(event) => setReference(event.target.value)}
             disabled={busy || references.isPending}
           >
-            <option value="">Sin catálogo de referencia</option>
+            <option value="default">
+              {defaults.data?.status === "ready"
+                ? `Referencia base · ${defaults.data.catalog?.name}`
+                : "Referencia base no disponible"}
+            </option>
+            <option value="">Procesar explícitamente sin catálogo</option>
             {run.reference_id &&
               !items.some((item) => item.id === run.reference_id) && (
                 <option value={run.reference_id}>
@@ -74,30 +102,26 @@ export function ReprocessPanel({ run }: { run: Run }) {
             ))}
           </select>
         </label>
-        <label>
-          Sistema de coordenadas originales
-          <select
-            aria-label="Sistema de coordenadas originales"
-            value={crs}
-            onChange={(event) => setCrs(event.target.value)}
-            disabled={busy}
-          >
-            <option value="preserve">Conservar la configuración actual</option>
-            <option value="clear">
-              Sin confirmar el sistema de coordenadas
-            </option>
-            <option value="EPSG:4326">Confirmo WGS84 · EPSG:4326</option>
-          </select>
-          <span className="field-hint">
-            Configuración actual:{" "}
-            {run.config.crs === "EPSG:4326"
-              ? "WGS84 · EPSG:4326"
-              : "sin confirmación de WGS84"}
-            . Confirma WGS84 únicamente si conoces el sistema de origen. Esta
-            opción no transforma coordenadas UTM ni otros sistemas.
-          </span>
-        </label>
       </div>
+      {selectedCatalog && <ReferenceCapability catalog={selectedCatalog} />}
+      {defaultUnavailable && (
+        <Notice>
+          Configura una referencia base o selecciona otra opción para continuar.
+        </Notice>
+      )}
+      {run.config.crs === "EPSG:4326" && !documentedCrs(run.config) && (
+        <Notice>
+          La ejecución anterior asumió WGS84 sin una fuente de confirmación. El
+          nuevo procesamiento no heredará esa suposición.
+        </Notice>
+      )}
+      <CoordinatePolicy
+        confirmed={crsConfirmed}
+        evidence={crsEvidence}
+        onConfirmed={setCrsConfirmed}
+        onEvidence={setCrsEvidence}
+        disabled={busy}
+      />
       {references.hasNextPage && (
         <button
           type="button"
@@ -126,7 +150,14 @@ export function ReprocessPanel({ run }: { run: Run }) {
         </Link>
         <button
           className="button primary"
-          disabled={busy || references.isPending || references.isError}
+          disabled={
+            busy ||
+            references.isPending ||
+            references.isError ||
+            defaults.isPending ||
+            defaultUnavailable ||
+            (crsConfirmed && crsEvidence.trim().length < 8)
+          }
         >
           {busy ? "Creando ejecución…" : "Crear nuevo procesamiento"}
           <ArrowRight size={17} aria-hidden="true" />

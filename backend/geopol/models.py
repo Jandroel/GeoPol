@@ -66,6 +66,16 @@ class Catalog(Base):
     created_at: Mapped[float] = mapped_column(Float, default=time.time)
 
 
+class ProcessingDefaults(Base):
+    """Workspace defaults; each run still records its own catalog version."""
+
+    __tablename__ = "processing_defaults"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    reference_id: Mapped[str | None] = mapped_column(ForeignKey("catalogs.id"))
+    updated_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[float | None] = mapped_column(Float)
+
+
 class Feature(Base):
     __tablename__ = "features"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)

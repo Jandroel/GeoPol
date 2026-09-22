@@ -64,7 +64,12 @@ class Harness:
 
     def run(self, data=CSV_DATA, reference_id=None):
         upload_id = self.upload(data)
-        payload = {"upload_id": upload_id, "name": "Prueba sintética", "crs": "EPSG:4326"}
+        payload = {
+            "upload_id": upload_id,
+            "name": "Prueba sintética",
+            "crs": "EPSG:4326",
+            "crs_evidence": "Contrato de coordenadas de la muestra sintética",
+        }
         if reference_id:
             payload["reference_id"] = reference_id
         response = self.client.post("/api/runs", json=payload, headers=self.headers["admin"])
@@ -340,7 +345,12 @@ def test_retry_resumes_from_committed_checkpoint_without_duplicate_rows(harness,
     upload_id = harness.upload()
     response = harness.client.post(
         "/api/runs",
-        json={"upload_id": upload_id, "name": "Recuperación sintética", "crs": "EPSG:4326"},
+        json={
+            "upload_id": upload_id,
+            "name": "Recuperación sintética",
+            "crs": "EPSG:4326",
+            "crs_evidence": "Contrato de coordenadas de la muestra sintética",
+        },
         headers=harness.headers["admin"],
     )
     assert response.status_code in (200, 201, 202), response.text
@@ -565,6 +575,7 @@ def test_selected_xlsx_sheet_controls_mapping_and_original_export_columns(harnes
             "sheet": "Hechos",
             "mapping": {"complaint_id": "codigo", "location_original": "direccion", "ubigeo": "territorio"},
             "crs": "EPSG:4326",
+            "crs_evidence": "Contrato de coordenadas de la muestra sintética",
         },
         headers=harness.headers["admin"],
     )
@@ -658,7 +669,12 @@ def queue_synthetic_run(harness, name):
     upload_id = harness.upload()
     response = harness.client.post(
         "/api/runs",
-        json={"upload_id": upload_id, "name": name, "crs": "EPSG:4326"},
+        json={
+            "upload_id": upload_id,
+            "name": name,
+            "crs": "EPSG:4326",
+            "crs_evidence": "Contrato de coordenadas de la muestra sintética",
+        },
         headers=harness.headers["admin"],
     )
     assert response.status_code == 201, response.text

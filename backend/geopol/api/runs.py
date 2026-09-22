@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from ..domain.coordinate_context import documented_crs
 from ..db import get_db
 from ..domain.ingestion import inspect_file, iter_records
 from ..models import (
@@ -16,7 +17,7 @@ from ..models import (
 )
 from ..schemas import ReprocessInput, RunInput
 from ..security import current_user
-from ..serialization import audit, location_dict, run_dict
+from ..serialization import audit, location_dict, processing_defaults_dict, run_dict, run_readiness_dict
 from ..storage import storage_file
 from .common import filtered_locations, operator, owned_upload, page_result, require
 
@@ -27,11 +28,21 @@ def new_run(db, payload, user, parent_run_id=None):
     upload = owned_upload(db, payload.upload_id, user)
     if upload.status != "COMPLETE":
         raise HTTPException(409, "Complete la carga primero")
-    if payload.reference_id:
-        require(db, Catalog, payload.reference_id)
+    reference_id = payload.reference_id
+    uses_default = "reference_id" not in payload.model_fields_set
+    if uses_default:
+        defaults = processing_defaults_dict(db)
+        if defaults["status"] in {"missing", "empty"}:
+            raise HTTPException(
+                409, "La referencia predeterminada no está disponible; revise su configuración"
+            )
+        reference_id = defaults["default_reference_id"]
+    if reference_id:
+        require(db, Catalog, reference_id)
     if payload.sheet and payload.sheet not in upload.profile.get("sheets", []):
         raise HTTPException(422, "La hoja seleccionada no existe")
     config = payload.model_dump(exclude={"upload_id", "name", "reference_id"})
+    config["reference_selection"] = "default" if uses_default else "explicit"
     if config.get("mapping") and len(config["mapping"]) > 40:
         raise HTTPException(422, "Demasiados campos de mapeo")
     try:
@@ -58,7 +69,7 @@ def new_run(db, payload, user, parent_run_id=None):
         id=uid(),
         upload_id=upload.id,
         name=payload.name,
-        reference_id=payload.reference_id,
+        reference_id=reference_id,
         config=config,
         created_by=user.id,
         parent_run_id=parent_run_id,
@@ -70,7 +81,12 @@ def new_run(db, payload, user, parent_run_id=None):
         user.username,
         "run.created",
         item.id,
-        {"upload_id": upload.id, "reference_id": payload.reference_id, "parent_run_id": parent_run_id},
+        {
+            "upload_id": upload.id,
+            "reference_id": reference_id,
+            "reference_selection": config["reference_selection"],
+            "parent_run_id": parent_run_id,
+        },
     )
     db.commit()
     return run_dict(db, item)
@@ -96,6 +112,11 @@ def runs(
 @router.get("/api/runs/{identifier}")
 def get_run(identifier: str, db: Session = Depends(get_db), _: User = Depends(current_user)):
     return run_dict(db, require(db, Run, identifier))
+
+
+@router.get("/api/runs/{identifier}/readiness")
+def run_readiness(identifier: str, db: Session = Depends(get_db), _: User = Depends(current_user)):
+    return run_readiness_dict(db, require(db, Run, identifier))
 
 
 @router.post("/api/runs/{identifier}/cancel")
@@ -170,9 +191,20 @@ def reprocess_run(
     reference_id = item.reference_id
     if payload is not None and "reference_id" in payload.model_fields_set:
         reference_id = payload.reference_id
-    config = {key: value for key, value in item.config.items() if key in RunInput.model_fields}
+    config = {
+        key: value
+        for key, value in item.config.items()
+        if key in RunInput.model_fields and key not in {"upload_id", "name", "reference_id"}
+    }
     if payload is not None and "crs" in payload.model_fields_set:
         config["crs"] = payload.crs
+        config["crs_evidence"] = payload.crs_evidence if payload.crs else None
+    else:
+        # Older forms assigned WGS84 silently. Reprocessing must not turn that
+        # historical assumption into newly confirmed geographic evidence.
+        if not documented_crs(config):
+            config["crs"] = None
+            config["crs_evidence"] = None
     return new_run(
         db,
         RunInput(

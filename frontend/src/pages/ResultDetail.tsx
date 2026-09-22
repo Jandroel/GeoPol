@@ -32,6 +32,7 @@ import {
   validReviewReturn,
 } from "../lib/review";
 import type { LocationResult } from "../types";
+import { EquivalentReview } from "../components/EquivalentReview";
 import {
   Badge,
   Empty,
@@ -121,6 +122,7 @@ function ResultRecord() {
         "dashboard",
         "run",
         "runs",
+        "run-readiness",
       ].map((key) => client.invalidateQueries({ queryKey: [key] })),
     );
   }
@@ -396,6 +398,23 @@ function ResultRecord() {
               </div>
             </div>
             <p className="reason">{reviewReason(r.reason)}</p>
+            {r.method === "COORD_ORIGINAL" && (
+              <Notice>
+                <strong>
+                  {r.resolution === "ACEPTADO_AUTOMATICO"
+                    ? "Coordenada original validada territorialmente."
+                    : "Coordenada original declarada, pendiente de corroboración."}
+                </strong>{" "}
+                La pertenencia al distrito no demuestra una coincidencia con la
+                puerta o dirección del hecho.
+              </Notice>
+            )}
+            {r.precision === "PUERTA" && r.product === "PUNTO" && (
+              <Notice>
+                <strong>Ubicación a nivel de puerta.</strong> La evidencia y el
+                método indican cómo se corroboró la dirección con su referencia.
+              </Notice>
+            )}
             {r.method === "DIRECCION_VALIDADA" && (
               <Notice>
                 Resultado procedente de una dirección validada previamente.
@@ -569,6 +588,18 @@ function ResultRecord() {
           </section>
         </div>
         <div className="stack">
+          {canReview &&
+            r.review_status === "OPEN" &&
+            r.review_bucket === "actionable" && (
+              <EquivalentReview
+                key={`${r.id}:${r.revision}`}
+                resultId={r.id}
+                onSaved={async (message) => {
+                  setSuccess(message);
+                  await invalidate();
+                }}
+              />
+            )}
           <section className="panel map-panel">
             <Suspense fallback={<Loading text="Preparando visor espacial…" />}>
               <LocationMap
@@ -578,6 +609,14 @@ function ResultRecord() {
                 selectedCandidateId={candidate}
                 geometry={r.geometry}
                 precision={r.precision}
+                runId={r.run_id}
+                ubigeo={r.ubigeo}
+                resultMethod={r.method}
+                coordinateWarnings={
+                  Array.isArray(r.normalized?.warnings)
+                    ? r.normalized.warnings
+                    : []
+                }
               />
             </Suspense>
           </section>

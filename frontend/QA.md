@@ -21,6 +21,13 @@ El tercer escenario, `e2e/geometry.spec.ts`, importa un tramo y un parque poligo
 
 Los escenarios crean catálogos y lotes nuevos en cada ejecución. Se debe usar una base de pruebas y una cuenta con permisos administrativos o equivalentes para ejecutar todos los pasos.
 
+El cuarto escenario, `e2e/automation.spec.ts`, configura una referencia base e importa
+tres direcciones sintéticas sin confirmar el CRS de entrada. Comprueba una aceptación
+automática contra el catálogo y dos casos equivalentes de revisión. Exige candidato,
+motivo y confirmación del alcance antes de aplicar; después verifica el identificador
+de grupo compartido, la revisión manual de cada ubicación y la conservación exacta de
+la revisión automática anterior. Incluye contexto local en WebGL y vista móvil a 400 px.
+
 ```powershell
 npm ci
 npx playwright install chromium
@@ -34,6 +41,25 @@ npm run test:e2e
 Antes de ejecutar se deben iniciar API, trabajador y Vite con la configuración de la base aislada. El test no arranca ni detiene servicios existentes. Sin las variables de usuario y contraseña el escenario se omite explícitamente; las credenciales no se incluyen en el repositorio.
 
 ## Evidencia local
+
+### Referencia base y automatización segura · 22 de septiembre de 2026
+
+- **448 pruebas de backend aprobadas y una omitida**, con SQLite. La prueba de
+  integración PostgreSQL requiere su servicio; no se acredita aquí su ejecución.
+- **35 pruebas Vitest aprobadas**, formato y build TypeScript/Vite correctos.
+- **Cuatro escenarios Chromium aprobados contra el build de producción en 38,7 s**,
+  con API 18001, frontend 15175, esquema 4 y datos exclusivamente sintéticos.
+- La comprobación del despliegue local verificó migración, catálogo predeterminado,
+  CRS sin confirmar, contadores reales, diagnóstico, inicio de carga y mapas de
+  punto y tramo. Escritorio y móvil sin desbordamiento, errores del navegador,
+  peticiones externas ni escrituras ajenas a su propia sesión.
+- Se inspeccionaron las capturas de configuración, diagnóstico, vista previa de
+  equivalentes y mapas. El visor distingue contexto y resultado; las coordenadas
+  originales sin CRS documentado se conservan en ficha y no se dibujan.
+
+La evidencia privada está en `.local/automation-20260922/`, fuera de Git. El ajuste
+visual final de Referencias conserva los metadatos completos en una sola tarjeta y
+reduce la configuración base a su nombre y acción, evitando repetir información.
 
 ### Interfaz INEI y reducción de contenido repetido · 22 de septiembre de 2026
 
@@ -99,4 +125,4 @@ La configuración YAML y la sintaxis Bash de sus pasos se validaron localmente. 
 
 Las pruebas de componente verifican que MapLibre recibe polígonos y líneas reales, que no se crean marcadores para centroides de áreas y que los puntos conservan su marcador. También verifican el consentimiento explícito de reutilización, su reinicio entre registros y los tres estados del CRS al reprocesar (preservar, borrar o confirmar EPSG:4326). Estas pruebas usan dobles de MapLibre; el escenario de navegador descrito arriba complementa esta cobertura mediante renderizado WebGL real.
 
-La ejecución local cubre Chromium con renderizado WebGL por software y el entorno SQLite. No acredita compatibilidad completa con todos los navegadores, dispositivos físicos o cartografía institucional. El mapa usa un estilo local sin cartografía base, tal como establece el MVP.
+La ejecución local cubre Chromium con renderizado WebGL por software y el entorno SQLite. No acredita compatibilidad completa con todos los navegadores, dispositivos físicos o cartografía institucional. El mapa usa un estilo local y el contexto de líneas y polígonos del catálogo seleccionado; no consulta una cartografía base externa.

@@ -1,10 +1,11 @@
 import { render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LocationMap from "../components/LocationMap";
 import { canReuseCandidate, spatialPoint } from "../lib/geometry";
 import type { Candidate, SpatialGeometry } from "../types";
 
 const mapCalls = vi.hoisted(() => ({
+  initialized: vi.fn(),
   source: vi.fn(),
   layer: vi.fn(),
   marker: vi.fn(),
@@ -14,6 +15,9 @@ const mapCalls = vi.hoisted(() => ({
 vi.mock("maplibre-gl", () => ({
   setWorkerUrl: vi.fn(),
   Map: class {
+    constructor() {
+      mapCalls.initialized();
+    }
     addControl() {}
     on(event: string, handler: () => void) {
       if (event === "load") handler();
@@ -90,7 +94,90 @@ const candidate: Candidate = {
   geometry: line,
 };
 beforeEach(() => vi.clearAllMocks());
+afterEach(() => vi.unstubAllGlobals());
 describe("real spatial geometry rendering", () => {
+  it.each(["CRS_NO_CONFIRMADO", "COORDENADAS_CONTRADICTORIAS"])(
+    "does not plot a declared coordinate with %s as WGS84",
+    async (warning) => {
+      const declared: Candidate = {
+        id: "coord-original",
+        label: "Original declarada",
+        method: "COORD_ORIGINAL",
+        precision: "COORDENADA",
+        latitude: -12,
+        longitude: -77,
+        score: null,
+        geometry: { type: "Point", coordinates: [-77, -12] },
+        evidence: [warning],
+      };
+      const view = render(
+        <LocationMap
+          latitude={-12}
+          longitude={-77}
+          precision="COORDENADA"
+          resultMethod="COORD_ORIGINAL"
+          candidates={[declared]}
+        />,
+      );
+      expect(
+        screen.getByText(/se conservan en la ficha y no se dibujan/),
+      ).toBeInTheDocument();
+      await waitFor(() => expect(mapCalls.initialized).toHaveBeenCalled());
+      view.unmount();
+      expect(mapCalls.marker).not.toHaveBeenCalled();
+    },
+  );
+  it("loads authenticated local context below results, retains their framing and attributes OSM", async () => {
+    const fetch = vi.fn(async (_url: string) =>
+      Response.json({
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            id: "street-context",
+            geometry: line,
+            properties: {
+              kind: "street",
+              name: "Vía sintética",
+              source: "OSM",
+              version: "v1",
+            },
+          },
+        ],
+        truncated: true,
+        reference_id: "reference-1",
+        sources: ["OpenStreetMap"],
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <LocationMap
+        runId="run-1"
+        ubigeo="150101"
+        latitude={-12}
+        longitude={-77}
+        precision="PUERTA"
+        candidates={[]}
+      />,
+    );
+    await screen.findByText("Contexto local del catálogo · Cobertura parcial");
+    await waitFor(() =>
+      expect(mapCalls.source).toHaveBeenCalledWith(
+        "local-context",
+        expect.any(Object),
+      ),
+    );
+    expect(fetch.mock.calls[0][0]).toBe(
+      "/api/runs/run-1/map-context?ubigeo=150101",
+    );
+    expect(
+      screen.getByRole("link", { name: "OpenStreetMap contributors" }),
+    ).toBeInTheDocument();
+    expect(mapCalls.bounds).not.toHaveBeenCalledWith([-77.03, -12.01]);
+    expect(mapCalls.layer.mock.calls.map((call) => call[0].id)).toContain(
+      "local-context-lines",
+    );
+  });
   it("renders result areas and candidate lines as GeoJSON layers, without creating centroid markers", async () => {
     const view = render(
       <LocationMap

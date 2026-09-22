@@ -21,6 +21,7 @@ import {
 import { ResultsTable } from "../components/ResultsTable";
 import { ExportPanel } from "../components/ExportPanel";
 import { ReprocessPanel } from "../components/ReprocessPanel";
+import { RunReadinessPanel } from "../components/RunReadinessPanel";
 export function RunDetail() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -89,23 +90,6 @@ export function RunDetail() {
           .
         </Notice>
       )}
-      {!active && !run.reference_id && (
-        <Notice>
-          El procesamiento terminó sin un catálogo de referencia. Consulta los
-          motivos de atención antes de revisar registros individualmente.
-          {canManage && " Puedes seleccionar un catálogo en Reprocesar."}
-        </Notice>
-      )}
-      {!active && (
-        <div className="run-review-link">
-          <Link
-            className="button secondary"
-            to={`/review?run_id=${run.id}&bucket=actionable&stage=open${run.superseded_by ? "&include_superseded=true" : ""}`}
-          >
-            Abrir revisión de esta ejecución
-          </Link>
-        </div>
-      )}
       {active && (
         <Notice>
           El trabajo se ejecuta en el servidor. Puedes cerrar esta ventana y
@@ -147,6 +131,9 @@ export function RunDetail() {
             </small>
           </div>
         </section>
+      )}
+      {!active && !run.superseded_by && tab === "results" && (
+        <RunReadinessPanel runId={run.id} canManage={canManage} />
       )}
       {active && (
         <div className="processing-progress">

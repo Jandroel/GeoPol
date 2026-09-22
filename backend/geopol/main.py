@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .api import auth, exports, references, review, runs, system, uploads
+from .api import auth, exports, geocoding, map_context, references, review, review_groups, runs, system, uploads
 from .config import settings
 
 app = FastAPI(
@@ -16,7 +16,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in settings.allowed_origins.split(",")],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PUT", "PATCH"],
     allow_headers=["Authorization", "Content-Type", "Upload-Offset"],
 )
 
@@ -32,10 +32,13 @@ async def security_headers(request: Request, call_next):
 
 for router in (
     system.router,
+    geocoding.router,
+    map_context.router,
     auth.router,
     uploads.router,
     runs.router,
     review.router,
+    review_groups.router,
     references.router,
     exports.router,
 ):

@@ -106,6 +106,7 @@ export function Review() {
         title="Revisión de ubicaciones"
         actions={
           canReview &&
+          filters.bucket === "actionable" &&
           filters.stage !== "closed" && (
             <button
               className="button primary"
@@ -155,6 +156,30 @@ export function Review() {
           );
         })}
       </div>
+      {filters.stage !== "closed" &&
+        !!summary.data &&
+        (summary.data.open.needs_reference > 0 ||
+          summary.data.open.needs_data > 0) && (
+          <Notice>
+            <strong>Primero resuelve las causas compartidas.</strong> Los casos
+            sin referencia necesitan cobertura y reprocesamiento; los datos
+            incompletos requieren corregir o corroborar la fuente del lote. La
+            bandeja accionable reúne los casos con evidencia para decidir.
+            <div className="button-row">
+              <Link className="text-link" to="/references">
+                Gestionar referencia base
+              </Link>
+              {filters.runId && (
+                <Link
+                  className="text-link"
+                  to={`/runs/${filters.runId}?tab=reprocess`}
+                >
+                  Preparar reprocesamiento
+                </Link>
+              )}
+            </div>
+          </Notice>
+        )}
       <section className="panel review-filter-panel">
         <div className="review-filters">
           <label>
@@ -266,9 +291,10 @@ export function Review() {
       )}
       {filters.bucket === "needs_data" && filters.stage !== "closed" && (
         <Notice>
-          Consulta la fuente original para completar o corroborar la ubicación.
-          Registrar una decisión sin un punto es válido si esa es la conclusión
-          documentada.
+          Completa o corrobora los datos en el archivo de origen y carga una
+          versión corregida para tratar estos casos en conjunto. No hace falta
+          registrar una decisión individual por cada dato ausente; si se decide
+          cerrar sin punto, debe existir una conclusión documentada.
         </Notice>
       )}
       {filters.bucket === "technical" && filters.stage !== "closed" && (
