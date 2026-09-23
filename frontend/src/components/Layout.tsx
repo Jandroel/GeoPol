@@ -11,11 +11,19 @@ import {
   Menu,
   ShieldCheck,
   X,
+  FileUp,
+  ChartNoAxesCombined,
 } from "lucide-react";
 import { useAuth } from "../auth";
 import { label } from "../lib/format";
 
 const navigation = [
+  { to: "/runs/new", label: "Carga de archivos", icon: FileUp },
+  {
+    to: "/quality",
+    label: "Seguimiento por calidad",
+    icon: ChartNoAxesCombined,
+  },
   { to: "/", label: "Vista general", icon: LayoutDashboard },
   { to: "/runs", label: "Procesamientos", icon: Files },
   { to: "/review", label: "Revisión de ubicaciones", icon: ClipboardCheck },
@@ -92,20 +100,26 @@ export function Layout() {
           <X />
         </button>
         <nav aria-label="Navegación principal">
-          {navigation.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              onClick={() => setOpen(false)}
-              className={({ isActive }) =>
-                `nav-item ${isActive ? "active" : ""}`
-              }
-            >
-              <item.icon size={19} aria-hidden="true" />
-              {item.label}
-            </NavLink>
-          ))}
+          {navigation
+            .filter(
+              (item) =>
+                item.to !== "/runs/new" ||
+                ["admin", "operator"].includes(user?.role ?? ""),
+            )
+            .map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/" || item.to === "/runs"}
+                onClick={() => setOpen(false)}
+                className={({ isActive }) =>
+                  `nav-item ${isActive ? "active" : ""}`
+                }
+              >
+                <item.icon size={19} aria-hidden="true" />
+                {item.label}
+              </NavLink>
+            ))}
           {user?.role === "admin" && (
             <NavLink
               to="/audit"

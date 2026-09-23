@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileCheck2 } from "lucide-react";
 import { useAuth } from "../auth";
@@ -6,13 +6,36 @@ import { downloadAuthenticated, post, request } from "../lib/api";
 import type { ExportJob } from "../types";
 import { ErrorNotice } from "./ui";
 import { label, number } from "../lib/format";
-export function ExportPanel({ runId }: { runId: string }) {
+import {
+  qualityFlagLabel,
+  qualityStageLabel,
+  reviewStateLabel,
+} from "../lib/quality";
+export function ExportPanel({
+  runId,
+  qualityFlag,
+  qualityStage,
+  reviewState,
+  allowCumulative = false,
+}: {
+  runId: string;
+  qualityFlag?: number;
+  qualityStage?: string;
+  reviewState?: string;
+  allowCumulative?: boolean;
+}) {
   const { user } = useAuth();
   const [profile, setProfile] = useState("locations");
   const [format, setFormat] = useState<"xlsx" | "csv">("xlsx");
   const formatHelpId = useId();
-  const key = `geopol.export.${user?.id}.${runId}`;
+  const [cumulative, setCumulative] = useState(false);
+  const scope =
+    qualityFlag !== undefined || qualityStage || reviewState
+      ? `.flag-${qualityFlag ?? "all"}.${qualityStage ?? "all"}.${reviewState ?? "all"}`
+      : "";
+  const key = `geopol.export.${user?.id}.${runId}${scope}${scope && cumulative ? ".cumulative" : ""}`;
   const [jobId, setJobId] = useState(() => localStorage.getItem(key) ?? "");
+  useEffect(() => setJobId(localStorage.getItem(key) ?? ""), [key]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const job = useQuery({
@@ -32,6 +55,11 @@ export function ExportPanel({ runId }: { runId: string }) {
         profile,
         format,
         safe_spreadsheet: true,
+        ...(!cumulative && qualityFlag !== undefined
+          ? { quality_flag: qualityFlag }
+          : {}),
+        ...(!cumulative && qualityStage ? { quality_stage: qualityStage } : {}),
+        ...(!cumulative && reviewState ? { review_state: reviewState } : {}),
       });
       setJobId(result.id);
       localStorage.setItem(key, result.id);
@@ -67,10 +95,28 @@ export function ExportPanel({ runId }: { runId: string }) {
       <div className="panel-heading">
         <div>
           <h2>Archivo de salida</h2>
-          <p>Incluye los casos sin resolver, con sus coordenadas vacías.</p>
+          <p>
+            {scope && !cumulative
+              ? `Filtro: ${qualityFlag !== undefined ? qualityFlagLabel(qualityFlag) : "todos los flags"} · ${reviewState ? reviewStateLabel(reviewState) : "todos los estados de revisión"} · ${qualityStage ? qualityStageLabel(qualityStage) : "todas las etapas"}.`
+              : "Incluye los casos sin resolver, con sus coordenadas vacías."}
+          </p>
         </div>
         <FileCheck2 size={23} className="teal" aria-hidden="true" />
       </div>
+      {allowCumulative && scope && (
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={cumulative}
+            onChange={(e) => {
+              setCumulative(e.target.checked);
+              setJobId("");
+            }}
+          />
+          Exportar el acumulado completo, incluyendo las ubicaciones ya
+          resueltas
+        </label>
+      )}
       <div className="export-controls">
         <label>
           Perfil de exportación

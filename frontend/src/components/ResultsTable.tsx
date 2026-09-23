@@ -4,6 +4,11 @@ import { useLocation } from "react-router-dom";
 import { Search } from "lucide-react";
 import { request } from "../lib/api";
 import { label } from "../lib/format";
+import {
+  qualityFlagLabel,
+  qualityStageLabel,
+  reviewStateLabel,
+} from "../lib/quality";
 import type { LocationResult, Page } from "../types";
 import { Badge, Empty, ErrorNotice, Loading, Pagination, ViewLink } from "./ui";
 export const resolutions = [
@@ -20,11 +25,17 @@ export function ResultsTable({
   review = false,
   live = false,
   runVersion,
+  qualityFlag,
+  qualityStage,
+  reviewState,
 }: {
   runId?: string;
   review?: boolean;
   live?: boolean;
   runVersion?: string;
+  qualityFlag?: number;
+  qualityStage?: string;
+  reviewState?: string;
 }) {
   const location = useLocation();
   const [page, setPage] = useState(1);
@@ -33,10 +44,21 @@ export function ResultsTable({
   const [resolution, setResolution] = useState("");
   const query = useQuery({
     // A terminal run snapshot must fetch final rows even when periodic polling stops.
-    queryKey: ["results", runId, review, page, search, resolution, runVersion],
+    queryKey: [
+      "results",
+      runId,
+      review,
+      page,
+      search,
+      resolution,
+      runVersion,
+      qualityFlag,
+      qualityStage,
+      reviewState,
+    ],
     queryFn: () =>
       request<Page<LocationResult>>(
-        `${review ? "/review" : `/runs/${runId}/results`}?page=${page}&page_size=25&q=${encodeURIComponent(search)}&resolution=${resolution}`,
+        `${review ? "/review" : `/runs/${runId}/results`}?page=${page}&page_size=25&q=${encodeURIComponent(search)}&resolution=${resolution}${qualityFlag !== undefined ? `&quality_flag=${qualityFlag}` : ""}${qualityStage ? `&quality_stage=${encodeURIComponent(qualityStage)}` : ""}${reviewState ? `&review_state=${encodeURIComponent(reviewState)}` : ""}`,
       ),
     refetchInterval: live ? 5000 : false,
   });
@@ -99,6 +121,8 @@ export function ResultsTable({
                     <th>Denuncia / ubicación</th>
                     <th>UBIGEO</th>
                     <th>Resolución</th>
+                    <th>Flag / etapa</th>
+                    <th>Estado de revisión</th>
                     <th>Precisión</th>
                     <th>Producto</th>
                     <th>
@@ -123,6 +147,11 @@ export function ResultsTable({
                       <td>
                         <Badge value={result.resolution} />
                       </td>
+                      <td className="quality-cell">
+                        <strong>{qualityFlagLabel(result.quality_flag)}</strong>
+                        <small>{qualityStageLabel(result.quality_stage)}</small>
+                      </td>
+                      <td>{reviewStateLabel(result.review_state)}</td>
                       <td>{label(result.precision)}</td>
                       <td>{label(result.product)}</td>
                       <td>

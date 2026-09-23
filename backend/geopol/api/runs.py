@@ -15,7 +15,7 @@ from ..models import (
     User,
     uid,
 )
-from ..schemas import ReprocessInput, RunInput
+from ..schemas import ReprocessInput, ReviewState, RunInput
 from ..security import current_user
 from ..serialization import audit, location_dict, processing_defaults_dict, run_dict, run_readiness_dict
 from ..storage import storage_file
@@ -29,7 +29,7 @@ def new_run(db, payload, user, parent_run_id=None):
     if upload.status != "COMPLETE":
         raise HTTPException(409, "Complete la carga primero")
     reference_id = payload.reference_id
-    uses_default = "reference_id" not in payload.model_fields_set
+    uses_default = "reference_id" not in payload.model_fields_set and payload.reference_ids is None
     if uses_default:
         defaults = processing_defaults_dict(db)
         if defaults["status"] in {"missing", "empty"}:
@@ -39,10 +39,24 @@ def new_run(db, payload, user, parent_run_id=None):
         reference_id = defaults["default_reference_id"]
     if reference_id:
         require(db, Catalog, reference_id)
+    if payload.reference_ids:
+        from ..reference_excel import build_reference_bundle
+
+        if payload.reference_id:
+            raise HTTPException(422, "Seleccione las cinco fuentes o un catálogo existente, sin combinarlos")
+        if len(set(payload.reference_ids)) != len(payload.reference_ids):
+            raise HTTPException(422, "Una referencia no puede ocupar más de una fuente")
+        try:
+            bundle = build_reference_bundle(db, payload.reference_ids, user.username)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from None
+        reference_id = bundle.id
     if payload.sheet and payload.sheet not in upload.profile.get("sheets", []):
         raise HTTPException(422, "La hoja seleccionada no existe")
     config = payload.model_dump(exclude={"upload_id", "name", "reference_id"})
     config["reference_selection"] = "default" if uses_default else "explicit"
+    if payload.workflow == "quality_v1":
+        config["quality_target_stage"] = "door"
     if config.get("mapping") and len(config["mapping"]) > 40:
         raise HTTPException(422, "Demasiados campos de mapeo")
     try:
@@ -196,6 +210,8 @@ def reprocess_run(
         for key, value in item.config.items()
         if key in RunInput.model_fields and key not in {"upload_id", "name", "reference_id"}
     }
+    # The immutable combined catalog already captures its five source versions.
+    config.pop("reference_ids", None)
     if payload is not None and "crs" in payload.model_fields_set:
         config["crs"] = payload.crs
         config["crs_evidence"] = payload.crs_evidence if payload.crs else None
@@ -224,6 +240,12 @@ def run_results(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     resolution: str | None = None,
+    quality_code: int | None = Query(None, ge=1, le=4),
+    quality_flag: int | None = Query(None, ge=1, le=2),
+    review_state: ReviewState | None = None,
+    quality_stage: str | None = Query(
+        None, pattern="^(door|block|intersection|street|nucleus|jurisdiction)$"
+    ),
     q: str = Query("", max_length=100),
     db: Session = Depends(get_db),
     _: User = Depends(current_user),
@@ -231,7 +253,15 @@ def run_results(
     require(db, Run, identifier)
     return page_result(
         db,
-        filtered_locations(select(Location).where(Location.run_id == identifier), q, resolution),
+        filtered_locations(
+            select(Location).where(Location.run_id == identifier),
+            q,
+            resolution,
+            quality_code,
+            quality_stage,
+            quality_flag,
+            review_state,
+        ),
         location_dict,
         page,
         page_size,

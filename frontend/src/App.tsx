@@ -11,6 +11,7 @@ import { ResultDetail } from "./pages/ResultDetail";
 import { References } from "./pages/References";
 import { Rules } from "./pages/Rules";
 import { Audit } from "./pages/Audit";
+import { Quality } from "./pages/Quality";
 import { Empty } from "./components/ui";
 export function App() {
   const { user } = useAuth();
@@ -35,6 +36,7 @@ export function App() {
             />
             <Route path="runs/:id" element={<RunDetail />} />
             <Route path="review" element={<Review />} />
+            <Route path="quality" element={<Quality />} />
             <Route path="results/:id" element={<ResultDetail />} />
             <Route path="references" element={<References />} />
             <Route path="rules" element={<Rules />} />

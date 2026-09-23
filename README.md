@@ -78,6 +78,7 @@ Ver [ejemplos](examples/README.md) para conocer cada caso sintético. Las coorde
 - Ingesta CSV/XLSX, conservación de filas, incidencias y agrupación de unidades de ubicación.
 - Normalización determinística, componentes, coordenadas originales/textuales y separación de centroides heredados.
 - Matching conservador con catálogo elegido: puerta, cuadra y candidatos de otras familias según la referencia disponible.
+- Carga de cinco referencias Excel junto al archivo PNP, flags de calidad separados del estado de revisión, avance de pendientes, gráficas y exportaciones filtradas. Ver la [guía del flujo por calidad](docs/quality-workflow.md).
 - Referencia base persistente para futuras cargas y declaración documentada del sistema de coordenadas.
 - Cola SQL persistente con API y worker separados; cancelación, reintento y nueva ejecución de reproceso.
 - Revisión por excepción, grupos según la acción necesaria, reserva, «Guardar y siguiente», cierre/reapertura e histórico.

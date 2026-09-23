@@ -10,18 +10,20 @@ export interface ResumeRecord {
   fingerprint: string;
   userId: string;
 }
-export function getResume(userId: string): ResumeRecord | null {
+const resumeKey = (scope?: string) =>
+  scope ? `${storageKey}.${scope}` : storageKey;
+export function getResume(userId: string, scope?: string): ResumeRecord | null {
   try {
     const saved = JSON.parse(
-      localStorage.getItem(storageKey) ?? "null",
+      localStorage.getItem(resumeKey(scope)) ?? "null",
     ) as ResumeRecord | null;
     return saved?.userId === userId ? saved : null;
   } catch {
     return null;
   }
 }
-export function clearResume() {
-  localStorage.removeItem(storageKey);
+export function clearResume(scope?: string) {
+  localStorage.removeItem(resumeKey(scope));
 }
 export async function fileFingerprint(file: File) {
   // Verify every byte on reselect while keeping at most one 8 MiB block in memory.
@@ -42,9 +44,10 @@ export async function uploadFile(
   userId: string,
   onProgress: (offset: number) => void,
   signal?: AbortSignal,
+  scope?: string,
 ): Promise<Upload> {
   const fingerprint = await fileFingerprint(file);
-  const saved = getResume(userId);
+  const saved = getResume(userId, scope);
   let upload: Upload | undefined;
   if (
     saved &&
@@ -56,7 +59,7 @@ export async function uploadFile(
       upload = await request<Upload>(`/uploads/${saved.uploadId}`, { signal });
     } catch (error) {
       if (!(error instanceof ApiError) || error.status !== 404) throw error;
-      clearResume();
+      clearResume(scope);
     }
   }
   if (!upload) {
@@ -65,7 +68,7 @@ export async function uploadFile(
       size: file.size,
     });
     localStorage.setItem(
-      storageKey,
+      resumeKey(scope),
       JSON.stringify({
         uploadId: upload.id,
         filename: file.name,

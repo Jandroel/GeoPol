@@ -17,7 +17,15 @@ vi.mock("../lib/api", () => ({
 }));
 
 const storageKey = "geopol.export.synthetic-export-user.synthetic-run";
-function setup(job: Partial<ExportJob> = {}) {
+function setup(
+  job: Partial<ExportJob> = {},
+  scope: {
+    qualityFlag?: number;
+    qualityStage?: string;
+    reviewState?: string;
+    allowCumulative?: boolean;
+  } = {},
+) {
   const completed: ExportJob = {
     id: "synthetic-export",
     status: "COMPLETED",
@@ -33,7 +41,7 @@ function setup(job: Partial<ExportJob> = {}) {
   });
   render(
     <QueryClientProvider client={client}>
-      <ExportPanel runId="synthetic-run" />
+      <ExportPanel runId="synthetic-run" {...scope} />
     </QueryClientProvider>,
   );
   return userEvent.setup();
@@ -46,6 +54,45 @@ beforeEach(() => {
 });
 
 describe("spreadsheet export formats", () => {
+  it("can export a selected quality or the complete updated workbook without carrying the filter", async () => {
+    const user = setup(
+      {},
+      {
+        qualityFlag: 1,
+        qualityStage: "door",
+        reviewState: "quick_review",
+        allowCumulative: true,
+      },
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Preparar exportación" }),
+    );
+    await screen.findByRole("button", { name: "Descargar Excel" });
+    expect(post).toHaveBeenLastCalledWith("/runs/synthetic-run/exports", {
+      profile: "locations",
+      format: "xlsx",
+      safe_spreadsheet: true,
+      quality_flag: 1,
+      review_state: "quick_review",
+      quality_stage: "door",
+    });
+    await user.click(
+      screen.getByRole("checkbox", { name: /Exportar el acumulado completo/ }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Descargar Excel" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Preparar exportación" }),
+    );
+    await waitFor(() =>
+      expect(post).toHaveBeenLastCalledWith("/runs/synthetic-run/exports", {
+        profile: "locations",
+        format: "xlsx",
+        safe_spreadsheet: true,
+      }),
+    );
+  });
   it("defaults to Excel and requests a protected XLSX for the selected profile", async () => {
     const user = setup();
     expect(screen.getByLabelText("Formato del archivo")).toHaveValue("xlsx");

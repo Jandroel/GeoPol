@@ -131,6 +131,7 @@ test("base reference, unconfirmed source CRS and explicit equivalent review work
         response.url().endsWith("/api/runs") &&
         response.request().method() === "POST",
     );
+    await page.getByLabel("Flujo de procesamiento").selectOption("legacy");
     await page.getByRole("button", { name: "Iniciar procesamiento" }).click();
     const created = await (await createdResponse).json();
     expect(created.reference_id).toBe(catalog.id);

@@ -7,7 +7,7 @@ from .models import Location, ProcessingDefaults, Revision, SchemaVersion
 from .review_workflow import classify_review
 
 BACKFILL_BATCH_SIZE = 500
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 6
 
 
 def migrate(engine):
@@ -32,6 +32,56 @@ def migrate(engine):
         if 4 not in versions:
             _version_four(conn)
             conn.execute(SchemaVersion.__table__.insert().values(version=4))
+        if 5 not in versions:
+            _version_five(conn)
+            conn.execute(SchemaVersion.__table__.insert().values(version=5))
+        if 6 not in versions:
+            _version_six(conn)
+            conn.execute(SchemaVersion.__table__.insert().values(version=6))
+
+
+def _version_six(conn):
+    """Separate location-format flags from the review decision, without backfill."""
+    existing = {column["name"] for column in inspect(conn).get_columns("locations")}
+    for name, definition in {
+        "quality_flag": "INTEGER",
+        "quality_flag_reason": "TEXT",
+        "review_state": "VARCHAR(24)",
+    }.items():
+        if name not in existing:
+            conn.execute(text(f"ALTER TABLE locations ADD COLUMN {name} {definition}"))
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_location_quality_flag "
+            "ON locations (run_id, quality_flag, review_state)"
+        )
+    )
+
+
+def _version_five(conn):
+    """Quality workflow is opt-in; historical decisions and snapshots remain intact."""
+    additions = {
+        "catalogs": {"config": "JSON NOT NULL DEFAULT '{}'"},
+        "locations": {
+            "quality_code": "INTEGER",
+            "quality_stage": "VARCHAR(24)",
+            "quality_status": "VARCHAR(24)",
+            "quality_reason": "TEXT",
+            "quality_policy_version": "VARCHAR(32)",
+            "quality_history": "JSON NOT NULL DEFAULT '[]'",
+        },
+    }
+    for table, columns in additions.items():
+        existing = {column["name"] for column in inspect(conn).get_columns(table)}
+        for name, definition in columns.items():
+            if name not in existing:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}"))
+    conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_location_quality "
+            "ON locations (run_id, quality_stage, quality_status, quality_code)"
+        )
+    )
 
 
 def _version_four(conn):

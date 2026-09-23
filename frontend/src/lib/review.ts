@@ -1,3 +1,4 @@
+import { reviewStateLabels } from "./quality";
 export const reviewBuckets = {
   actionable: {
     label: "Revisión accionable",
@@ -33,6 +34,9 @@ export interface ReviewFilters {
   q: string;
   page: number;
   includeSuperseded: boolean;
+  qualityFlag?: string;
+  qualityStage?: string;
+  reviewState?: string;
 }
 export function readReviewFilters(params: URLSearchParams): ReviewFilters {
   const bucket = params.get("bucket") ?? "actionable";
@@ -50,6 +54,25 @@ export function readReviewFilters(params: URLSearchParams): ReviewFilters {
     q: (params.get("q") ?? "").slice(0, 100),
     page: Number.isSafeInteger(page) && page > 0 ? page : 1,
     includeSuperseded: params.get("include_superseded") === "true",
+    qualityFlag: ["1", "2"].includes(params.get("quality_flag") ?? "")
+      ? params.get("quality_flag")!
+      : "",
+    reviewState: Object.hasOwn(
+      reviewStateLabels,
+      params.get("review_state") ?? "",
+    )
+      ? params.get("review_state")!
+      : "",
+    qualityStage: [
+      "door",
+      "block",
+      "intersection",
+      "street",
+      "nucleus",
+      "jurisdiction",
+    ].includes(params.get("quality_stage") ?? "")
+      ? params.get("quality_stage")!
+      : "",
   };
 }
 export function reviewParams(filters: ReviewFilters) {
@@ -62,6 +85,9 @@ export function reviewParams(filters: ReviewFilters) {
   });
   if (filters.runId) params.set("run_id", filters.runId);
   if (filters.q) params.set("q", filters.q);
+  if (filters.qualityFlag) params.set("quality_flag", filters.qualityFlag);
+  if (filters.qualityStage) params.set("quality_stage", filters.qualityStage);
+  if (filters.reviewState) params.set("review_state", filters.reviewState);
   return params;
 }
 export function validReviewReturn(value: string | null, runId: string) {

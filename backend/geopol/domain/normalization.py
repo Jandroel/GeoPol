@@ -54,6 +54,10 @@ ALIASES = {
     "cross_street": ("cross_street", "via_cruce", "segunda_via"),
     "site_name": ("site_name", "sitio"),
     "urban_core": ("urban_core", "nucleo_urbano"),
+    "center_name": ("center_name", "nombre_ccpp_hecho"),
+    "center_code": ("center_code", "codigo_ccpp_hecho"),
+    "jurisdiction_name": ("jurisdiction_name", "jurisdiccion_hecho"),
+    "jurisdiction_code": ("jurisdiction_code", "codigo_jurisdiccion_hecho"),
     "latitude": ("xx", "latitude", "latitud", "lat"),
     "longitude": ("yy", "longitude", "longitud", "lon", "lng"),
     "coordinate_origin": ("coordinate_origin", "origen_coordenadas"),
@@ -281,6 +285,10 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
         "cross_street",
         "site_name",
         "urban_core",
+        "center_name",
+        "center_code",
+        "jurisdiction_name",
+        "jurisdiction_code",
     ):
         result[name] = key(values.get(name)) or None
     if result["street_type"]:
@@ -535,7 +543,16 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
             )
     result["search_names"] = list(
         dict.fromkeys(
-            result[n] for n in ("street_name", "cross_street", "site_name", "urban_core") if result[n]
+            result[n]
+            for n in (
+                "street_name",
+                "cross_street",
+                "site_name",
+                "urban_core",
+                "center_name",
+                "jurisdiction_name",
+            )
+            if result[n]
         )
     )
     result["decision_constraints"] = sorted(set(warnings) & DECISION_WARNINGS)

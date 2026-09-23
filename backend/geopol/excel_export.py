@@ -28,6 +28,14 @@ _INVALID_XML = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff
 _FIELDS = {
     "complaint_id": ("Denuncia", 20),
     "ubigeo": ("UBIGEO", 12),
+    "quality_flag": ("Flag de calidad", 18),
+    "review_state": ("Estado de revisión", 24),
+    "quality_flag_reason": ("Motivo del flag", 56),
+    "quality_code": ("Calidad (provisional)", 22),
+    "quality_stage": ("Etapa de evaluación", 23),
+    "quality_status": ("Estado de calidad", 23),
+    "quality_reason": ("Motivo de calidad", 56),
+    "quality_policy_version": ("Versión de calidad", 22),
     "resolution": ("Resolución", 29),
     "location_normalized": ("Dirección normalizada", 56),
     "product": ("Producto geográfico", 25),
@@ -382,7 +390,12 @@ def write_xlsx(
     ordered += [key for key in _FIELDS if key in columns and key in _TECHNICAL_FIELDS]
     result_keys = (["ordinal"] if profile == "source_rows" else []) + ordered
     fields = [("Ordinal de origen", 18)] if profile == "source_rows" else []
-    fields += [_FIELDS.get(key, (key, 25)) for key in ordered]
+    fields += [
+        ("Bandeja de revisión", 23)
+        if key == "review_status" and "review_state" in columns
+        else _FIELDS.get(key, (key, 25))
+        for key in ordered
+    ]
     source_columns = list(metadata.get("source_columns") or [])
     if len(fields) > MAX_COLUMNS or profile == "source_rows" and len(source_columns) + 3 > MAX_COLUMNS:
         raise ExcelExportError("La exportación excede el límite de columnas de Excel. Utilice CSV.")

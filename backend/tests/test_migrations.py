@@ -230,6 +230,8 @@ def test_v1_upgrade_preserves_data_and_latest_manual_action(legacy_engine, monke
             2,
             3,
             4,
+            5,
+            6,
         ]
         assert conn.scalar(text("SELECT applied_at FROM schema_versions WHERE version=1")) == 123456
         assert conn.scalar(text("SELECT manual FROM locations WHERE id='reopened'")) == 1
@@ -287,6 +289,8 @@ def test_fresh_database_versions_and_defaults(tmp_path):
                 2,
                 3,
                 4,
+                5,
+                6,
             ]
         columns = {column["name"]: column for column in inspect(engine).get_columns("locations")}
         assert columns["review_status"]["default"] == "'OPEN'"

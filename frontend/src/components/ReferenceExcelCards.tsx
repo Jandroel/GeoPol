@@ -1,0 +1,615 @@
+import { useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, FileSpreadsheet } from "lucide-react";
+import { useAuth } from "../auth";
+import { post } from "../lib/api";
+import { clearResume, getResume, uploadFile } from "../lib/upload";
+import { number } from "../lib/format";
+import type { Profile, Reference, ReferenceExcelKind, Upload } from "../types";
+import { ErrorNotice, Notice } from "./ui";
+
+export const referenceSlots: {
+  kind: ReferenceExcelKind;
+  title: string;
+  description: string;
+  kinds: string[];
+}[] = [
+  {
+    kind: "doors",
+    title: "Puertas / viviendas",
+    description: "Pre Censos · puntos de puerta y dirección.",
+    kinds: ["door"],
+  },
+  {
+    kind: "roads",
+    title: "Vías y cuadras",
+    description: "Pre Censos · líneas, tramos e intersecciones.",
+    kinds: ["street", "block", "intersection"],
+  },
+  {
+    kind: "centers",
+    title: "Centros poblados",
+    description: "Pre Censos · puntos y nombres de centros poblados.",
+    kinds: ["nucleus"],
+  },
+  {
+    kind: "boundaries",
+    title: "Límites administrativos",
+    description: "Pre Censos · distritos, provincias y departamentos.",
+    kinds: ["boundary"],
+  },
+  {
+    kind: "jurisdictions",
+    title: "Jurisdicciones",
+    description: "SIDPOL / DATACRIM · polígonos de jurisdicción.",
+    kinds: ["jurisdiction"],
+  },
+];
+const fieldLabels: [string, string][] = [
+  ["id", "Identificador"],
+  ["ubigeo", "UBIGEO"],
+  ["name", "Nombre de referencia"],
+  ["street_type", "Tipo de vía"],
+  ["street_name", "Nombre de vía"],
+  ["door_number", "Número de puerta"],
+  ["door_letter", "Letra de puerta"],
+  ["block_number", "Cuadra"],
+  ["cross_street", "Vía de intersección"],
+  ["urban_core", "Núcleo urbano"],
+  ["center_code", "Código de centro poblado"],
+  ["center_name", "Nombre de centro poblado"],
+  ["latitude", "Latitud"],
+  ["longitude", "Longitud"],
+  ["geometry", "Geometría (GeoJSON o WKT)"],
+  ["kind", "Tipo de elemento"],
+  ["level", "Nivel territorial"],
+  ["connects_at_grade", "Cruce al mismo nivel"],
+  ["crs", "Sistema de coordenadas declarado en la fila"],
+];
+const fieldsByKind: Record<ReferenceExcelKind, string[]> = {
+  doors: [
+    "id",
+    "ubigeo",
+    "street_type",
+    "street_name",
+    "door_number",
+    "door_letter",
+    "urban_core",
+    "latitude",
+    "longitude",
+    "geometry",
+    "crs",
+  ],
+  roads: [
+    "id",
+    "ubigeo",
+    "street_type",
+    "street_name",
+    "block_number",
+    "cross_street",
+    "geometry",
+    "kind",
+    "connects_at_grade",
+    "crs",
+  ],
+  centers: [
+    "id",
+    "ubigeo",
+    "name",
+    "center_code",
+    "center_name",
+    "urban_core",
+    "latitude",
+    "longitude",
+    "geometry",
+    "crs",
+  ],
+  boundaries: ["id", "ubigeo", "name", "geometry", "level", "crs"],
+  jurisdictions: ["id", "ubigeo", "name", "geometry", "crs"],
+};
+const referenceIssueLabels: Record<string, string> = {
+  CRS_NO_CONFIRMADO: "Sistema de coordenadas sin confirmar",
+  CRS_DECLARADO_EN_FILA_CONTRADICTORIO:
+    "La fila declara otro sistema de coordenadas",
+  CAT_VIA_DOMAIN_UNCONFIRMED:
+    "Código de tipo de vía sin diccionario confirmado",
+  GEOMETRIA_NO_DISPONIBLE: "Falta la geometría o el punto de referencia",
+  GEOMETRIA_INVALIDA: "Geometría inválida",
+  GEOMETRIA_INCOMPATIBLE_CON_CAPA:
+    "La geometría no corresponde a este tipo de referencia",
+  LIMITE_NO_DISTRITAL:
+    "Límite provincial o departamental; no valida un distrito",
+  LIMITE_REQUIERE_UBIGEO_DISTRITAL: "El límite necesita un UBIGEO distrital",
+  UBIGEO_DISTRITAL_INVALIDO: "UBIGEO distrital inválido",
+  PAR_COORDENADAS_INCOMPLETO: "Falta la latitud o la longitud",
+  COORDENADAS_FUERA_DE_RANGO: "Coordenadas fuera de rango",
+};
+export function ReferenceExcelCards({
+  catalogs,
+  selected,
+  onSelect,
+  onBusy,
+}: {
+  catalogs: Reference[];
+  selected: Partial<Record<ReferenceExcelKind, string>>;
+  onSelect: (kind: ReferenceExcelKind, id: string) => void;
+  onBusy: (kind: ReferenceExcelKind, busy: boolean) => void;
+}) {
+  return (
+    <section
+      className="reference-upload-column"
+      aria-label="Cinco archivos de referencia"
+    >
+      <div className="reference-upload-heading">
+        <h2>2. Referencias en Excel</h2>
+        <p>
+          Importa cada fuente una vez o selecciona una ya disponible. Cada
+          archivo conserva su versión y cobertura.
+        </p>
+      </div>
+      {referenceSlots.map((slot) => (
+        <ReferenceExcelCard
+          key={slot.kind}
+          slot={slot}
+          catalogs={catalogs}
+          selected={selected[slot.kind] ?? ""}
+          onSelect={(id) => onSelect(slot.kind, id)}
+          onBusy={(busy) => onBusy(slot.kind, busy)}
+        />
+      ))}
+    </section>
+  );
+}
+function ReferenceExcelCard({
+  slot,
+  catalogs,
+  selected,
+  onSelect,
+  onBusy,
+}: {
+  slot: (typeof referenceSlots)[number];
+  catalogs: Reference[];
+  selected: string;
+  onSelect: (id: string) => void;
+  onBusy: (busy: boolean) => void;
+}) {
+  const { user } = useAuth();
+  const client = useQueryClient();
+  const [file, setFile] = useState<File | null>(null);
+  const [upload, setUpload] = useState<Upload | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [name, setName] = useState("");
+  const [source, setSource] = useState(
+    slot.kind === "jurisdictions" ? "SIDPOL / DATACRIM" : "Pre Censos",
+  );
+  const [version, setVersion] = useState("");
+  const [crs, setCrs] = useState("");
+  const [evidence, setEvidence] = useState("");
+  const [streetTypes, setStreetTypes] = useState<
+    { code: string; name: string }[]
+  >([]);
+  const [busy, setBusy] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [error, setError] = useState<unknown>();
+  const scope = `reference.${slot.kind}`;
+  const saved = getResume(user!.id, scope);
+  const choices = catalogs.filter(
+    (catalog) =>
+      catalog.config?.reference_excel?.kind === slot.kind ||
+      (!catalog.config?.reference_excel &&
+        catalog.kinds?.some((kind) => slot.kinds.includes(kind))),
+  );
+  const active = choices.find((catalog) => catalog.id === selected);
+  function pending(value: boolean) {
+    setBusy(value);
+    onBusy(value);
+  }
+  async function preview(uploadId: string, sheet?: string) {
+    const result = await post<Profile>("/reference-excels/preview", {
+      upload_id: uploadId,
+      kind: slot.kind,
+      ...(sheet ? { sheet } : {}),
+    });
+    setProfile(result);
+    setMapping(result.suggested_mapping ?? {});
+  }
+  async function load(event: FormEvent) {
+    event.preventDefault();
+    if (!file) return;
+    pending(true);
+    setError(null);
+    try {
+      const result = await uploadFile(
+        file,
+        user!.id,
+        setOffset,
+        undefined,
+        scope,
+      );
+      setUpload(result);
+      setName(file.name.replace(/\.[^.]+$/, ""));
+      await preview(result.id);
+    } catch (e) {
+      setError(e);
+    } finally {
+      pending(false);
+    }
+  }
+  async function changeSheet(sheet: string) {
+    if (!upload) return;
+    pending(true);
+    setError(null);
+    try {
+      await preview(upload.id, sheet);
+    } catch (e) {
+      setError(e);
+    } finally {
+      pending(false);
+    }
+  }
+  async function importCatalog(event: FormEvent) {
+    event.preventDefault();
+    if (!upload || !profile) return;
+    pending(true);
+    setError(null);
+    try {
+      let codes: Record<string, string> | undefined;
+      if (streetTypes.length) {
+        if (
+          streetTypes.some((entry) => !entry.code.trim() || !entry.name.trim())
+        )
+          throw new Error(
+            "Completa el código y el tipo de vía de cada fila del diccionario, o elimina las filas vacías.",
+          );
+        if (
+          new Set(streetTypes.map((entry) => entry.code.trim())).size !==
+          streetTypes.length
+        )
+          throw new Error(
+            "Un código de vía no puede aparecer dos veces en el diccionario.",
+          );
+        codes = Object.fromEntries(
+          streetTypes.map((entry) => [entry.code.trim(), entry.name.trim()]),
+        );
+      }
+      const catalog = await post<Reference>("/reference-excels", {
+        upload_id: upload.id,
+        kind: slot.kind,
+        sheet: profile.sheet || undefined,
+        name: name.trim(),
+        source: source.trim(),
+        version: version.trim(),
+        mapping: Object.fromEntries(
+          Object.entries(mapping).filter(([, value]) => value),
+        ),
+        crs: crs || null,
+        crs_evidence: crs ? evidence.trim() : null,
+        ...(codes ? { street_types: codes } : {}),
+      });
+      client.setQueryData<{ items: Reference[]; total: number }>(
+        ["references"],
+        (old) =>
+          old
+            ? {
+                ...old,
+                items: [
+                  ...old.items.filter((item) => item.id !== catalog.id),
+                  catalog,
+                ],
+                total: old.total + 1,
+              }
+            : { items: [catalog], total: 1 },
+      );
+      onSelect(catalog.id);
+      clearResume(scope);
+      setUpload(null);
+      setProfile(null);
+      setFile(null);
+      void client.invalidateQueries({ queryKey: ["references"] });
+    } catch (e) {
+      setError(e);
+    } finally {
+      pending(false);
+    }
+  }
+  return (
+    <article
+      className={`reference-slot panel ${active ? "has-reference" : ""}`}
+    >
+      <div className="reference-slot-title">
+        <FileSpreadsheet size={20} aria-hidden="true" />
+        <div>
+          <h3>{slot.title}</h3>
+          <p>{slot.description}</p>
+        </div>
+        {active && (
+          <CheckCircle2
+            size={19}
+            className="teal"
+            aria-label="Referencia seleccionada"
+          />
+        )}
+      </div>
+      <label>
+        Fuente para {slot.title.toLowerCase()}
+        <select
+          value={selected}
+          onChange={(e) => onSelect(e.target.value)}
+          disabled={busy}
+        >
+          <option value="">Sin archivo seleccionado</option>
+          {choices.map((catalog) => (
+            <option key={catalog.id} value={catalog.id}>
+              {catalog.name} · {catalog.version}
+            </option>
+          ))}
+        </select>
+      </label>
+      {active && (
+        <p className="field-hint" role="status">
+          {number(active.feature_count)} elementos disponibles
+          {active.config?.reference_excel
+            ? ` · ${number(active.config.reference_excel.staged_rows)} filas pendientes de datos o geometría`
+            : ""}
+          .
+        </p>
+      )}
+      {!!active?.config?.reference_excel?.staged_rows && (
+        <details>
+          <summary>Motivos de las filas pendientes</summary>
+          <ul className="reference-issues">
+            {Object.entries(
+              active.config.reference_excel.issue_counts ?? {},
+            ).map(([code, count]) => (
+              <li key={code}>
+                {referenceIssueLabels[code] ??
+                  code.replaceAll("_", " ").toLowerCase()}
+                : <strong>{number(count)}</strong>
+              </li>
+            ))}
+          </ul>
+          <p>
+            Una fila puede tener varios motivos. Corrige o completa la fuente y
+            carga una nueva versión para habilitarla.
+          </p>
+        </details>
+      )}
+      <details>
+        <summary>Importar Excel de {slot.title.toLowerCase()}</summary>
+        <ErrorNotice error={error} />
+        {!profile ? (
+          <form onSubmit={load} className="stack">
+            {saved && (
+              <p className="field-hint">
+                Carga pendiente: {saved.filename}. Selecciona el mismo archivo
+                para reanudar.
+              </p>
+            )}
+            <label>
+              Archivo Excel · {slot.title}
+              <input
+                type="file"
+                accept=".xlsx"
+                required
+                disabled={busy}
+                onChange={(e) => {
+                  setFile(e.target.files?.[0] ?? null);
+                  setOffset(0);
+                }}
+              />
+            </label>
+            {busy && (
+              <div role="status">
+                <progress value={offset} max={file?.size || 1} /> Preparando
+                columnas…
+              </div>
+            )}
+            <button className="button secondary" disabled={!file || busy}>
+              {busy ? "Leyendo archivo…" : "Leer columnas de referencia"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={importCatalog} className="stack">
+            <p className="field-hint">{upload?.filename}</p>
+            <label>
+              Hoja · {slot.title}
+              <select
+                value={profile.sheet ?? profile.sheets[0]}
+                disabled={busy}
+                onChange={(e) => void changeSheet(e.target.value)}
+              >
+                {profile.sheets.map((sheet) => (
+                  <option key={sheet}>{sheet}</option>
+                ))}
+              </select>
+            </label>
+            <div className="form-grid">
+              <label>
+                Nombre del catálogo
+                <input
+                  value={name}
+                  required
+                  maxLength={200}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </label>
+              <label>
+                Versión de la fuente
+                <input
+                  value={version}
+                  required
+                  maxLength={100}
+                  placeholder="Versión o fecha indicada por el proveedor"
+                  onChange={(e) => setVersion(e.target.value)}
+                />
+              </label>
+            </div>
+            <label>
+              Fuente / institución
+              <input
+                value={source}
+                required
+                maxLength={200}
+                onChange={(e) => setSource(e.target.value)}
+              />
+            </label>
+            <details open>
+              <summary>Correspondencia de columnas · {slot.title}</summary>
+              <div className="form-grid reference-mapping">
+                {fieldLabels
+                  .filter(
+                    ([key]) =>
+                      fieldsByKind[slot.kind].includes(key) || mapping[key],
+                  )
+                  .map(([key, title]) => (
+                    <label key={key}>
+                      {title}
+                      <select
+                        value={mapping[key] ?? ""}
+                        onChange={(e) =>
+                          setMapping({ ...mapping, [key]: e.target.value })
+                        }
+                      >
+                        <option value="">No disponible</option>
+                        {profile.columns.map((column) => (
+                          <option key={column}>{column}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+              </div>
+            </details>
+            {profile.warnings?.map((warning, i) => (
+              <Notice key={i}>{warning}</Notice>
+            ))}
+            <label>
+              Sistema de coordenadas · {slot.title}
+              <select value={crs} onChange={(e) => setCrs(e.target.value)}>
+                <option value="">
+                  Sin confirmar · conservar como referencia pendiente
+                </option>
+                <option value="EPSG:4326">WGS84 · EPSG:4326 documentado</option>
+              </select>
+            </label>
+            {crs ? (
+              <label>
+                Documento que confirma WGS84 · {slot.title}
+                <textarea
+                  required
+                  minLength={8}
+                  maxLength={500}
+                  value={evidence}
+                  onChange={(e) => setEvidence(e.target.value)}
+                />
+              </label>
+            ) : (
+              <p className="field-hint">
+                Las filas sin geometría utilizable o sistema documentado se
+                conservarán pendientes; no validan puntos automáticamente.
+              </p>
+            )}
+            {["doors", "roads"].includes(slot.kind) && (
+              <details>
+                <summary>
+                  Diccionario de categorías de vía (si son códigos)
+                </summary>
+                <p>
+                  Completa únicamente los códigos confirmados por el diccionario
+                  de la fuente.
+                </p>
+                {streetTypes.map((entry, index) => (
+                  <div className="street-type-entry" key={index}>
+                    <label>
+                      Código {index + 1}
+                      <input
+                        value={entry.code}
+                        maxLength={50}
+                        onChange={(e) =>
+                          setStreetTypes((current) =>
+                            current.map((item, i) =>
+                              i === index
+                                ? { ...item, code: e.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                    <label>
+                      Tipo de vía {index + 1}
+                      <input
+                        value={entry.name}
+                        maxLength={100}
+                        onChange={(e) =>
+                          setStreetTypes((current) =>
+                            current.map((item, i) =>
+                              i === index
+                                ? { ...item, name: e.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      aria-label={`Eliminar código ${index + 1}`}
+                      onClick={() =>
+                        setStreetTypes((current) =>
+                          current.filter((_, i) => i !== index),
+                        )
+                      }
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() =>
+                    setStreetTypes((current) => [
+                      ...current,
+                      { code: "", name: "" },
+                    ])
+                  }
+                >
+                  Añadir categoría de vía
+                </button>
+              </details>
+            )}
+            <div className="button-row">
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy}
+                onClick={() => {
+                  setProfile(null);
+                  setUpload(null);
+                }}
+              >
+                Cambiar archivo de referencia
+              </button>
+              <button
+                className="button primary"
+                disabled={
+                  busy ||
+                  !name.trim() ||
+                  !source.trim() ||
+                  !version.trim() ||
+                  (!!crs && evidence.trim().length < 8)
+                }
+              >
+                {busy
+                  ? "Importando referencia…"
+                  : "Guardar y utilizar referencia"}
+              </button>
+            </div>
+          </form>
+        )}
+      </details>
+    </article>
+  );
+}

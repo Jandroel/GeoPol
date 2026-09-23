@@ -22,6 +22,7 @@ import { ResultsTable } from "../components/ResultsTable";
 import { ExportPanel } from "../components/ExportPanel";
 import { ReprocessPanel } from "../components/ReprocessPanel";
 import { RunReadinessPanel } from "../components/RunReadinessPanel";
+import { QualityPanel } from "../components/QualityPanel";
 export function RunDetail() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,7 +31,7 @@ export function RunDetail() {
   const client = useQueryClient();
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
-  const tab = ["results", "exports", "config", "reprocess"].includes(
+  const tab = ["quality", "results", "exports", "config", "reprocess"].includes(
     searchParams.get("tab") ?? "",
   )
     ? searchParams.get("tab")!
@@ -178,6 +179,7 @@ export function RunDetail() {
         aria-label="Información del procesamiento"
       >
         {[
+          ["quality", "Seguimiento por calidad"],
           ["results", "Resultados"],
           ["exports", "Exportaciones"],
           ["config", "Configuración"],
@@ -197,7 +199,9 @@ export function RunDetail() {
         ))}
       </div>
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "results" ? (
+        {tab === "quality" ? (
+          <QualityPanel key={run.id} run={run} />
+        ) : tab === "results" ? (
           <ResultsTable
             runId={id}
             live={active}

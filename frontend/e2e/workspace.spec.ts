@@ -65,6 +65,7 @@ test("review prerequisites, reference reprocessing, save-next and finalization",
       .click();
     await page.getByLabel("Nombre del procesamiento").fill(runName);
     await page.getByLabel("Catálogo de referencia").selectOption("");
+    await page.getByLabel("Flujo de procesamiento").selectOption("legacy");
     await page.getByRole("button", { name: "Iniciar procesamiento" }).click();
     await expect(
       page.getByRole("heading", { name: runName, exact: true }),
@@ -367,6 +368,7 @@ test("synthetic operation: import, process, review, export and mobile navigation
     await page
       .getByLabel("Fuente de confirmación de WGS84")
       .fill("Metadatos de fixture sintética: coordenadas WGS84 EPSG:4326");
+    await page.getByLabel("Flujo de procesamiento").selectOption("legacy");
     await page.getByRole("button", { name: "Iniciar procesamiento" }).click();
     await expect(
       page.getByRole("heading", { name: runName, exact: true }),
@@ -536,7 +538,7 @@ test("synthetic operation: import, process, review, export and mobile navigation
     ).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(
-      page.getByRole("link", { name: "Vista general", exact: true }),
+      page.getByRole("link", { name: "Carga de archivos", exact: true }),
     ).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(

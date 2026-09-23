@@ -18,6 +18,11 @@ import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { date, displayValue, label } from "../lib/format";
 import {
+  qualityFlagLabel,
+  qualityStageLabel,
+  reviewStateLabel,
+} from "../lib/quality";
+import {
   canReuseCandidate,
   geometryLabel,
   isAreaGeometry,
@@ -123,6 +128,7 @@ function ResultRecord() {
         "run",
         "runs",
         "run-readiness",
+        "quality",
       ].map((key) => client.invalidateQueries({ queryKey: [key] })),
     );
   }
@@ -302,6 +308,13 @@ function ResultRecord() {
         actions={<Badge value={r.resolution} />}
       />
       <div className="record-context">
+        {r.review_state && <span>{reviewStateLabel(r.review_state)}</span>}
+        {r.quality_stage && (
+          <span>
+            {qualityFlagLabel(r.quality_flag)} ·{" "}
+            {qualityStageLabel(r.quality_stage)}
+          </span>
+        )}
         <span
           className={`review-stage ${r.review_status === "CLOSED" ? "closed" : ""}`}
         >
@@ -320,6 +333,13 @@ function ResultRecord() {
           Ver pendientes de esta ejecución
         </button>
       </div>
+      {r.review_state === "quick_review" && r.review_status === "OPEN" && (
+        <Notice>
+          Revisión rápida de puerta: verifica el nombre de vía sugerido, el
+          número de puerta y el distrito. Registra el candidato respaldado por
+          la evidencia para finalizar este caso y continuar con el siguiente.
+        </Notice>
+      )}
       {r.review_bucket === "needs_reference" && (
         <Notice>
           Falta una referencia evaluable. La vía principal es incorporar una

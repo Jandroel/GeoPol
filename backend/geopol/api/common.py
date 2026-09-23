@@ -50,7 +50,23 @@ def owned_upload(db, identifier, user):
     return upload
 
 
-def filtered_locations(query, q, resolution=None):
+def filtered_locations(
+    query,
+    q,
+    resolution=None,
+    quality_code=None,
+    quality_stage=None,
+    quality_flag=None,
+    review_state=None,
+):
+    if quality_flag is not None:
+        query = query.where(Location.quality_flag == quality_flag)
+    if review_state is not None:
+        query = query.where(Location.review_state == review_state)
+    if quality_code is not None:
+        query = query.where(Location.quality_code == quality_code)
+    if quality_stage is not None:
+        query = query.where(Location.quality_stage == quality_stage)
     if resolution:
         query = query.where(Location.resolution == resolution)
     if q:

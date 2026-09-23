@@ -79,7 +79,23 @@ export interface LocationResult {
   review_bucket:
     "actionable" | "needs_reference" | "needs_data" | "technical" | "none";
   candidate_count: number;
+  quality_code?: number | null;
+  quality_stage?: string | null;
+  quality_status?: string | null;
+  quality_reason?: string | null;
+  quality_policy_version?: string | null;
+  quality_flag?: 1 | 2 | null;
+  quality_flag_reason?: string | null;
+  review_state?: ReviewState | null;
 }
+export type ReviewState =
+  | "automatic"
+  | "quick_review"
+  | "detailed_review"
+  | "accepted_manual"
+  | "unmatched"
+  | "reference_pending"
+  | "unprocessed";
 export interface ReviewSummary {
   open: Record<
     "actionable" | "needs_reference" | "needs_data" | "technical",
@@ -96,6 +112,61 @@ export interface Reference {
   feature_count: number;
   sha256: string;
   kinds?: string[];
+  config?: {
+    reference_excel?: {
+      kind: ReferenceExcelKind;
+      row_count: number;
+      ready_rows: number;
+      staged_rows: number;
+      readiness: "ready" | "partial" | "staged";
+      issue_counts?: Record<string, number>;
+    };
+  };
+}
+export type ReferenceExcelKind =
+  "doors" | "roads" | "centers" | "boundaries" | "jurisdictions";
+export interface QualityOverview {
+  run_id: string;
+  workflow: string;
+  policy_version: string;
+  provisional: boolean;
+  totals: {
+    units: number;
+    source_rows: number;
+    resolved: number;
+    review: number;
+    unmatched: number;
+    blocked: number;
+    unprocessed: number;
+  };
+  qualities: {
+    code: number | null;
+    label: string;
+    units: number;
+    source_rows: number;
+  }[];
+  flags: {
+    flag: 1 | 2 | null;
+    label?: string;
+    units: number;
+    source_rows: number;
+  }[];
+  review_states: { state: ReviewState; units: number; source_rows: number }[];
+  stages: {
+    key: string;
+    label: string;
+    units: number;
+    source_rows: number;
+    resolved: number;
+    review: number;
+    unmatched: number;
+    blocked: number;
+    percent_of_total: number;
+  }[];
+  can_advance: boolean;
+  next_stage: string | null;
+  eligible_units: number;
+  held_review_units: number;
 }
 export interface ProcessingDefaults {
   default_reference_id: string | null;

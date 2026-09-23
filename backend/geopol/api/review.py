@@ -17,7 +17,7 @@ from ..models import (
     Run,
     User,
 )
-from ..schemas import DecisionInput, MemoryRevokeInput
+from ..schemas import DecisionInput, MemoryRevokeInput, ReviewState
 from ..domain.normalization import normalize_record
 from ..review_workflow import classify_review
 from ..security import current_user
@@ -42,7 +42,16 @@ BucketFilter = Literal["all", "actionable", "needs_reference", "needs_data", "te
 StageFilter = Literal["open", "closed", "all"]
 
 
-def review_scope(db, run_id, q, include_superseded):
+def review_scope(
+    db,
+    run_id,
+    q,
+    include_superseded,
+    quality_code=None,
+    quality_stage=None,
+    quality_flag=None,
+    review_state=None,
+):
     if run_id:
         require(db, Run, run_id)
     query = select(Location).join(Run, Location.run_id == Run.id).where(Run.status.in_(FINISHED))
@@ -50,7 +59,14 @@ def review_scope(db, run_id, q, include_superseded):
         query = query.where(Run.id == run_id)
     if not include_superseded:
         query = query.where(Run.superseded_by.is_(None))
-    return filtered_locations(query, q)
+    return filtered_locations(
+        query,
+        q,
+        quality_code=quality_code,
+        quality_stage=quality_stage,
+        quality_flag=quality_flag,
+        review_state=review_state,
+    )
 
 
 def review_filters(query, stage, bucket):
@@ -87,10 +103,22 @@ def review(
     bucket: BucketFilter = "all",
     stage: StageFilter = "open",
     include_superseded: bool = False,
+    quality_code: int | None = Query(None, ge=1, le=4),
+    quality_flag: int | None = Query(None, ge=1, le=2),
+    review_state: ReviewState | None = None,
+    quality_stage: str | None = Query(
+        None, pattern="^(door|block|intersection|street|nucleus|jurisdiction)$"
+    ),
     db: Session = Depends(get_db),
     _: User = Depends(current_user),
 ):
-    query = review_filters(review_scope(db, run_id, q, include_superseded), stage, bucket)
+    query = review_filters(
+        review_scope(
+            db, run_id, q, include_superseded, quality_code, quality_stage, quality_flag, review_state
+        ),
+        stage,
+        bucket,
+    )
     return page_result(db, query, location_dict, page, page_size)
 
 
@@ -99,10 +127,18 @@ def review_summary(
     run_id: str | None = None,
     q: str = Query("", max_length=100),
     include_superseded: bool = False,
+    quality_code: int | None = Query(None, ge=1, le=4),
+    quality_flag: int | None = Query(None, ge=1, le=2),
+    review_state: ReviewState | None = None,
+    quality_stage: str | None = Query(
+        None, pattern="^(door|block|intersection|street|nucleus|jurisdiction)$"
+    ),
     db: Session = Depends(get_db),
     _: User = Depends(current_user),
 ):
-    query = review_scope(db, run_id, q, include_superseded)
+    query = review_scope(
+        db, run_id, q, include_superseded, quality_code, quality_stage, quality_flag, review_state
+    )
     counts = db.execute(
         query.with_only_columns(Location.review_status, Location.review_bucket, func.count())
         .order_by(None)
@@ -130,12 +166,24 @@ def next_review(
     stage: StageFilter = "open",
     exclude_id: str | None = None,
     include_superseded: bool = False,
+    quality_code: int | None = Query(None, ge=1, le=4),
+    quality_flag: int | None = Query(None, ge=1, le=2),
+    review_state: ReviewState | None = None,
+    quality_stage: str | None = Query(
+        None, pattern="^(door|block|intersection|street|nucleus|jurisdiction)$"
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(current_user),
 ):
     if stage == "closed":
         return {"item": None}
-    query = review_filters(review_scope(db, run_id, q, include_superseded), "open", bucket)
+    query = review_filters(
+        review_scope(
+            db, run_id, q, include_superseded, quality_code, quality_stage, quality_flag, review_state
+        ),
+        "open",
+        bucket,
+    )
     # Historical versions remain readable, but never become the next editable case.
     query = query.where(
         Run.superseded_by.is_(None),
@@ -181,6 +229,8 @@ def get_result(identifier: str, db: Session = Depends(get_db), _: User = Depends
 @router.post("/api/results/{identifier}/claim")
 def claim_result(identifier: str, db: Session = Depends(get_db), user: User = Depends(reviewer)):
     item = require(db, Location, identifier)
+    db.execute(update(Run).where(Run.id == item.run_id).values(id=Run.id))
+    db.expire_all()
     editable_run(db, item)
     now = time.time()
     changed = db.execute(
@@ -226,6 +276,9 @@ def decide(
     identifier: str, payload: DecisionInput, db: Session = Depends(get_db), user: User = Depends(reviewer)
 ):
     item = require(db, Location, identifier)
+    db.execute(update(Run).where(Run.id == item.run_id).values(id=Run.id))
+    # Serialize with stage advancement before checking editability.
+    db.expire_all()
     editable_run(db, item)
     result = apply_decision(db, item, payload, user)
     db.commit()
@@ -291,7 +344,7 @@ def apply_decision(db, item, payload, user, *, group_id=None):
                 method=candidate.get("method") or "MANUAL",
             )
     elif payload.action == "manual_point":
-        if payload.precision in {"VIA", "CUADRA", "MANZANA", "NUCLEO"}:
+        if payload.precision in {"VIA", "CUADRA", "MANZANA", "NUCLEO", "JURISDICCION"}:
             raise HTTPException(422, "Una precisión de área o tramo requiere la geometría de un candidato")
         if (
             payload.latitude is None

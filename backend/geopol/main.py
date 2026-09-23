@@ -4,8 +4,20 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .api import auth, exports, geocoding, map_context, references, review, review_groups, runs, system, uploads
+from .api import (
+    auth,
+    exports,
+    geocoding,
+    map_context,
+    references,
+    review,
+    review_groups,
+    runs,
+    system,
+    uploads,
+)
 from .config import settings
+from .api import quality, reference_excels
 
 app = FastAPI(
     title="GeoPol",
@@ -41,5 +53,7 @@ for router in (
     review_groups.router,
     references.router,
     exports.router,
+    quality.router,
+    reference_excels.router,
 ):
     app.include_router(router)

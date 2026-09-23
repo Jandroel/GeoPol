@@ -258,4 +258,11 @@ def test_version_four_is_additive_and_idempotent(harness):
         assert db.get(Run, run["id"]).config == original
         assert db.get(ProcessingDefaults, "global").reference_id == identifier
         assert db.get(ProcessingDefaults, "global").updated_at == before
-        assert list(db.scalars(text("SELECT version FROM schema_versions ORDER BY version"))) == [1, 2, 3, 4]
+        assert list(db.scalars(text("SELECT version FROM schema_versions ORDER BY version"))) == [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+        ]

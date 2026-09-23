@@ -63,6 +63,7 @@ class Catalog(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     feature_count: Mapped[int] = mapped_column(Integer, default=0)
     kinds: Mapped[list] = mapped_column(JSON, default=list)
+    config: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     created_at: Mapped[float] = mapped_column(Float, default=time.time)
 
 
@@ -143,11 +144,22 @@ class Location(Base):
     review_bucket: Mapped[str] = mapped_column(String(24), default="none", server_default="none")
     review_owner: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
     review_expires_at: Mapped[float | None] = mapped_column(Float)
+    quality_code: Mapped[int | None] = mapped_column(Integer)
+    quality_flag: Mapped[int | None] = mapped_column(Integer)
+    quality_flag_reason: Mapped[str | None] = mapped_column(Text)
+    review_state: Mapped[str | None] = mapped_column(String(24))
+    quality_stage: Mapped[str | None] = mapped_column(String(24))
+    quality_status: Mapped[str | None] = mapped_column(String(24))
+    quality_reason: Mapped[str | None] = mapped_column(Text)
+    quality_policy_version: Mapped[str | None] = mapped_column(String(32))
+    quality_history: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
     __table_args__ = (
         UniqueConstraint("run_id", "unit_key"),
         Index("ix_location_queue", "run_id", "resolution", "id"),
         Index("ix_location_complaint", "run_id", "complaint_id"),
         Index("ix_location_review_queue", "run_id", "review_status", "review_bucket", "id"),
+        Index("ix_location_quality", "run_id", "quality_stage", "quality_status", "quality_code"),
+        Index("ix_location_quality_flag", "run_id", "quality_flag", "review_state"),
     )
 
 

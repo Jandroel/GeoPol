@@ -2,6 +2,16 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+ReviewState = Literal[
+    "automatic",
+    "quick_review",
+    "detailed_review",
+    "accepted_manual",
+    "unmatched",
+    "reference_pending",
+    "unprocessed",
+]
+
 
 class Input(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -25,6 +35,10 @@ class RunInput(Input):
     delimiter: Literal[",", ";", "\t", "|"] = ","
     encoding: Literal["utf-8-sig", "utf-8", "cp1252", "latin-1"] = "utf-8-sig"
     reference_id: str | None = Field(default=None, min_length=1, max_length=36)
+    reference_ids: list[Annotated[str, Field(min_length=1, max_length=36)]] | None = Field(
+        default=None, max_length=5
+    )
+    workflow: Literal["legacy", "quality_v1"] = "legacy"
     crs: Literal["EPSG:4326"] | None = None
     crs_evidence: str | None = Field(default=None, min_length=8, max_length=500)
 
@@ -74,6 +88,8 @@ class DecisionInput(Input):
             "VIA",
             "COORDENADA",
             "DESCONOCIDA",
+            "CENTRO_POBLADO",
+            "JURISDICCION",
         ]
         | None
     ) = None
@@ -87,6 +103,10 @@ class ExportInput(Input):
     profile: Literal["locations", "source_rows"] = "locations"
     format: Literal["csv", "xlsx"] = "csv"
     safe_spreadsheet: bool = True
+    quality_code: int | None = Field(default=None, ge=1, le=4)
+    quality_flag: int | None = Field(default=None, ge=1, le=2)
+    review_state: ReviewState | None = None
+    quality_stage: Literal["door", "block", "intersection", "street", "nucleus", "jurisdiction"] | None = None
 
 
 class MemoryRevokeInput(Input):

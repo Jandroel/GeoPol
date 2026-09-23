@@ -44,7 +44,7 @@ class ReferenceSearch:
         return dict(index)
 
     @lru_cache(maxsize=64)
-    def lookup(self, catalog_id, ubigeo, names, manzana_code=None):
+    def lookup(self, catalog_id, ubigeo, names, manzana_code=None, extra_kinds=()):
         if not catalog_id or not ubigeo:
             return [], False
         index = self.names(catalog_id, ubigeo)
@@ -60,6 +60,8 @@ class ReferenceSearch:
         with self.sessions() as db:
             query = select(Feature.payload).where(Feature.catalog_id == catalog_id, Feature.ubigeo == ubigeo)
             applicable = (Feature.kind == "boundary") | Feature.search_key.in_(keys)
+            if extra_kinds:
+                applicable |= Feature.kind.in_(extra_kinds)
             if manzana_code:
                 applicable |= (Feature.kind == "manzana") & (
                     Feature.payload["manzana_code"].as_string() == str(manzana_code)

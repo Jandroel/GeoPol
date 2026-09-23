@@ -21,6 +21,8 @@ from .db import SessionLocal
 from .domain import RULES_VERSION
 from .domain.ingestion import iter_records
 from .domain.matching import resolve_location
+from .domain.quality import resolve_quality_stage
+from .quality_workflow import QUALITY_FIELDS, stage_scope
 from .domain.normalization import normalize_record
 from .excel_export import ExcelExportError, write_xlsx
 from .models import (
@@ -126,6 +128,9 @@ def unit_key(normalized, ordinal):
         "source_crs",
     )
     canonical = {k: normalized.get(k) for k in keys}
+    for extra in ("center_name", "center_code", "jurisdiction_name", "jurisdiction_code"):
+        if normalized.get(extra):
+            canonical[extra] = normalized[extra]
     if not canonical["complaint_id"]:
         canonical["source_ordinal"] = ordinal
     return hashlib.sha256(json.dumps(canonical, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -270,12 +275,15 @@ def process_run(run_id, job_id, token):
             if run.cancel_requested:
                 raise Cancelled()
             items, normalized_bytes = [], 0
+            quality_mode = run.config.get("workflow") == "quality_v1"
+            quality_stage = run.config.get("quality_target_stage", "door")
+            pending = (
+                stage_scope(run_id, quality_stage)
+                if quality_mode
+                else select(Location).where(Location.run_id == run_id, Location.resolution == "PENDIENTE")
+            )
             selected = db.scalars(
-                select(Location)
-                .where(Location.run_id == run_id, Location.resolution == "PENDIENTE")
-                .order_by(Location.id)
-                .limit(settings.batch_size)
-                .execution_options(yield_per=1)
+                pending.order_by(Location.id).limit(settings.batch_size).execution_options(yield_per=1)
             )
             try:
                 for item in selected:
@@ -315,12 +323,25 @@ def process_run(run_id, job_id, token):
                 normalized = apply_coordinate_declaration(item.normalized, run.config)
                 names = tuple(search_key(n) for n in normalized.get("search_names", []) if n)
                 features, truncated = references.lookup(
-                    run.reference_id, item.ubigeo, names, normalized.get("manzana_code")
+                    run.reference_id,
+                    item.ubigeo,
+                    names,
+                    normalized.get("manzana_code"),
+                    ("jurisdiction",)
+                    if quality_mode and quality_stage == "jurisdiction"
+                    else ("site", "nucleus")
+                    if quality_mode and quality_stage == "nucleus" and normalized.get("center_code")
+                    else (),
                 )
                 normalized["reference_truncated"] = truncated
                 normalized["available_reference_kinds"] = catalog.kinds if catalog else []
-                resolved = resolve_location(normalized, features, reference_available=bool(catalog))
-                resolved = resolve_memory(db, normalized, resolved, run.created_at)
+                if quality_mode:
+                    resolved = resolve_quality_stage(
+                        normalized, features, reference_available=bool(catalog), stage=quality_stage
+                    )
+                else:
+                    resolved = resolve_location(normalized, features, reference_available=bool(catalog))
+                    resolved = resolve_memory(db, normalized, resolved, run.created_at)
                 if item.complaint_id in conflicts or {"FILA_ORIGEN_CON_INCIDENCIA", "CRS_CONFLICTIVO"} & set(
                     normalized.get("warnings", [])
                 ):
@@ -333,6 +354,12 @@ def process_run(run_id, job_id, token):
                         evidence_band="REVISION",
                         reason="Ubicaciones contradictorias, CRS en conflicto o incidencia en la fila de origen; requiere conciliación",
                     )
+                    if quality_mode:
+                        resolved.update(
+                            quality_status="review",
+                            quality_code=3 if quality_stage == "door" else None,
+                            quality_reason=resolved["reason"],
+                        )
                 for key in (
                     "resolution",
                     "method",
@@ -345,15 +372,19 @@ def process_run(run_id, job_id, token):
                     "reason",
                     "candidates",
                     "attempts",
-                ):
+                ) + (QUALITY_FIELDS if quality_mode else ()):
                     if key in resolved:
                         setattr(item, key, resolved[key])
-                item.normalized, item.revision = normalized, 1
+                initial = item.revision == 0
+                item.normalized, item.revision = normalized, item.revision + 1
+                if quality_mode:
+                    item.manual, item.review_owner, item.review_expires_at = False, None, None
                 item.review_status, item.review_bucket = classify_review(
                     item.resolution, item.manual, item.candidates, item.reason
                 )
                 add_revision(db, item, "worker", "automatic_resolution")
-                run.processed_units += 1
+                if initial:
+                    run.processed_units += 1
                 result_bytes += len(json.dumps(resolved, ensure_ascii=False).encode("utf-8"))
                 if result_bytes >= 16 * 1024 * 1024 or time.monotonic() - batch_started > 15:
                     break
@@ -380,6 +411,15 @@ EXPORT_COLUMNS_V1 = (
 )
 EXPORT_COLUMNS_V2 = EXPORT_COLUMNS_V1 + ("review_status", "review_bucket")
 EXPORT_COLUMNS = EXPORT_COLUMNS_V2 + ("geometry",)
+EXPORT_COLUMNS_V4 = EXPORT_COLUMNS + QUALITY_FIELDS
+EXPORT_COLUMNS_V5 = EXPORT_COLUMNS + (
+    "quality_flag",
+    "review_state",
+    "quality_flag_reason",
+    "quality_stage",
+    "quality_reason",
+    "quality_policy_version",
+)
 
 
 def safe_cell(value, safe):
@@ -425,7 +465,17 @@ def process_export(export_id, job_id, token):
     path = storage_file("exports", export_id, f".{token}.{file_format}.part")
     row_count = 0
     schema = manifest.get("schema_version", 1)
-    columns = EXPORT_COLUMNS if schema >= 3 else EXPORT_COLUMNS_V2 if schema == 2 else EXPORT_COLUMNS_V1
+    columns = (
+        EXPORT_COLUMNS_V5
+        if schema >= 5
+        else EXPORT_COLUMNS_V4
+        if schema >= 4
+        else EXPORT_COLUMNS
+        if schema >= 3
+        else EXPORT_COLUMNS_V2
+        if schema == 2
+        else EXPORT_COLUMNS_V1
+    )
 
     def records():
         nonlocal row_count
@@ -444,7 +494,11 @@ def process_export(export_id, job_id, token):
                                 ExportItem.export_id == export_id,
                             ),
                         )
-                        .where(SourceRow.run_id == run_id, SourceRow.ordinal > cursor)
+                        .where(
+                            SourceRow.run_id == run_id,
+                            SourceRow.ordinal > cursor,
+                            ExportItem.location_id.is_not(None) if manifest.get("quality_filter") else True,
+                        )
                         .order_by(SourceRow.ordinal)
                         .limit(settings.batch_size)
                     ).yield_per(1)

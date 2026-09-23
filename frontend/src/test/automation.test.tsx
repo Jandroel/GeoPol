@@ -92,6 +92,33 @@ async function upload() {
   return user;
 }
 describe("safe processing defaults", () => {
+  it("uses the independently selected reference files once each in the quality workflow", async () => {
+    const writes = mockCreation();
+    setup(<NewRun />);
+    const user = await upload();
+    await user.selectOptions(
+      screen.getByLabelText("Fuente para puertas / viviendas"),
+      catalog.id,
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Fuente para límites administrativos"),
+      catalog.id,
+    );
+    expect(screen.getByLabelText("Flujo de procesamiento")).toHaveValue(
+      "quality_v1",
+    );
+    expect(screen.getByLabelText("Catálogo de referencia")).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", { name: "Iniciar procesamiento" }),
+    );
+    await screen.findByText("Procesamiento creado");
+    expect(writes[0]).toMatchObject({
+      workflow: "quality_v1",
+      reference_ids: [catalog.id],
+      reference_id: null,
+      crs: null,
+    });
+  });
   it("preselects the default reference while leaving original CRS unconfirmed", async () => {
     const writes = mockCreation();
     setup(<NewRun />);

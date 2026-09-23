@@ -13,6 +13,14 @@ import { useAuth } from "../auth";
 import { request } from "../lib/api";
 import { date, number } from "../lib/format";
 import {
+  qualityFlagLabel,
+  qualityFlagLabels,
+  qualityStageLabel,
+  reviewStateLabels,
+  reviewStateLabel,
+  qualityStageLabels,
+} from "../lib/quality";
+import {
   readReviewFilters,
   reservationIsLive,
   reviewBuckets,
@@ -54,6 +62,12 @@ export function Review() {
   });
   if (filters.runId) summaryParams.set("run_id", filters.runId);
   if (filters.q) summaryParams.set("q", filters.q);
+  if (filters.qualityFlag)
+    summaryParams.set("quality_flag", filters.qualityFlag);
+  if (filters.qualityStage)
+    summaryParams.set("quality_stage", filters.qualityStage);
+  if (filters.reviewState)
+    summaryParams.set("review_state", filters.reviewState);
   const summary = useQuery({
     queryKey: ["review-summary", summaryParams.toString()],
     queryFn: () => request<ReviewSummary>(`/review/summary?${summaryParams}`),
@@ -130,6 +144,14 @@ export function Review() {
           Finalizados: {summary.data ? number(summary.data.closed) : "—"}
         </button>
       </div>
+      {filters.reviewState === "quick_review" && (
+        <Notice>
+          Revisión rápida: compara el nombre de vía, el número de puerta y el
+          UBIGEO con el candidato. El flag se conserva como dato de la ubicación
+          cuando registras una decisión; los casos finalizados no vuelven a esta
+          bandeja.
+        </Notice>
+      )}
       <ErrorNotice error={summary.error} />
       <div className="review-facets">
         {(Object.keys(reviewBuckets) as ReviewBucket[]).map((bucket) => {
@@ -182,6 +204,66 @@ export function Review() {
         )}
       <section className="panel review-filter-panel">
         <div className="review-filters">
+          <label>
+            Flag de calidad
+            <select
+              value={filters.qualityFlag ?? ""}
+              onChange={(e) => update({ qualityFlag: e.target.value })}
+            >
+              <option value="">Todos los flags</option>
+              {Object.entries(qualityFlagLabels).map(([code, title]) => (
+                <option key={code} value={code}>
+                  {title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Estado de revisión
+            <select
+              value={filters.reviewState ?? ""}
+              onChange={(e) =>
+                update({
+                  reviewState: e.target.value,
+                  ...(e.target.value
+                    ? {
+                        stage: ["automatic", "accepted_manual"].includes(
+                          e.target.value,
+                        )
+                          ? "closed"
+                          : "open",
+                        bucket: ["quick_review", "detailed_review"].includes(
+                          e.target.value,
+                        )
+                          ? "actionable"
+                          : "all",
+                      }
+                    : {}),
+                })
+              }
+            >
+              <option value="">Todos los estados de revisión</option>
+              {Object.entries(reviewStateLabels).map(([key, title]) => (
+                <option key={key} value={key}>
+                  {title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Etapa de geocodificación
+            <select
+              value={filters.qualityStage ?? ""}
+              onChange={(e) => update({ qualityStage: e.target.value })}
+            >
+              <option value="">Todas las etapas</option>
+              {Object.entries(qualityStageLabels).map(([key, title]) => (
+                <option key={key} value={key}>
+                  {title}
+                </option>
+              ))}
+            </select>
+          </label>
           <label>
             Ejecución
             <select
@@ -333,6 +415,7 @@ export function Review() {
                     <tr>
                       <th>Denuncia / ubicación</th>
                       <th>Motivo y resolución</th>
+                      <th>Flag / etapa</th>
                       <th>Candidatos</th>
                       <th>Revisión</th>
                       <th>
@@ -365,6 +448,14 @@ export function Review() {
                           <p>{reviewReason(result.reason)}</p>
                           <Badge value={result.resolution} />
                         </td>
+                        <td className="quality-cell">
+                          <strong>
+                            {qualityFlagLabel(result.quality_flag)}
+                          </strong>
+                          <small>
+                            {qualityStageLabel(result.quality_stage)}
+                          </small>
+                        </td>
                         <td className="numeric">
                           {number(result.candidate_count)}
                         </td>
@@ -374,6 +465,11 @@ export function Review() {
                               ? "Finalizado"
                               : "Pendiente"}
                           </strong>
+                          {result.review_state && (
+                            <small className="reservation-note">
+                              {reviewStateLabel(result.review_state)}
+                            </small>
+                          )}
                           {result.review_owner &&
                           reservationIsLive(result.review_expires_at) ? (
                             <small className="reservation-note">

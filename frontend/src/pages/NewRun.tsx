@@ -10,12 +10,14 @@ import type {
   ProcessingDefaults,
   Profile,
   Reference,
+  ReferenceExcelKind,
   Run,
   Upload,
 } from "../types";
 import { ErrorNotice, Notice, PageHeader } from "../components/ui";
 import { CoordinatePolicy } from "../components/CoordinatePolicy";
 import { ReferenceCapability } from "../components/ReferenceCapability";
+import { ReferenceExcelCards } from "../components/ReferenceExcelCards";
 const fields: [string, string][] = [
   ["complaint_id", "Identificador de denuncia"],
   ["location_original", "Dirección / lugar del hecho"],
@@ -28,6 +30,10 @@ const fields: [string, string][] = [
   ["cross_street", "Vía de intersección"],
   ["site_name", "Sitio de interés"],
   ["urban_core", "Núcleo urbano"],
+  ["center_name", "Nombre del centro poblado del hecho"],
+  ["center_code", "Código del centro poblado del hecho"],
+  ["jurisdiction_name", "Nombre de jurisdicción del hecho"],
+  ["jurisdiction_code", "Código de jurisdicción del hecho"],
   ["latitude", "Latitud (xx)"],
   ["longitude", "Longitud (yy)"],
   ["coordinate_origin", "Origen de coordenadas"],
@@ -42,6 +48,17 @@ export function NewRun() {
   const [offset, setOffset] = useState(0);
   const [name, setName] = useState("");
   const [reference, setReference] = useState("default");
+  const [referenceSlots, setReferenceSlots] = useState<
+    Partial<Record<ReferenceExcelKind, string>>
+  >({});
+  const [referenceBusy, setReferenceBusy] = useState<
+    Partial<Record<ReferenceExcelKind, boolean>>
+  >({});
+  const referenceIds = [
+    ...new Set(Object.values(referenceSlots).filter(Boolean)),
+  ];
+  const importingReference = Object.values(referenceBusy).some(Boolean);
+  const [workflow, setWorkflow] = useState("quality_v1");
   const [crsConfirmed, setCrsConfirmed] = useState(false);
   const [crsEvidence, setCrsEvidence] = useState("");
   const [sheet, setSheet] = useState("");
@@ -62,7 +79,9 @@ export function NewRun() {
       ? defaults.data?.catalog
       : refs.data?.items.find((r) => r.id === reference);
   const defaultUnavailable =
-    reference === "default" && defaults.data?.status !== "ready";
+    !referenceIds.length &&
+    reference === "default" &&
+    defaults.data?.status !== "ready";
   function applyProfile(profile?: Profile) {
     if (!profile) return;
     setMapping(profile.suggested_mapping ?? {});
@@ -124,14 +143,21 @@ export function NewRun() {
         mapping: Object.fromEntries(
           Object.entries(mapping).filter(([, value]) => value),
         ),
-        ...(reference === "default" ? {} : { reference_id: reference || null }),
+        workflow,
+        ...(referenceIds.length
+          ? { reference_ids: referenceIds, reference_id: null }
+          : reference === "default"
+            ? {}
+            : { reference_id: reference || null }),
         delimiter,
         encoding,
         crs: crsConfirmed ? "EPSG:4326" : null,
         crs_evidence: crsConfirmed ? crsEvidence.trim() : null,
       });
       clearResume();
-      navigate(`/runs/${run.id}`);
+      navigate(
+        `/runs/${run.id}${workflow === "quality_v1" ? "?tab=quality" : ""}`,
+      );
     } catch (e) {
       setError(e);
     } finally {
@@ -140,7 +166,10 @@ export function NewRun() {
   }
   return (
     <>
-      <PageHeader title="Nuevo procesamiento" />
+      <PageHeader
+        title="Carga de archivos"
+        description="Carga el Excel de la PNP y selecciona las fuentes con las que se contrastarán sus direcciones."
+      />
       <ol className="steps">
         <li className={upload ? "done" : "current"}>
           <span>{upload ? <Check size={16} aria-hidden="true" /> : "1"}</span>
@@ -154,236 +183,278 @@ export function NewRun() {
         </li>
       </ol>
       <ErrorNotice error={error} />
-      {!upload ? (
-        <form onSubmit={submitUpload} className="panel upload-panel">
-          <div className="upload-illustration">
-            <UploadCloud size={44} strokeWidth={1.4} aria-hidden="true" />
-          </div>
-          <p>Las filas originales se conservarán con cada resultado.</p>
-          {saved && (
-            <Notice>
-              Hay una carga pendiente: <strong>{saved.filename}</strong>.
-              Selecciona el mismo archivo para reanudar desde el último bloque
-              confirmado.
-            </Notice>
-          )}
-          <label className="file-drop" htmlFor="source-file">
-            <FileUp size={24} aria-hidden="true" />
-            <strong>{file?.name ?? "Seleccionar archivo de origen"}</strong>
-            <span>
-              {file
-                ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
-                : "CSV o XLSX"}
-            </span>
-            <input
-              id="source-file"
-              type="file"
-              accept=".csv,.xlsx"
-              disabled={busy}
-              required
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-                setOffset(0);
-              }}
-            />
-          </label>
-          {busy && (
-            <div className="upload-progress">
-              <progress max={file?.size || 1} value={offset} />
-              <span role="status">
-                {file ? Math.floor((offset / file.size) * 100) : 0}% enviado ·
-                La carga se puede reanudar si se interrumpe.
-              </span>
-            </div>
-          )}
-          <button className="button primary" disabled={!file || busy}>
-            {busy ? "Cargando archivo…" : "Cargar y verificar columnas"}
-            <ArrowRight size={18} aria-hidden="true" />
-          </button>
-          <a className="text-link demo-link" href="/demo.csv" download>
-            Descargar un ejemplo sintético
-          </a>
-        </form>
-      ) : (
-        <form onSubmit={create} className="stack">
-          <section className="panel form-panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Archivo y referencias</h2>
-                <p>{upload.filename}</p>
+      <div className="intake-grid">
+        <div className="intake-source">
+          <h2>1. Archivo de la PNP</h2>
+          {!upload ? (
+            <form onSubmit={submitUpload} className="panel upload-panel">
+              <div className="upload-illustration">
+                <UploadCloud size={44} strokeWidth={1.4} aria-hidden="true" />
               </div>
-              <Check size={22} className="teal" aria-hidden="true" />
-            </div>
-            <div className="form-grid">
-              <label>
-                Nombre del procesamiento
+              <p>Las filas originales se conservarán con cada resultado.</p>
+              {saved && (
+                <Notice>
+                  Hay una carga pendiente: <strong>{saved.filename}</strong>.
+                  Selecciona el mismo archivo para reanudar desde el último
+                  bloque confirmado.
+                </Notice>
+              )}
+              <label className="file-drop" htmlFor="source-file">
+                <FileUp size={24} aria-hidden="true" />
+                <strong>{file?.name ?? "Seleccionar archivo de origen"}</strong>
+                <span>
+                  {file
+                    ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
+                    : "Excel (.xlsx) · también compatible con CSV"}
+                </span>
                 <input
+                  id="source-file"
+                  type="file"
+                  accept=".csv,.xlsx"
+                  disabled={busy}
                   required
-                  maxLength={200}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setFile(e.target.files?.[0] ?? null);
+                    setOffset(0);
+                  }}
                 />
               </label>
-              <label>
-                Catálogo de referencia
-                <select
-                  aria-label="Catálogo de referencia"
-                  value={reference}
-                  disabled={busy || defaults.isPending || refs.isPending}
-                  onChange={(e) => setReference(e.target.value)}
-                >
-                  <option value="default">
-                    {defaults.data?.status === "ready"
-                      ? `Referencia base · ${defaults.data.catalog?.name}`
-                      : "Referencia base no disponible"}
-                  </option>
-                  <option value="">Procesar explícitamente sin catálogo</option>
-                  {refs.data?.items.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} · {r.version}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {!!upload.profile?.sheets.length && (
-                <label>
-                  Hoja de trabajo
-                  <select
-                    aria-label="Hoja de trabajo"
-                    value={sheet}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void updateProfile({ sheet: e.target.value })
-                    }
-                  >
-                    {upload.profile.sheets.map((s) => (
-                      <option key={s}>{s}</option>
-                    ))}
-                  </select>
-                </label>
+              {busy && (
+                <div className="upload-progress">
+                  <progress max={file?.size || 1} value={offset} />
+                  <span role="status">
+                    {file ? Math.floor((offset / file.size) * 100) : 0}% enviado
+                    · La carga se puede reanudar si se interrumpe.
+                  </span>
+                </div>
               )}
-              {file?.name.toLowerCase().endsWith(".csv") && (
-                <>
+              <button className="button primary" disabled={!file || busy}>
+                {busy ? "Cargando archivo…" : "Cargar y verificar columnas"}
+                <ArrowRight size={18} aria-hidden="true" />
+              </button>
+              <a className="text-link demo-link" href="/demo.csv" download>
+                Descargar un ejemplo sintético
+              </a>
+            </form>
+          ) : (
+            <form onSubmit={create} className="stack">
+              <section className="panel form-panel">
+                <div className="panel-heading">
+                  <div>
+                    <h2>Archivo y referencias</h2>
+                    <p>{upload.filename}</p>
+                  </div>
+                  <Check size={22} className="teal" aria-hidden="true" />
+                </div>
+                <div className="form-grid">
                   <label>
-                    Separador CSV
-                    <select
-                      aria-label="Separador CSV"
-                      value={delimiter}
-                      disabled={busy}
-                      onChange={(e) =>
-                        void updateProfile({ delimiter: e.target.value })
-                      }
-                    >
-                      <option value=",">Coma (,)</option>
-                      <option value=";">Punto y coma (;)</option>
-                      <option value={"\t"}>Tabulación</option>
-                      <option value="|">Barra vertical (|)</option>
-                    </select>
+                    Nombre del procesamiento
+                    <input
+                      required
+                      maxLength={200}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
                   </label>
                   <label>
-                    Codificación
+                    Catálogo de referencia
                     <select
-                      aria-label="Codificación"
-                      value={encoding}
-                      disabled={busy}
-                      onChange={(e) =>
-                        void updateProfile({ encoding: e.target.value })
+                      aria-label="Catálogo de referencia"
+                      value={reference}
+                      disabled={
+                        busy ||
+                        !!referenceIds.length ||
+                        defaults.isPending ||
+                        refs.isPending
                       }
+                      onChange={(e) => setReference(e.target.value)}
                     >
-                      <option value="utf-8-sig">UTF-8</option>
-                      <option value="cp1252">Windows-1252</option>
-                      <option value="latin-1">Latin-1</option>
-                    </select>
-                  </label>
-                </>
-              )}
-            </div>
-            <ErrorNotice error={refs.error || defaults.error} />
-            {selectedCatalog && (
-              <ReferenceCapability catalog={selectedCatalog} />
-            )}
-            {defaultUnavailable && (
-              <Notice>
-                No hay una referencia base disponible. Configúrala en Catálogos
-                de referencia, selecciona otra fuente o elige explícitamente
-                procesar sin catálogo.
-              </Notice>
-            )}
-            {!reference && (
-              <Notice>
-                La falta de cartografía se registrará como limitación de
-                referencia. No equivale a una búsqueda sin coincidencias.
-              </Notice>
-            )}
-            {upload.profile?.warnings.map((warning, i) => (
-              <Notice key={i}>{warning}</Notice>
-            ))}
-          </section>
-          <section className="panel form-panel">
-            <div className="panel-heading">
-              <div>
-                <h2>Correspondencia de columnas</h2>
-                <p>
-                  Revisa las sugerencias. Las columnas sin correspondencia
-                  permanecen en las filas originales.
-                </p>
-              </div>
-            </div>
-            <div className="form-grid mapping-grid">
-              {fields.map(([key, title]) => (
-                <label key={key}>
-                  {title}
-                  <select
-                    aria-label={title}
-                    value={mapping[key] ?? ""}
-                    onChange={(e) =>
-                      setMapping({ ...mapping, [key]: e.target.value })
-                    }
-                  >
-                    <option value="">No disponible en este archivo</option>
-                    {upload.profile?.columns.map((column) => (
-                      <option key={column} value={column}>
-                        {column}
+                      <option value="default">
+                        {defaults.data?.status === "ready"
+                          ? `Referencia base · ${defaults.data.catalog?.name}`
+                          : "Referencia base no disponible"}
                       </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
-            </div>
-            <CoordinatePolicy
-              confirmed={crsConfirmed}
-              evidence={crsEvidence}
-              onConfirmed={setCrsConfirmed}
-              onEvidence={setCrsEvidence}
-              disabled={busy}
-            />
-          </section>
-          <div className="form-actions">
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() => setUpload(null)}
-              disabled={busy}
-            >
-              Cambiar archivo
-            </button>
-            <button
-              className="button primary"
-              disabled={
-                busy ||
-                !name.trim() ||
-                defaults.isPending ||
-                refs.isPending ||
-                defaultUnavailable ||
-                (crsConfirmed && crsEvidence.trim().length < 8)
-              }
-            >
-              {busy ? "Creando procesamiento…" : "Iniciar procesamiento"}
-              <ArrowRight size={18} aria-hidden="true" />
-            </button>
-          </div>
-        </form>
-      )}
+                      <option value="">
+                        Procesar explícitamente sin catálogo
+                      </option>
+                      {refs.data?.items.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} · {r.version}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Flujo de procesamiento
+                    <select
+                      value={workflow}
+                      onChange={(e) => setWorkflow(e.target.value)}
+                    >
+                      <option value="quality_v1">
+                        Por calidad · puertas primero
+                      </option>
+                      <option value="legacy">Flujo general anterior</option>
+                    </select>
+                  </label>
+                  {!!upload.profile?.sheets.length && (
+                    <label>
+                      Hoja de trabajo
+                      <select
+                        aria-label="Hoja de trabajo"
+                        value={sheet}
+                        disabled={busy}
+                        onChange={(e) =>
+                          void updateProfile({ sheet: e.target.value })
+                        }
+                      >
+                        {upload.profile.sheets.map((s) => (
+                          <option key={s}>{s}</option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {file?.name.toLowerCase().endsWith(".csv") && (
+                    <>
+                      <label>
+                        Separador CSV
+                        <select
+                          aria-label="Separador CSV"
+                          value={delimiter}
+                          disabled={busy}
+                          onChange={(e) =>
+                            void updateProfile({ delimiter: e.target.value })
+                          }
+                        >
+                          <option value=",">Coma (,)</option>
+                          <option value=";">Punto y coma (;)</option>
+                          <option value={"\t"}>Tabulación</option>
+                          <option value="|">Barra vertical (|)</option>
+                        </select>
+                      </label>
+                      <label>
+                        Codificación
+                        <select
+                          aria-label="Codificación"
+                          value={encoding}
+                          disabled={busy}
+                          onChange={(e) =>
+                            void updateProfile({ encoding: e.target.value })
+                          }
+                        >
+                          <option value="utf-8-sig">UTF-8</option>
+                          <option value="cp1252">Windows-1252</option>
+                          <option value="latin-1">Latin-1</option>
+                        </select>
+                      </label>
+                    </>
+                  )}
+                </div>
+                <ErrorNotice error={refs.error || defaults.error} />
+                {!!referenceIds.length && (
+                  <Notice>
+                    Se utilizarán {referenceIds.length} fuentes seleccionadas a
+                    la derecha. Las fuentes pendientes se mostrarán como
+                    limitaciones de cobertura.
+                  </Notice>
+                )}
+                {!referenceIds.length && selectedCatalog && (
+                  <ReferenceCapability catalog={selectedCatalog} />
+                )}
+                {defaultUnavailable && (
+                  <Notice>
+                    No hay una referencia base disponible. Configúrala en
+                    Catálogos de referencia, selecciona otra fuente o elige
+                    explícitamente procesar sin catálogo.
+                  </Notice>
+                )}
+                {!reference && !referenceIds.length && (
+                  <Notice>
+                    La falta de cartografía se registrará como limitación de
+                    referencia. No equivale a una búsqueda sin coincidencias.
+                  </Notice>
+                )}
+                {upload.profile?.warnings.map((warning, i) => (
+                  <Notice key={i}>{warning}</Notice>
+                ))}
+              </section>
+              <section className="panel form-panel">
+                <div className="panel-heading">
+                  <div>
+                    <h2>Correspondencia de columnas</h2>
+                    <p>
+                      Revisa las sugerencias. Las columnas sin correspondencia
+                      permanecen en las filas originales.
+                    </p>
+                  </div>
+                </div>
+                <div className="form-grid mapping-grid">
+                  {fields.map(([key, title]) => (
+                    <label key={key}>
+                      {title}
+                      <select
+                        aria-label={title}
+                        value={mapping[key] ?? ""}
+                        onChange={(e) =>
+                          setMapping({ ...mapping, [key]: e.target.value })
+                        }
+                      >
+                        <option value="">No disponible en este archivo</option>
+                        {upload.profile?.columns.map((column) => (
+                          <option key={column} value={column}>
+                            {column}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+                <CoordinatePolicy
+                  confirmed={crsConfirmed}
+                  evidence={crsEvidence}
+                  onConfirmed={setCrsConfirmed}
+                  onEvidence={setCrsEvidence}
+                  disabled={busy}
+                />
+              </section>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setUpload(null)}
+                  disabled={busy}
+                >
+                  Cambiar archivo
+                </button>
+                <button
+                  className="button primary"
+                  disabled={
+                    busy ||
+                    importingReference ||
+                    !name.trim() ||
+                    defaults.isPending ||
+                    refs.isPending ||
+                    defaultUnavailable ||
+                    (crsConfirmed && crsEvidence.trim().length < 8)
+                  }
+                >
+                  {busy ? "Creando procesamiento…" : "Iniciar procesamiento"}
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+        <ReferenceExcelCards
+          catalogs={refs.data?.items ?? []}
+          selected={referenceSlots}
+          onSelect={(kind, id) =>
+            setReferenceSlots((current) => ({ ...current, [kind]: id }))
+          }
+          onBusy={(kind, pending) =>
+            setReferenceBusy((current) => ({ ...current, [kind]: pending }))
+          }
+        />
+      </div>
     </>
   );
 }

@@ -37,6 +37,14 @@ def location_dict(item):
         "source_row_count",
         "review_status",
         "review_bucket",
+        "quality_code",
+        "quality_flag",
+        "quality_flag_reason",
+        "review_state",
+        "quality_stage",
+        "quality_status",
+        "quality_reason",
+        "quality_policy_version",
     )
     result = {key: getattr(item, key) for key in fields}
     result["review_expires_at"] = iso(item.review_expires_at)
@@ -45,8 +53,14 @@ def location_dict(item):
 
 
 def add_revision(db, item, actor, action):
+    if item.quality_stage:
+        from .quality_workflow import record_quality_revision
+
+        record_quality_revision(item, actor, action)
     snapshot = location_dict(item)
     snapshot.update(candidates=item.candidates, attempts=item.attempts)
+    if item.quality_stage:
+        snapshot["quality_history"] = item.quality_history
     db.add(
         Revision(
             location_id=item.id,
@@ -102,7 +116,7 @@ def run_dict(db, run):
 def catalog_dict(item):
     return {
         key: getattr(item, key)
-        for key in ("id", "name", "version", "source", "feature_count", "sha256", "kinds")
+        for key in ("id", "name", "version", "source", "feature_count", "sha256", "kinds", "config")
     }
 
 
