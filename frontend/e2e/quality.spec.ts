@@ -15,10 +15,12 @@ test("five reference Excels, staged qualities and independent export preserve co
   const artifacts = resolve(process.env.GEOPOL_E2E_ARTIFACTS ?? "../.local");
   const fixtures = resolve(artifacts, "quality-fixtures");
   await mkdir(fixtures, { recursive: true });
-  const python = resolve(
-    "../backend/.venv",
-    process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
-  );
+  const python =
+    process.env.GEOPOL_E2E_PYTHON ||
+    resolve(
+      "../backend/.venv",
+      process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
+    );
   execFileSync(python, [resolve("e2e/fixtures/quality_excels.py"), fixtures]);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
