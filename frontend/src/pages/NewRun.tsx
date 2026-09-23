@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Check, FileUp, UploadCloud } from "lucide-react";
+import { ArrowRight, Check, FileUp } from "lucide-react";
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { clearResume, getResume, uploadFile } from "../lib/upload";
@@ -185,13 +185,17 @@ export function NewRun() {
       <ErrorNotice error={error} />
       <div className="intake-grid">
         <div className="intake-source">
-          <h2>1. Archivo de la PNP</h2>
+          <div className="intake-source-heading">
+            <div className="intake-section-heading">
+              <h2>Archivo de la PNP</h2>
+              <span className="intake-source-label">
+                {upload ? "Archivo cargado" : "Archivo de origen"}
+              </span>
+            </div>
+            <p>Las filas originales se conservarán con cada resultado.</p>
+          </div>
           {!upload ? (
             <form onSubmit={submitUpload} className="panel upload-panel">
-              <div className="upload-illustration">
-                <UploadCloud size={44} strokeWidth={1.4} aria-hidden="true" />
-              </div>
-              <p>Las filas originales se conservarán con cada resultado.</p>
               {saved && (
                 <Notice>
                   Hay una carga pendiente: <strong>{saved.filename}</strong>.
@@ -200,7 +204,9 @@ export function NewRun() {
                 </Notice>
               )}
               <label className="file-drop" htmlFor="source-file">
-                <FileUp size={24} aria-hidden="true" />
+                <span className="source-file-icon">
+                  <FileUp size={28} strokeWidth={1.6} aria-hidden="true" />
+                </span>
                 <strong>{file?.name ?? "Seleccionar archivo de origen"}</strong>
                 <span>
                   {file
@@ -228,13 +234,15 @@ export function NewRun() {
                   </span>
                 </div>
               )}
-              <button className="button primary" disabled={!file || busy}>
-                {busy ? "Cargando archivo…" : "Cargar y verificar columnas"}
-                <ArrowRight size={18} aria-hidden="true" />
-              </button>
-              <a className="text-link demo-link" href="/demo.csv" download>
-                Descargar un ejemplo sintético
-              </a>
+              <div className="source-upload-actions">
+                <button className="button primary" disabled={!file || busy}>
+                  {busy ? "Cargando archivo…" : "Cargar y verificar columnas"}
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+                <a className="text-link demo-link" href="/demo.csv" download>
+                  Descargar un ejemplo sintético
+                </a>
+              </div>
             </form>
           ) : (
             <form onSubmit={create} className="stack">

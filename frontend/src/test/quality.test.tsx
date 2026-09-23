@@ -391,6 +391,72 @@ describe("quality stages", () => {
   });
 });
 describe("five independent Excel references", () => {
+  it("announces a background import failure and keeps the active catalog identifiable beside its draft", async () => {
+    let rejectPreview!: (error: Error) => void;
+    vi.mocked(uploadFile).mockResolvedValue({
+      id: "replacement-upload",
+      filename: "replacement.xlsx",
+      size: 10,
+      offset: 10,
+      status: "COMPLETE",
+    });
+    vi.mocked(post).mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectPreview = reject;
+        }),
+    );
+    const user = setup(
+      <ReferenceExcelCards
+        catalogs={[
+          {
+            id: "original",
+            name: "Puertas vigentes",
+            version: "v1",
+            source: "QA",
+            sha256: "qa",
+            feature_count: 1,
+            kinds: ["door"],
+          },
+        ]}
+        selected={{ doors: "original" }}
+        onSelect={vi.fn()}
+        onBusy={vi.fn()}
+      />,
+    );
+    const toggle = screen.getByRole("button", {
+      name: "Configurar referencia: Puertas / viviendas",
+    });
+    await user.click(toggle);
+    await user.click(screen.getByText("Importar Excel de puertas / viviendas"));
+    await user.upload(
+      screen.getByLabelText("Archivo Excel · Puertas / viviendas"),
+      new File(["qa"], "replacement.xlsx"),
+    );
+    const card = toggle.closest("article")!;
+    fireEvent.submit(card.querySelector("form")!);
+    await waitFor(() => expect(rejectPreview).toBeTypeOf("function"));
+    await user.click(toggle);
+    expect(
+      within(card).getByText("Se utilizará: Puertas vigentes · v1"),
+    ).toBeVisible();
+    const announcement = screen.getByRole("status", {
+      name: "Importación de Puertas / viviendas",
+    });
+    expect(announcement).toHaveTextContent("Procesando");
+    await act(async () =>
+      rejectPreview(new Error("No se pudo leer la nueva referencia")),
+    );
+    expect(announcement).toHaveTextContent("Revisar error");
+    expect(
+      within(card).getByText("Se utilizará: Puertas vigentes · v1"),
+    ).toBeVisible();
+    expect(screen.getByText("1 de 5 seleccionadas")).toBeVisible();
+    await user.click(toggle);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "No se pudo leer la nueva referencia",
+    );
+  });
   it("imports a staged door source without assuming its CRS and uses a separate upload resume slot", async () => {
     const onSelect = vi.fn();
     vi.mocked(uploadFile).mockResolvedValue({
@@ -441,6 +507,11 @@ describe("five independent Excel references", () => {
     expect(screen.getAllByRole("article")).toHaveLength(5);
     const card = screen.getAllByRole("article")[0];
     await user.click(
+      within(card).getByRole("button", {
+        name: "Configurar referencia: Puertas / viviendas",
+      }),
+    );
+    await user.click(
       within(card).getByText("Importar Excel de puertas / viviendas"),
     );
     await user.upload(
@@ -459,6 +530,33 @@ describe("five independent Excel references", () => {
         "Sistema de coordenadas · Puertas / viviendas",
       ),
     ).toHaveValue("");
+    // Switching references must preserve the prepared Excel, column mapping,
+    // and metadata without putting hidden controls in the keyboard sequence.
+    await user.click(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Vías y cuadras",
+      }),
+    );
+    expect(
+      within(card).queryByRole("button", {
+        name: "Guardar y utilizar referencia",
+      }),
+    ).not.toBeInTheDocument();
+    expect(card).toHaveTextContent("Importación sin guardar");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Puertas / viviendas",
+      }),
+    );
+    expect(within(card).getByLabelText("Versión de la fuente")).toHaveValue(
+      "v1",
+    );
+    expect(within(card).getByLabelText("Número de puerta")).toHaveValue("P17");
+    expect(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Vías y cuadras",
+      }),
+    ).toHaveAttribute("aria-expanded", "false");
     await user.click(
       within(card).getByRole("button", {
         name: "Guardar y utilizar referencia",

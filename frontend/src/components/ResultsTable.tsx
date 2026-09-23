@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { Search } from "lucide-react";
 import { request } from "../lib/api";
-import { label } from "../lib/format";
+import { label, number } from "../lib/format";
 import {
   qualityFlagLabel,
   qualityStageLabel,
@@ -11,6 +11,9 @@ import {
 } from "../lib/quality";
 import type { LocationResult, Page } from "../types";
 import { Badge, Empty, ErrorNotice, Loading, Pagination, ViewLink } from "./ui";
+import "./results-table.css";
+
+const pageSize = 25;
 export const resolutions = [
   "ACEPTADO_AUTOMATICO",
   "ACEPTADO_MANUAL",
@@ -38,10 +41,23 @@ export function ResultsTable({
   reviewState?: string;
 }) {
   const location = useLocation();
-  const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [resolution, setResolution] = useState("");
+  const scope = JSON.stringify([
+    runId,
+    review,
+    search,
+    resolution,
+    qualityFlag,
+    qualityStage,
+    reviewState,
+  ]);
+  const [pagination, setPagination] = useState({ scope, page: 1 });
+  // A changed filter starts at page 1 before its request is made, including
+  // externally supplied quality/review filters that do not remount this table.
+  const page = pagination.scope === scope ? pagination.page : 1;
+  const setPage = (next: number) => setPagination({ scope, page: next });
   const query = useQuery({
     // A terminal run snapshot must fetch final rows even when periodic polling stops.
     queryKey: [
@@ -58,13 +74,71 @@ export function ResultsTable({
     ],
     queryFn: () =>
       request<Page<LocationResult>>(
-        `${review ? "/review" : `/runs/${runId}/results`}?page=${page}&page_size=25&q=${encodeURIComponent(search)}&resolution=${resolution}${qualityFlag !== undefined ? `&quality_flag=${qualityFlag}` : ""}${qualityStage ? `&quality_stage=${encodeURIComponent(qualityStage)}` : ""}${reviewState ? `&review_state=${encodeURIComponent(reviewState)}` : ""}`,
+        `${review ? "/review" : `/runs/${runId}/results`}?page=${page}&page_size=${pageSize}&q=${encodeURIComponent(search)}&resolution=${resolution}${qualityFlag !== undefined ? `&quality_flag=${qualityFlag}` : ""}${qualityStage ? `&quality_stage=${encodeURIComponent(qualityStage)}` : ""}${reviewState ? `&review_state=${encodeURIComponent(reviewState)}` : ""}`,
       ),
     refetchInterval: live ? 5000 : false,
   });
+  const responsePageSize = query.data?.page_size ?? pageSize;
+  const lastPage = Math.max(
+    1,
+    Math.ceil((query.data?.total ?? 0) / responsePageSize),
+  );
+  const pageOutOfRange = query.isSuccess && page > lastPage;
+  useEffect(() => {
+    if (pagination.scope !== scope) {
+      setPagination({ scope, page: 1 });
+      return;
+    }
+    // A live update may remove the last page. Return to an existing page rather
+    // than showing an empty table beside a nonzero total and an invalid range.
+    if (pageOutOfRange) setPagination({ scope, page: lastPage });
+  }, [pageOutOfRange, lastPage, scope, pagination.scope]);
+  const filtered = !!(
+    search ||
+    resolution ||
+    qualityFlag !== undefined ||
+    qualityStage ||
+    reviewState
+  );
+  const totalLabel = filtered
+    ? "Ubicaciones en este filtro"
+    : review
+      ? "Ubicaciones en esta bandeja"
+      : "Total de ubicaciones";
+  const rangeStart = query.data?.items.length
+    ? (page - 1) * responsePageSize + 1
+    : 0;
+  const rangeEnd = query.data?.items.length
+    ? Math.min(query.data.total, rangeStart + query.data.items.length - 1)
+    : 0;
   return (
-    <section className="panel">
+    <section className="panel results-panel">
       <div className="table-toolbar">
+        <div
+          className="results-total"
+          role="status"
+          aria-label="Total de resultados"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span className="results-total-label">{totalLabel}</span>
+          {query.isError ? (
+            <span className="results-total-message">Total no disponible</span>
+          ) : !query.data || pageOutOfRange ? (
+            <span className="results-total-message">Consultando total…</span>
+          ) : (
+            <>
+              <strong>{number(query.data.total)}</strong>
+              <span className="results-total-range">
+                {query.data.total === 0
+                  ? "Sin ubicaciones para mostrar"
+                  : !query.data.items.length
+                    ? "Esta página aún no tiene ubicaciones"
+                    : `Mostrando ${number(rangeStart)}–${number(rangeEnd)} de ${number(query.data.total)}`}
+              </span>
+            </>
+          )}
+        </div>
         <form
           className="search-form"
           onSubmit={(e) => {
@@ -91,6 +165,7 @@ export function ResultsTable({
           <label className="filter-label">
             <span>Resolución</span>
             <select
+              aria-label="Resolución"
               value={resolution}
               onChange={(e) => {
                 setResolution(e.target.value);
@@ -107,7 +182,7 @@ export function ResultsTable({
           </label>
         )}
       </div>
-      {query.isPending ? (
+      {query.isPending || pageOutOfRange ? (
         <Loading />
       ) : query.isError ? (
         <ErrorNotice error={query.error} />
@@ -180,7 +255,12 @@ export function ResultsTable({
               }
             />
           )}
-          <Pagination page={page} total={query.data.total} onChange={setPage} />
+          <Pagination
+            page={page}
+            total={query.data.total}
+            pageSize={responsePageSize}
+            onChange={setPage}
+          />
         </>
       )}
     </section>

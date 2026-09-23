@@ -2,6 +2,39 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Carga compacta y totales de resultados · 23 de septiembre de 2026
+
+- La carga inicial muestra los cinco tipos de referencia sin desplazar la página
+  a 1440 × 1000 px. Se inspeccionaron también la carga y los resultados a
+  400 × 900 px, sin desbordamiento horizontal global. Las tablas mantienen su
+  desplazamiento local.
+- El acordeón permite apertura con teclado y conserva archivo, versión y mapeo
+  al cambiar de fuente. Se comprobaron errores de importación con el editor
+  cerrado y la identificación del catálogo activo mientras existe un borrador.
+  La selección no confirma CRS ni habilita geometrías pendientes.
+- El contador usa el total del API, no los 25 elementos de una página. Se
+  verificaron búsqueda aplicada frente a texto sin enviar, resolución, filtros
+  de calidad, carga, error, total cero y ajuste de página cuando disminuye el
+  total. El navegador confirmó cinco ubicaciones totales y dos automáticas en
+  la fixture, junto con el rango visible.
+- Vitest: suite completa de **81 pruebas aprobadas** con dos workers; después,
+  **15 pruebas focalizadas aprobadas**, incluida una nueva para el fallo de
+  importación en segundo plano. Son 82 casos distintos verificados. La primera
+  ejecución con paralelismo predeterminado agotó los 5 s de una prueba de
+  interacción; la ejecución con dos workers pasó sin ampliar ese límite.
+- Los **seis escenarios de Chromium** quedaron aprobados: cinco en la ejecución
+  completa y el flujo de cinco Excel en la comprobación focalizada final
+  (29,9 s). Esta última espera explícitamente que termine el cambio de pestaña
+  antes de filtrar, porque Calidad y Resultados contienen tablas independientes.
+  Verifica importación real, conservación de puertas resueltas y exportación.
+- TypeScript/Vite, formato y `git diff --check` correctos. Se comprobó que
+  `127.0.0.1:5174` sirve el build actualizado. No hubo cambios de backend.
+
+Los escenarios que escriben usaron exclusivamente el entorno sintético aislado
+18001/15175 y cerraron sus procesos al terminar. Las capturas inspeccionadas
+(`ui-quality-upload`, `ui-upload-mobile`, `ui-results-filtered` y
+`ui-results-mobile`) permanecen en `.local/ui-polish-20260923/`, fuera de Git.
+
 ## Escenario reproducible
 
 La prueba `e2e/workspace.spec.ts` ejecuta consecutivamente:

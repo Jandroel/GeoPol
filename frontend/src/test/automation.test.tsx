@@ -96,9 +96,19 @@ describe("safe processing defaults", () => {
     const writes = mockCreation();
     setup(<NewRun />);
     const user = await upload();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Puertas / viviendas",
+      }),
+    );
     await user.selectOptions(
       screen.getByLabelText("Fuente para puertas / viviendas"),
       catalog.id,
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Límites administrativos",
+      }),
     );
     await user.selectOptions(
       screen.getByLabelText("Fuente para límites administrativos"),

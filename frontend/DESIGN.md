@@ -128,6 +128,16 @@ sobre azul principal alcanza 6,11:1.
 
 ## Jerarquía y contenido
 
+- La carga inicial reúne el archivo PNP y las cinco fuentes en dos columnas.
+  Las fuentes usan filas compactas con estado y un único editor desplegado;
+  los formularios permanecen montados al ocultarlos para conservar borradores,
+  mapeos e importaciones. Una selección no equivale a disponibilidad geográfica.
+  Si se prepara un reemplazo, se conserva visible la fuente que se utilizará.
+  En móvil, los bloques se apilan y el estado pasa debajo del nombre.
+- Resultados presenta el total junto a sus filtros, calculado por el servidor
+  para la búsqueda aplicada y su resolución/flag/etapa. La etiqueta distingue
+  el total general del total filtrado; el rango indica las ubicaciones visibles
+  de esa página, sin confundirlas con las filas originales del Excel.
 - Una cabecera identifica cada pantalla. La barra superior conserva la cuenta y
   el control del menú móvil; la barra lateral concentra la navegación.
 - El resumen muestra indicadores distintos, su distribución y los procesamientos

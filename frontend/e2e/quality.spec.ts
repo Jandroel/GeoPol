@@ -43,6 +43,28 @@ test("five reference Excels, staged qualities and independent export preserve co
     path: resolve(artifacts, "ui-quality-upload.png"),
     fullPage: true,
   });
+  // The five reference types are visible together, without expanding editors.
+  await expect(page.locator(".reference-slot-toggle")).toHaveCount(5);
+  await expect(
+    page.locator('.reference-slot-toggle[aria-expanded="true"]'),
+  ).toHaveCount(0);
+  const lastReference = page.getByRole("button", {
+    name: "Configurar referencia: Jurisdicciones",
+    exact: true,
+  });
+  const initialBounds = await lastReference.boundingBox();
+  expect(initialBounds!.y + initialBounds!.height).toBeLessThanOrEqual(1000);
+  await page.setViewportSize({ width: 400, height: 900 });
+  await page.screenshot({
+    path: resolve(artifacts, "ui-upload-mobile.png"),
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1000 });
   for (const [kind, title] of [
     ["doors", "Puertas / viviendas"],
     ["roads", "Vías y cuadras"],
@@ -50,9 +72,19 @@ test("five reference Excels, staged qualities and independent export preserve co
     ["boundaries", "Límites administrativos"],
     ["jurisdictions", "Jurisdicciones"],
   ]) {
-    const card = page
-      .locator("article.reference-slot")
-      .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
+    const card = page.locator("article.reference-slot").filter({
+      has: page.getByRole("button", {
+        name: `Configurar referencia: ${title}`,
+        exact: true,
+      }),
+    });
+    const toggle = card.getByRole("button", {
+      name: `Configurar referencia: ${title}`,
+      exact: true,
+    });
+    await toggle.focus();
+    await toggle.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await card.locator("summary").first().click();
     await card
       .getByLabel(`Archivo Excel · ${title}`, { exact: true })
@@ -78,11 +110,15 @@ test("five reference Excels, staged qualities and independent export preserve co
         exact: true,
       })
       .click();
-    await expect(card.getByRole("status")).toContainText(
-      "1 elementos disponibles",
-    );
+    await expect(
+      card.getByRole("status", { name: "Disponibilidad de la referencia" }),
+    ).toContainText("1 elementos disponibles");
     await card.locator("summary").first().click();
+    await toggle.click();
   }
+  await expect(
+    page.getByText("5 de 5 seleccionadas", { exact: true }),
+  ).toBeVisible();
   await page
     .locator("#source-file")
     .setInputFiles(resolve(fixtures, "pnp.xlsx"));
@@ -196,6 +232,48 @@ test("five reference Excels, staged qualities and independent export preserve co
     ),
   ).toBe(true);
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("tab", { name: "Resultados", exact: true }).click();
+  // Quality and Results both render a table: wait for navigation to commit
+  // before setting the filter, rather than acting on the outgoing table.
+  const resultsPanel = page.getByRole("tabpanel", {
+    name: "Resultados",
+    exact: true,
+  });
+  await expect(resultsPanel).toBeVisible();
+  await expect(
+    resultsPanel.getByRole("status", { name: "Total de resultados" }),
+  ).toContainText("Mostrando 1–5 de 5");
+  await resultsPanel
+    .getByLabel("Resolución", { exact: true })
+    .selectOption("ACEPTADO_AUTOMATICO");
+  await expect(
+    page.getByRole("status", { name: "Total de resultados" }),
+  ).toContainText("Mostrando 1–2 de 2");
+  await expect(
+    page.getByRole("status", { name: "Total de resultados" }),
+  ).toContainText("Ubicaciones en este filtro");
+  await page.locator(".results-panel").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: resolve(artifacts, "ui-results-filtered.png"),
+    fullPage: false,
+  });
+  await page.setViewportSize({ width: 400, height: 900 });
+  await page
+    .getByRole("status", { name: "Total de resultados" })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: resolve(artifacts, "ui-results-mobile.png"),
+    fullPage: false,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page
+    .getByRole("tab", { name: "Seguimiento por calidad", exact: true })
+    .click();
   await page.getByLabel("Flag de calidad del filtro").selectOption("1");
   await page
     .getByLabel("Estado de revisión del filtro")

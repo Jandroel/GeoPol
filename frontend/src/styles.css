@@ -34,7 +34,7 @@
 }
 .intake-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
   gap: 24px;
   align-items: start;
 }
@@ -42,53 +42,156 @@
 .reference-upload-column {
   min-width: 0;
 }
-.intake-source > h2,
-.reference-upload-heading h2 {
-  margin: 0 0 12px;
+.intake-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.intake-section-heading h2 {
+  margin: 0;
   font-size: 19px;
+}
+.intake-source-heading,
+.reference-upload-heading {
+  margin-bottom: 16px;
+}
+.intake-source-heading p,
+.reference-upload-heading p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+.intake-source-label,
+.reference-selection-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.reference-selection-count {
+  color: var(--primary);
+  background: var(--primary-light);
+  border-radius: 6px;
+  padding: 4px 8px;
 }
 .intake-source .upload-panel {
   width: 100%;
   margin: 0;
-  padding: 32px 24px;
+  padding: 24px;
+}
+.intake-source .file-drop {
+  margin: 0 0 20px;
+  min-height: 180px;
+  padding: 20px;
+}
+.source-file-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  background: var(--primary-light);
+  border-radius: 12px;
+  margin-bottom: 4px;
+}
+.file-drop .source-file-icon {
+  color: var(--primary);
+}
+.source-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+}
+.source-upload-actions .demo-link {
+  margin-top: 0;
+  padding: 12px 0;
+  min-height: 44px;
 }
 .intake-source .mapping-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-.reference-upload-column {
-  display: grid;
-  gap: 14px;
-}
-.reference-upload-heading p {
-  color: var(--muted);
-  font-size: 13px;
-  margin-bottom: 0;
-}
 .reference-slot {
-  padding: 20px;
+  border-bottom: 1px solid var(--border);
 }
-.reference-slot.has-reference {
-  border-left: 4px solid var(--accent);
+.reference-slot:last-child {
+  border-bottom: 0;
 }
-.reference-slot-title {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 16px;
-  color: var(--primary);
-}
-.reference-slot-title > div {
-  flex: 1;
-}
-.reference-slot-title h3 {
-  margin: 0 0 4px;
-}
-.reference-slot-title p {
-  color: var(--muted);
-  font-size: 13px;
+.reference-slot-heading {
   margin: 0;
 }
-.reference-slot > details {
+.reference-slot-toggle {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto 18px;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  min-height: 88px;
+  padding: 16px 20px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  text-align: left;
+  border-radius: 0;
+  transition: background-color 150ms;
+}
+.reference-slot-toggle:hover,
+.reference-slot.is-expanded .reference-slot-toggle {
+  background: var(--primary-light);
+}
+.reference-slot-toggle:focus-visible {
+  outline-offset: -4px;
+}
+.reference-slot-copy {
+  min-width: 0;
+}
+.reference-slot-name,
+.reference-slot-description {
+  display: block;
+}
+.reference-slot-name {
+  font-size: 14px;
+  font-weight: 650;
+}
+.reference-slot-description {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.reference-slot-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 130px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.reference-slot.has-reference .reference-slot-status {
+  color: var(--primary);
+}
+.reference-slot-status.needs-attention {
+  color: var(--amber);
+}
+.reference-slot-status.has-error {
+  color: var(--danger);
+}
+.reference-slot-chevron {
+  transition: transform 150ms;
+}
+.reference-slot.is-expanded .reference-slot-chevron {
+  transform: rotate(180deg);
+}
+.reference-slot-editor {
+  padding: 8px 20px 20px;
+}
+.reference-slot-editor[hidden] {
+  display: none;
+}
+.reference-slot-editor > details {
   margin-top: 16px;
 }
 .reference-slot .field-hint {
@@ -258,7 +361,26 @@
   .reference-mapping {
     grid-template-columns: minmax(0, 1fr);
   }
-  .reference-slot {
+  .reference-slot-toggle {
+    grid-template-columns: 20px minmax(0, 1fr) 18px;
+    gap: 4px 12px;
+    padding: 16px;
+  }
+  .reference-slot-copy {
+    grid-column: 2;
+  }
+  .reference-slot-status {
+    grid-column: 2;
+    max-width: none;
+  }
+  .reference-slot-chevron {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+  .reference-slot-editor {
+    padding: 8px 16px 16px;
+  }
+  .intake-source .upload-panel {
     padding: 16px;
   }
   .quality-stage-card {
