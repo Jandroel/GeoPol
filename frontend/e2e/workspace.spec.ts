@@ -436,9 +436,52 @@ test("synthetic operation: import, process, review, export and mobile navigation
     ).toHaveCount(2);
   });
 
-  await test.step("Generate authenticated CSV and manifest downloads", async () => {
+  await test.step("Generate and download the default Excel workbook", async () => {
     await page.goto(runUrl);
     await page.getByRole("tab", { name: "Exportaciones", exact: true }).click();
+    await expect(page.getByLabel("Formato del archivo")).toHaveValue("xlsx");
+    await page
+      .getByRole("button", { name: "Preparar exportación", exact: true })
+      .click();
+    const excelButton = page.getByRole("button", {
+      name: "Descargar Excel",
+      exact: true,
+    });
+    await expect(excelButton).toBeVisible({ timeout: 120_000 });
+    const excelEvent = page.waitForEvent("download");
+    await excelButton.click();
+    const excel = await excelEvent;
+    expect(excel.suggestedFilename()).toMatch(/\.xlsx$/);
+    const excelPath = await excel.path();
+    expect(excelPath).toBeTruthy();
+    const bytes = await readFile(excelPath!);
+    // Check the XLSX ZIP envelope without exposing worksheet contents.
+    expect(bytes.subarray(0, 4).toString("hex")).toBe("504b0304");
+    expect(bytes.includes(Buffer.from("[Content_Types].xml"))).toBe(true);
+    expect(bytes.includes(Buffer.from("xl/workbook.xml"))).toBe(true);
+    const end = bytes.lastIndexOf(Buffer.from("504b0506", "hex"));
+    expect(end).toBeGreaterThan(0);
+    expect(bytes.readUInt16LE(end + 10)).toBeGreaterThan(0);
+    expect(end + 22 + bytes.readUInt16LE(end + 20)).toBe(bytes.length);
+    await page.screenshot({
+      path: resolve(artifacts, "ui-export-excel.png"),
+      fullPage: true,
+    });
+    await page.setViewportSize({ width: 400, height: 900 });
+    await page.screenshot({
+      path: resolve(artifacts, "ui-export-mobile.png"),
+      fullPage: true,
+    });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+  });
+
+  await test.step("Explicitly choose CSV and download its manifest", async () => {
+    await page.getByLabel("Formato del archivo").selectOption("csv");
     await page
       .getByRole("button", { name: "Preparar exportación", exact: true })
       .click();
@@ -464,6 +507,7 @@ test("synthetic operation: import, process, review, export and mobile navigation
     const data = JSON.parse(await readFile(manifestPath!, "utf8"));
     expect(data.run_id).toBe(runUrl.split("/").at(-1));
     expect(data.profile).toBe("locations");
+    expect(data.format).toBe("csv");
   });
 
   await test.step("Mobile layout, keyboard navigation and no external geographic services", async () => {

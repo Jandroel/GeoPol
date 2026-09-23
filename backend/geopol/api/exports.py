@@ -22,7 +22,7 @@ from ..models import (
 )
 from ..schemas import ExportInput
 from ..security import current_user
-from ..serialization import audit, catalog_dict, export_dict, iso
+from ..serialization import audit, catalog_dict, export_dict, export_format, iso
 from ..storage import storage_file
 from .common import FINISHED, require
 
@@ -44,11 +44,15 @@ def create_export(
         id=uid(),
         run_id=identifier,
         profile=payload.profile,
-        safe_spreadsheet=payload.safe_spreadsheet,
+        safe_spreadsheet=payload.safe_spreadsheet if payload.format == "csv" else True,
         created_by=user.id,
         manifest={
             "schema_version": 3,
+            "format": payload.format,
             "run_id": identifier,
+            "run_name": run.name,
+            "filename": upload.filename,
+            "source_columns": list(run.config.get("source_columns", upload.profile.get("columns", []))),
             "source_sha256": upload.sha256,
             "rules_version": run.rules_version,
             "config": run.config,
@@ -68,7 +72,13 @@ def create_export(
     )
     db.execute(insert(ExportItem).from_select(["export_id", "location_id", "snapshot"], snapshots))
     db.add(Job(kind="EXPORT", target_id=export.id))
-    audit(db, user.username, "export.created", export.id, {"profile": payload.profile})
+    audit(
+        db,
+        user.username,
+        "export.created",
+        export.id,
+        {"profile": payload.profile, "format": payload.format},
+    )
     db.commit()
     return export_dict(export)
 
@@ -95,10 +105,15 @@ def download_export(identifier: str, db: Session = Depends(get_db), user: User =
     item = accessible_export(db, identifier, user)
     if item.status != "COMPLETED":
         raise HTTPException(409, "La exportación todavía no está lista")
-    audit(db, user.username, "export.download", identifier)
+    file_format = export_format(item)
+    audit(db, user.username, "export.download", identifier, {"format": file_format})
     db.commit()
     return FileResponse(
-        storage_file("exports", item.id, ".csv"),
+        storage_file("exports", item.id, f".{file_format}"),
         filename=export_dict(item)["filename"],
-        media_type="text/csv; charset=utf-8",
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            if file_format == "xlsx"
+            else "text/csv; charset=utf-8"
+        ),
     )

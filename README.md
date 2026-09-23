@@ -67,7 +67,7 @@ Los volúmenes `database` y `artifacts` conservan base y archivos. `docker compo
 3. Crear una ejecución con `examples/denuncias_sinteticas.csv`, comprobar mapeo y seleccionar esa referencia. Para estas coordenadas ficticias, seleccionar `EPSG:4326` y documentar como fuente «Coordenadas sintéticas EPSG:4326 del ejemplo incluido». En archivos reales, mantener el CRS sin confirmar hasta contar con documentación del proveedor.
 4. Esperar que termine. Comparar filas de origen con unidades de ubicación: algunas filas describen la misma ubicación de una denuncia.
 5. Abrir una ubicación pendiente de revisión, tomar el caso y registrar una decisión con motivo y evidencia. El mapa no utiliza servicios externos.
-6. Solicitar una exportación de ubicaciones y descargar CSV y manifiesto. Los casos no resueltos permanecen en la salida.
+6. Solicitar una exportación de ubicaciones y descargar Excel y manifiesto. Para GIS, elegir CSV. Los casos no resueltos permanecen en la salida.
 7. Repetir sin catálogo para comprobar que la ausencia de referencia se informa explícitamente y no se sustituye por puntos inventados.
 
 Ver [ejemplos](examples/README.md) para conocer cada caso sintético. Las coordenadas de demostración son ficticias y no deben mezclarse con referencias reales.
@@ -84,7 +84,7 @@ Ver [ejemplos](examples/README.md) para conocer cada caso sintético. Las coorde
 - Vista previa y decisión compartida para ubicaciones equivalentes, con comprobación transaccional y revisión individual conservada.
 - Contexto de vías, límites y áreas del catálogo en el visor local, sin consultas externas.
 - Roles, auditoría, indicadores con denominadores explícitos y consultas paginadas.
-- Exportación asíncrona CSV con revisión, manifiesto y checksum; perfil ampliado restringido por rol.
+- Exportación asíncrona Excel con formato INEI o CSV para GIS, revisión, manifiesto y checksum; perfil ampliado restringido por rol. Ver la [guía de exportación](docs/excel-exports.md).
 
 No incluye capas INEI/PNP oficiales, integración SIDPOL/OIDC ni validación de rendimiento con el volumen nacional. El motor espacial inicial utiliza Shapely sobre un catálogo acotado; el despliegue incluye PostGIS como base para evolucionar hacia consultas e índices espaciales. Consulte [alcance y límites](docs/limitations.md).
 

@@ -85,6 +85,7 @@ class DecisionInput(Input):
 
 class ExportInput(Input):
     profile: Literal["locations", "source_rows"] = "locations"
+    format: Literal["csv", "xlsx"] = "csv"
     safe_spreadsheet: bool = True
 
 

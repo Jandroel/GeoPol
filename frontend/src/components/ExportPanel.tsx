@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileCheck2 } from "lucide-react";
 import { useAuth } from "../auth";
@@ -9,6 +9,8 @@ import { label, number } from "../lib/format";
 export function ExportPanel({ runId }: { runId: string }) {
   const { user } = useAuth();
   const [profile, setProfile] = useState("locations");
+  const [format, setFormat] = useState<"xlsx" | "csv">("xlsx");
+  const formatHelpId = useId();
   const key = `geopol.export.${user?.id}.${runId}`;
   const [jobId, setJobId] = useState(() => localStorage.getItem(key) ?? "");
   const [busy, setBusy] = useState(false);
@@ -28,6 +30,7 @@ export function ExportPanel({ runId }: { runId: string }) {
     try {
       const result = await post<ExportJob>(`/runs/${runId}/exports`, {
         profile,
+        format,
         safe_spreadsheet: true,
       });
       setJobId(result.id);
@@ -44,7 +47,9 @@ export function ExportPanel({ runId }: { runId: string }) {
     try {
       await downloadAuthenticated(
         `/exports/${jobId}/${manifest ? "manifest" : "download"}`,
-        manifest ? "manifest.json" : (job.data?.filename ?? "geopol.csv"),
+        manifest
+          ? "manifest.json"
+          : (job.data?.filename ?? `geopol.${jobFormat}`),
       );
     } catch (e) {
       setError(e);
@@ -54,6 +59,9 @@ export function ExportPanel({ runId }: { runId: string }) {
   }
   const processing =
     !!jobId && !["COMPLETED", "FAILED"].includes(job.data?.status ?? "");
+  const jobFormat =
+    job.data?.format ??
+    (job.data?.filename?.toLowerCase().endsWith(".xlsx") ? "xlsx" : "csv");
   return (
     <section className="panel form-panel">
       <div className="panel-heading">
@@ -77,6 +85,17 @@ export function ExportPanel({ runId }: { runId: string }) {
             )}
           </select>
         </label>
+        <label>
+          Formato del archivo
+          <select
+            value={format}
+            onChange={(e) => setFormat(e.target.value as "xlsx" | "csv")}
+            aria-describedby={formatHelpId}
+          >
+            <option value="xlsx">Excel (.xlsx) · recomendado</option>
+            <option value="csv">CSV (.csv) · para GIS</option>
+          </select>
+        </label>
         <button
           className="button primary"
           onClick={() => void create()}
@@ -86,6 +105,11 @@ export function ExportPanel({ runId }: { runId: string }) {
           {processing ? "Preparando archivo…" : "Preparar exportación"}
         </button>
       </div>
+      <p id={formatHelpId} className="export-format-help">
+        {format === "xlsx"
+          ? "Excel con columnas ajustadas, filtros, encabezados fijos y colores INEI."
+          : "CSV para intercambiar datos con herramientas GIS y otros sistemas; no incluye estilos."}
+      </p>
       <ErrorNotice error={error || job.error || job.data?.error} />
       {job.data && (
         <div className="export-status">
@@ -101,7 +125,7 @@ export function ExportPanel({ runId }: { runId: string }) {
                 onClick={() => void download()}
                 disabled={busy}
               >
-                Descargar CSV
+                Descargar {jobFormat === "xlsx" ? "Excel" : "CSV"}
               </button>
               <button
                 className="button secondary"
@@ -117,9 +141,9 @@ export function ExportPanel({ runId }: { runId: string }) {
       <details>
         <summary>Contenido y trazabilidad de la descarga</summary>
         <p>
-          El CSV está protegido para abrirlo en hojas de cálculo. El manifiesto
-          conserva la configuración y las huellas de integridad de la
-          exportación.
+          Los textos se exportan protegidos para abrirlos en hojas de cálculo.
+          El manifiesto conserva la configuración y las huellas de integridad de
+          la exportación.
         </p>
       </details>
     </section>

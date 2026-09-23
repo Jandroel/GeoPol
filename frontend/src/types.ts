@@ -186,6 +186,7 @@ export interface ExportJob {
   run_id?: string;
   error?: string;
   filename?: string;
+  format?: "xlsx" | "csv";
   row_count?: number;
   sha256?: string;
 }

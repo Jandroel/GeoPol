@@ -182,14 +182,24 @@ def run_readiness_dict(db, run):
     }
 
 
+def export_format(item):
+    """Historical manifests without a format retain their original CSV contract."""
+    value = (item.manifest or {}).get("format", "csv")
+    if value not in {"csv", "xlsx"}:
+        raise ValueError("Formato de exportación no admitido")
+    return value
+
+
 def export_dict(item):
+    file_format = export_format(item)
     return {
         "id": item.id,
         "run_id": item.run_id,
         "status": item.status,
         "profile": item.profile,
+        "format": file_format,
         "error": item.error,
-        "filename": f"geopol-{item.profile}-{item.id}.csv",
+        "filename": f"geopol-{item.profile}-{item.id}.{file_format}",
         "row_count": item.row_count,
         "sha256": item.sha256,
         "created_at": iso(item.created_at),

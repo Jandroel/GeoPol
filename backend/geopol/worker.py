@@ -22,6 +22,7 @@ from .domain import RULES_VERSION
 from .domain.ingestion import iter_records
 from .domain.matching import resolve_location
 from .domain.normalization import normalize_record
+from .excel_export import ExcelExportError, write_xlsx
 from .models import (
     Catalog,
     Export,
@@ -34,7 +35,7 @@ from .models import (
     Upload,
     uid,
 )
-from .serialization import add_revision, audit, iso
+from .serialization import add_revision, audit, export_format, iso
 from .review_workflow import classify_review
 from .storage import checksum, storage_file
 
@@ -399,23 +400,35 @@ def process_export(export_id, job_id, token):
         run = db.get(Run, export.run_id)
         upload = db.get(Upload, run.upload_id)
         profile, safe, run_id = export.profile, export.safe_spreadsheet, run.id
-        source_columns = list(run.config.get("source_columns", upload.profile.get("columns", [])))
+        file_format = export_format(export)
+        manifest = dict(export.manifest)
+        source_columns = list(
+            manifest.get(
+                "source_columns", run.config.get("source_columns", upload.profile.get("columns", []))
+            )
+        )
         extra_column = "__extra_columns__"
         while extra_column in source_columns:
             extra_column += "_"
         source_columns.append(extra_column)
-        manifest = dict(export.manifest)
+        metadata = {
+            "profile": profile,
+            "source_columns": source_columns,
+            "run_name": manifest.get("run_name", run.name),
+            "filename": manifest.get("filename", upload.filename),
+            "expected_rows": manifest["expected_rows"],
+            "snapshot_at": manifest.get("snapshot_at"),
+            "rules_version": manifest.get("rules_version"),
+            "reference": manifest.get("reference"),
+        }
         db.commit()
-    path = storage_file("exports", export_id, f".{token}.csv.part")
+    path = storage_file("exports", export_id, f".{token}.{file_format}.part")
     row_count = 0
-    with path.open("w", encoding="utf-8-sig", newline="") as stream:
-        writer = csv.writer(stream)
-        schema = manifest.get("schema_version", 1)
-        columns = EXPORT_COLUMNS if schema >= 3 else EXPORT_COLUMNS_V2 if schema == 2 else EXPORT_COLUMNS_V1
-        headers = [f"GEOPOL_{x}" for x in columns]
-        if profile == "source_rows":
-            headers = ["SOURCE_ORDINAL", "SOURCE_ISSUE"] + source_columns + headers
-        writer.writerow([safe_cell(header, safe) for header in headers])
+    schema = manifest.get("schema_version", 1)
+    columns = EXPORT_COLUMNS if schema >= 3 else EXPORT_COLUMNS_V2 if schema == 2 else EXPORT_COLUMNS_V1
+
+    def records():
+        nonlocal row_count
         cursor = 0 if profile == "source_rows" else ""
         while True:
             with SessionLocal() as db:
@@ -436,14 +449,15 @@ def process_export(export_id, job_id, token):
                         .limit(settings.batch_size)
                     ).yield_per(1)
                     for source_row, snapshot in rows:
-                        values = (
-                            [source_row.ordinal, source_row.issue]
-                            + [source_row.raw.get(k) for k in source_columns]
-                            + [(snapshot or {}).get(k) for k in columns]
-                        )
-                        writer.writerow([safe_cell(v, safe) for v in values])
                         cursor = source_row.ordinal
                         batch_count += 1
+                        row_count += 1
+                        yield {
+                            "ordinal": source_row.ordinal,
+                            "issue": source_row.issue,
+                            "raw": source_row.raw,
+                            "snapshot": snapshot or {},
+                        }
                     rows.close()
                 else:
                     rows = db.scalars(
@@ -453,36 +467,63 @@ def process_export(export_id, job_id, token):
                         .limit(settings.batch_size)
                     ).yield_per(1)
                     for item in rows:
-                        writer.writerow([safe_cell(item.snapshot.get(k), safe) for k in columns])
                         cursor = item.location_id
                         batch_count += 1
+                        row_count += 1
+                        yield {"ordinal": None, "issue": None, "raw": None, "snapshot": item.snapshot}
                     rows.close()
-                row_count += batch_count
                 db.commit()
                 if not batch_count:
                     break
-        stream.flush()
-        os.fsync(stream.fileno())
-    digest = checksum(path)
-    with SessionLocal() as db:
-        renew(db, job_id, token)
-        export = db.get(Export, export_id)
-        expected = manifest["expected_rows"]
-        if row_count != expected:
-            raise ValueError("La exportación no coincide con la cardinalidad de la instantánea")
-        # Lease guards publication; an expired worker cannot publish another worker's file.
-        path.replace(storage_file("exports", export_id, ".csv"))
-        export.status, export.row_count, export.sha256 = "COMPLETED", row_count, digest
-        manifest.update(
-            row_count=row_count,
-            sha256=digest,
-            completed_at=iso(time.time()),
-            encoding="utf-8-sig",
-            safe_spreadsheet=safe,
-        )
-        export.manifest = manifest
-        audit(db, "worker", "export.completed", export_id, {"row_count": row_count})
-        db.commit()
+
+    record_stream = records()
+    try:
+        if file_format == "xlsx":
+            workbook = write_xlsx(path, record_stream, columns=columns, metadata=metadata)
+            if workbook["row_count"] != row_count:
+                raise ValueError("El libro no coincide con las filas de la instantánea")
+            manifest.update(workbook_schema_version=1, workbook=workbook, safe_spreadsheet=True)
+            with path.open("r+b") as stream:
+                os.fsync(stream.fileno())
+        else:
+            with path.open("w", encoding="utf-8-sig", newline="") as stream:
+                writer = csv.writer(stream)
+                headers = [f"GEOPOL_{x}" for x in columns]
+                if profile == "source_rows":
+                    headers = ["SOURCE_ORDINAL", "SOURCE_ISSUE"] + source_columns + headers
+                writer.writerow([safe_cell(header, safe) for header in headers])
+                for record in record_stream:
+                    values = [record["snapshot"].get(key) for key in columns]
+                    if profile == "source_rows":
+                        values = (
+                            [record["ordinal"], record["issue"]]
+                            + [record["raw"].get(key) for key in source_columns]
+                            + values
+                        )
+                    writer.writerow([safe_cell(value, safe) for value in values])
+                stream.flush()
+                os.fsync(stream.fileno())
+            manifest.update(encoding="utf-8-sig", safe_spreadsheet=safe)
+        digest = checksum(path)
+        with SessionLocal() as db:
+            renew(db, job_id, token)
+            export = db.get(Export, export_id)
+            if row_count != manifest["expected_rows"]:
+                raise ValueError("La exportación no coincide con la cardinalidad de la instantánea")
+            # Lease guards publication; an expired worker cannot publish another worker's file.
+            path.replace(storage_file("exports", export_id, f".{file_format}"))
+            export.status, export.row_count, export.sha256 = "COMPLETED", row_count, digest
+            manifest.update(row_count=row_count, sha256=digest, completed_at=iso(time.time()))
+            export.manifest = manifest
+            audit(
+                db, "worker", "export.completed", export_id, {"row_count": row_count, "format": file_format}
+            )
+            db.commit()
+    finally:
+        record_stream.close()
+        if file_format == "xlsx":
+            # Only this lease's unpublished XLSX is removed after errors or stale ownership.
+            path.unlink(missing_ok=True)
 
 
 def work_once():
@@ -503,6 +544,10 @@ def work_once():
         return True
     except Cancelled:
         status = "CANCELLED"
+    except ExcelExportError as exc:
+        # This dedicated exception contains only fixed, public-safe guidance.
+        status, error = "FAILED", str(exc)
+        logger.error("Trabajo %s falló: %s", job_id, type(exc).__name__)
     except Exception as exc:
         status = "FAILED"
         # Exception payloads may include raw fields; persist only category, never source data.

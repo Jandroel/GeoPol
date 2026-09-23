@@ -1297,6 +1297,12 @@ progress::-webkit-progress-value {
 .export-controls label {
   flex: 1;
   max-width: 560px;
+  min-width: 0;
+}
+.export-format-help {
+  margin: -8px 0 22px;
+  color: var(--muted);
+  font-size: 13px;
 }
 .export-status {
   display: flex;
