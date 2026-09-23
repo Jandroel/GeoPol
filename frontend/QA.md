@@ -42,6 +42,27 @@ Antes de ejecutar se deben iniciar API, trabajador y Vite con la configuración 
 
 ## Evidencia local
 
+### Gráficas de pastel · 23 de septiembre de 2026
+
+- Los gráficos por etapa usan porciones rellenas con porcentajes internos cuando
+  hay espacio, resaltado, separación visual y detalle flotante. Las áreas de
+  interacción permanecen quietas para que el hover no parpadee.
+- **16 pruebas de componentes y filtros aprobadas**: círculo del 100 %, minoría
+  de 3/1351 (0,2 %), etapa vacía, total estable, selección con SVG/leyenda,
+  interacción táctil y teclado, Escape y conservación de filtros/exportaciones.
+- La suite completa de interfaz terminó con **76 pruebas aprobadas**. Incluye la
+  corrección del foco del menú móvil tras cambios de ancho: visibilidad inmediata
+  y foco cuando el control realmente está visible y fuera de `inert`, sin depender
+  de un número fijo de frames. Una ejecución simultánea con Chromium agotó el
+  tiempo de dos tests; la repetición completa sin esa concurrencia pasó en 25,66 s.
+- **Tres escenarios Chromium afectados aprobados** en 35,1 s, con datos sintéticos
+  y base aislada: interacción del pastel, procesamiento/revisión/exportación y
+  navegación de escritorio/móvil. Capturas inspeccionadas a 1440 y 375 px; también
+  se comprobó ausencia de desbordamiento global a 1280, 1024 y 768 px.
+  Evidencia privada en `.local/ui-polish-20260923/`, incluyendo `ui-pie-mobile.png`.
+- TypeScript, formato y build de producción aprobados. No se añadieron
+  dependencias ni se modificaron reglas de resolución o datos de operación.
+
 ### Actividad, gráficas y navegación · 23 de septiembre de 2026
 
 - Suite general de backend: **644 pruebas aprobadas y una omitida**. Tras el

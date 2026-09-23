@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { StageChart } from "../components/StageChart";
@@ -55,6 +55,12 @@ describe("interactive stage distributions", () => {
     expect(container.querySelector('[data-category="resolved"]')).toHaveClass(
       "is-highlighted",
     );
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "Resueltos",
+    );
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "20 %",
+    );
     await user.keyboard("{Enter}");
     expect(resolved).toHaveAttribute("aria-pressed", "true");
     await user.tab();
@@ -73,35 +79,60 @@ describe("interactive stage distributions", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      container.querySelectorAll(".stage-ring-segment.is-highlighted"),
+      container.querySelectorAll(".stage-pie-segment.is-highlighted"),
     ).toHaveLength(0);
+    expect(
+      container.querySelector(".stage-pie-tooltip"),
+    ).not.toBeInTheDocument();
   });
   it("shows pointer details on SVG and touch-friendly legend selection without changing the counts", async () => {
     const user = userEvent.setup();
     const { container } = render(<StageChart stage={stage} />);
-    const segment = container.querySelector('[data-category="unmatched"]')!;
-    fireEvent.mouseEnter(segment);
-    expect(container.querySelector(".stage-ring-value")).toHaveTextContent(
-      "440 %sin coincidencia",
+    const segment = container.querySelector(
+      '.stage-pie-slice[data-slice="unmatched"] .stage-pie-hit',
+    )!;
+    await user.hover(segment);
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "Sin coincidencia",
+    );
+    expect(
+      within(
+        container.querySelector(".stage-pie-tooltip") as HTMLElement,
+      ).getByText("4", { exact: true }),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "40 %",
     );
     expect(
       screen.getByText(
         "Sin coincidencia: 4 de 10 evaluadas en esta etapa (40 %).",
       ),
     ).toBeInTheDocument();
-    fireEvent.mouseLeave(segment);
-    expect(container.querySelector(".stage-ring-value")).toHaveTextContent(
-      "10evaluadas",
+    await user.click(segment);
+    await user.unhover(segment);
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "40 %",
     );
+    expect(container.querySelector(".stage-pie-total")).toHaveTextContent(
+      /\b10\b/,
+    );
+    expect(
+      screen.getByRole("button", { name: /Sin coincidencia: 4 de 10/ }),
+    ).toHaveAttribute("aria-pressed", "true");
     const table = screen.getByRole("table", {
       name: /Distribución de Puertas/,
     });
     const pending = within(table).getByRole("button", {
       name: /Referencia o datos pendientes/,
     });
-    await user.click(pending);
-    await user.unhover(pending);
+    await user.pointer({ keys: "[TouchA]", target: pending });
     expect(pending).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "Referencia o datos pendientes",
+    );
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "10 %",
+    );
     expect(
       screen.getByText(
         "Referencia o datos pendientes: 1 de 10 evaluadas en esta etapa (10 %).",
@@ -117,8 +148,69 @@ describe("interactive stage distributions", () => {
         "Base del gráfico: 10 ubicaciones evaluadas en esta etapa.",
       ),
     ).toBeInTheDocument();
+    expect(
+      container.querySelector(".stage-pie-tooltip"),
+    ).not.toBeInTheDocument();
   });
-  it("represents an unevaluated stage without invented progress or NaN percentages", async () => {
+  it("renders a full 100 percent distribution as one interactive filled circle", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <StageChart
+        stage={{ ...stage, resolved: 10, review: 0, unmatched: 0, blocked: 0 }}
+      />,
+    );
+    const segments = container.querySelectorAll(".stage-pie-segment");
+    expect(segments).toHaveLength(1);
+    expect(segments[0].tagName.toLowerCase()).toBe("circle");
+    await user.hover(container.querySelector(".stage-pie-hit")!);
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "Resueltos",
+    );
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "100 %",
+    );
+    expect(container.querySelector(".stage-pie-total")).toHaveTextContent(
+      /\b10\b/,
+    );
+  });
+  it("keeps a small category visible and inspectable instead of rounding its slice away", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <StageChart
+        stage={{
+          ...stage,
+          units: 1351,
+          source_rows: 3000,
+          resolved: 3,
+          review: 0,
+          unmatched: 1348,
+          blocked: 0,
+        }}
+      />,
+    );
+    const smallSlice = container.querySelector(
+      '.stage-pie-segment[data-category="resolved"]',
+    );
+    expect(smallSlice).toBeInTheDocument();
+    expect(smallSlice?.tagName.toLowerCase()).toBe("path");
+    expect(smallSlice).toHaveAttribute("d", expect.stringContaining("A"));
+    expect(smallSlice?.getAttribute("d")).not.toMatch(/NaN|Infinity/);
+    await user.click(
+      screen.getByRole("button", { name: /Resueltos: 3 de 1,351/ }),
+    );
+    expect(
+      within(
+        container.querySelector(".stage-pie-tooltip") as HTMLElement,
+      ).getByText("3", { exact: true }),
+    ).toBeInTheDocument();
+    expect(container.querySelector(".stage-pie-tooltip")).toHaveTextContent(
+      "0.2 %",
+    );
+    expect(container.querySelector(".stage-pie-total")).toHaveTextContent(
+      "1,351",
+    );
+  });
+  it("represents an unevaluated stage without invented progress or NaN percentages", () => {
     const empty = {
       ...stage,
       units: 0,
@@ -132,7 +224,8 @@ describe("interactive stage distributions", () => {
     expect(
       screen.getByText("Esta etapa aún no tiene ubicaciones evaluadas."),
     ).toBeInTheDocument();
-    expect(container.querySelectorAll(".stage-ring-segment")).toHaveLength(0);
+    expect(container.querySelectorAll(".stage-pie-segment")).toHaveLength(0);
+    expect(screen.getByText("Sin datos")).toBeInTheDocument();
     expect(screen.getByRole("table")).not.toHaveTextContent("NaN");
     expect(screen.getByRole("button", { name: "Ver total" })).toBeDisabled();
   });

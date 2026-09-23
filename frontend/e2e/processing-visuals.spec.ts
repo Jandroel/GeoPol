@@ -137,16 +137,31 @@ test("live operation, interactive charts and collapsible navigation remain disti
   const segment = firstChart.getByRole("button", { name: /^Por revisar/ });
   await segment.click();
   await expect(segment).toHaveAttribute("aria-pressed", "true");
-  await expect(firstChart.locator(".stage-ring-value")).toContainText("20");
+  const tooltip = firstChart.locator(".stage-pie-tooltip");
+  await expect(tooltip).toContainText("Por revisar");
+  await expect(tooltip).toContainText("20");
+  await expect(tooltip).toContainText("20 %");
+  await expect(firstChart.locator(".stage-pie-total")).toContainText("100");
   await expect(firstChart.locator(".stage-visual-detail")).toContainText(
     "20 de 100",
   );
   await expect(page.getByLabel("Flag de calidad del filtro")).toHaveValue("");
+  await expect(page.getByLabel("Estado de revisión del filtro")).toHaveValue(
+    "",
+  );
+  await expect(page.getByLabel("Etapa del filtro")).toHaveValue("");
   await page.screenshot({
     path: resolve(artifacts, "ui-processing-charts.png"),
   });
   await segment.press("Escape");
   await expect(segment).toHaveAttribute("aria-pressed", "false");
+  await expect(tooltip).toHaveCount(0);
+  const resolvedSlice = firstChart.locator(
+    '.stage-pie-slice[data-slice="resolved"] .stage-pie-hit',
+  );
+  await resolvedSlice.hover();
+  await expect(tooltip).toContainText("Resueltos");
+  await expect(tooltip).toContainText("40 %");
 
   for (const width of [1280, 1024, 768]) {
     await page.setViewportSize({ width, height: 900 });
@@ -203,8 +218,19 @@ test("live operation, interactive charts and collapsible navigation remain disti
     "aria-valuenow",
     "30",
   );
+  const mobileCategory = firstChart.getByRole("button", {
+    name: /^Sin coincidencia/,
+  });
+  await mobileCategory.click();
+  await expect(mobileCategory).toHaveAttribute("aria-pressed", "true");
+  await expect(firstChart.locator(".stage-pie-tooltip")).toContainText("30 %");
+  await expect(page.getByLabel("Flag de calidad del filtro")).toHaveValue("");
+  await expect(page.getByLabel("Estado de revisión del filtro")).toHaveValue(
+    "",
+  );
+  await expect(page.getByLabel("Etapa del filtro")).toHaveValue("");
   await firstChart.screenshot({
-    path: resolve(artifacts, "ui-quality-mobile.png"),
+    path: resolve(artifacts, "ui-pie-mobile.png"),
   });
   expect(
     await page.evaluate(

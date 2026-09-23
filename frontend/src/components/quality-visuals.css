@@ -115,80 +115,132 @@
   container-type: inline-size;
 }
 .stage-visual {
+  --chart-ink: #061522;
   margin: 16px 0;
 }
 .stage-visual-layout {
   display: grid;
-  grid-template-columns: minmax(140px, 0.85fr) minmax(0, 1.5fr);
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 1.4fr);
   gap: 16px;
   align-items: center;
 }
-.stage-ring {
-  position: relative;
+.stage-pie-figure {
   width: 100%;
-  max-width: 188px;
-  aspect-ratio: 1;
+  max-width: 264px;
   justify-self: center;
 }
-.stage-ring-svg {
+.stage-pie-canvas {
+  position: relative;
+  aspect-ratio: 1;
+}
+.stage-pie {
+  display: block;
   width: 100%;
   height: 100%;
   overflow: visible;
   animation: quality-chart-entry 400ms ease-out both;
 }
-.stage-ring-track,
-.stage-ring-segment {
-  fill: none;
-  stroke-width: 22px;
-}
-.stage-ring-track {
+.stage-pie-empty {
+  fill: var(--background);
   stroke: var(--border);
+  stroke-width: 1;
 }
-.stage-ring-segment {
-  stroke: var(--chart-color);
+.stage-pie-empty-label {
+  fill: var(--muted);
+  font-size: 16px;
+}
+.stage-pie-hit {
+  fill: transparent;
+  pointer-events: all;
   cursor: pointer;
-  pointer-events: stroke;
-  transition:
-    stroke-width 180ms ease-out,
-    opacity 180ms ease-out,
-    stroke-dasharray 420ms ease-out;
 }
-.stage-ring-segment.is-highlighted {
-  stroke-width: 29px;
-}
-.stage-ring-segment.is-muted {
-  opacity: 0.28;
-}
-.stage-ring-value {
-  position: absolute;
-  inset: 27%;
+.stage-pie-piece {
   pointer-events: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
+  transition:
+    transform 180ms ease-out,
+    opacity 180ms ease-out;
+  transform: translate(0, 0);
+}
+.stage-pie-slice.is-highlighted .stage-pie-piece {
+  transform: translate(var(--slice-x), var(--slice-y));
+}
+.stage-pie-slice.is-muted .stage-pie-piece {
+  opacity: 0.25;
+}
+.stage-pie-segment {
+  fill: var(--chart-color);
+  stroke: var(--surface);
+  stroke-linejoin: round;
+}
+.stage-pie-halo {
+  fill: var(--chart-color);
+  stroke: var(--chart-color);
+  stroke-width: 12px;
+  stroke-linejoin: round;
+  opacity: 0.22;
+}
+.stage-pie-label {
+  fill: var(--slice-text);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stage-pie-total {
   text-align: center;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.25;
+  font-size: 13px;
+  line-height: 1.5;
 }
-.stage-ring-value strong {
+.stage-pie-total strong {
   color: var(--primary);
-  font-size: clamp(24px, 7cqi, 34px);
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  line-height: 1.15;
-  margin-bottom: 3px;
 }
-.stage-ring-percentage {
+.stage-pie-tooltip {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 100%;
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  box-shadow: 0 3px 12px rgb(13 51 84 / 20%);
+  pointer-events: none;
+  z-index: 1;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--primary);
-  margin-bottom: 3px;
+  line-height: 1.4;
 }
-.stage-ring-value small {
-  font-size: 12px;
-  margin-top: 2px;
+.stage-pie-tooltip > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.stage-pie-tooltip[data-side="top"] {
+  top: 4px;
+  bottom: auto;
+}
+.stage-pie-tooltip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.stage-pie-tooltip strong {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 4px;
+  font-size: 17px;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+.stage-pie-tooltip strong span {
+  font-size: 14px;
 }
 .stage-chart-table {
   border-collapse: separate;
@@ -304,13 +356,13 @@
     transform: scaleX(0);
   }
 }
-@container (max-width: 390px) {
+@container (max-width: 480px) {
   .stage-visual-layout {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
-  .stage-ring {
-    max-width: 170px;
+  .stage-pie-figure {
+    max-width: 240px;
   }
 }
 @media (max-width: 1050px) {
@@ -342,8 +394,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .quality-progress-track > span,
-  .stage-ring-svg,
-  .stage-ring-segment,
+  .stage-pie,
+  .stage-pie-piece,
   .stage-legend-button,
   .quality-next-button svg {
     transition: none;

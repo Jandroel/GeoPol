@@ -63,6 +63,14 @@ ejecutables al funcionamiento de la aplicación.
 
 ## Interacción y movimiento
 
+- Las distribuciones por etapa se presentan como pasteles 2D rellenos, según la
+  referencia visual aportada por el usuario. Las porciones conservan su proporción
+  real; las etiquetas internas solo aparecen cuando caben. Las categorías pequeñas
+  permanecen disponibles en la leyenda y el detalle de selección. Una etapa vacía
+  muestra «Sin datos»; una única categoría puede ocupar el círculo completo.
+- El foco, hover o selección resalta una porción, atenúa las demás y muestra
+  cantidad y porcentaje. El desplazamiento es breve y no modifica el área de
+  interacción, para evitar parpadeos. El total de ubicaciones permanece debajo.
 - Las gráficas permiten explorar categorías con mouse, teclado y controles
   táctiles. La leyenda conserva las cantidades y porcentajes legibles. Explorar
   un gráfico histórico no cambia silenciosamente filtros ni exportaciones.

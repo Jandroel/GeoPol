@@ -162,6 +162,39 @@ describe("quality stages", () => {
       .mock.calls.find(([path]) => path.endsWith("/exports"))?.[1];
     expect(payload).not.toHaveProperty("review_state");
     expect(payload).not.toHaveProperty("quality_stage");
+    await user.selectOptions(
+      screen.getByLabelText("Flag de calidad del filtro"),
+      "1",
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Estado de revisión del filtro"),
+      "quick_review",
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Etapa del filtro"),
+      "block",
+    );
+    await user.click(within(table).getByRole("button", { name: /Resueltos/ }));
+    expect(screen.getByLabelText("Flag de calidad del filtro")).toHaveValue(
+      "1",
+    );
+    expect(screen.getByLabelText("Estado de revisión del filtro")).toHaveValue(
+      "quick_review",
+    );
+    expect(screen.getByLabelText("Etapa del filtro")).toHaveValue("block");
+    await user.click(
+      screen.getByRole("button", { name: "Preparar exportación" }),
+    );
+    await waitFor(() =>
+      expect(post).toHaveBeenLastCalledWith(
+        `/runs/${run.id}/exports`,
+        expect.objectContaining({
+          quality_flag: 1,
+          review_state: "quick_review",
+          quality_stage: "block",
+        }),
+      ),
+    );
   });
   it("refreshes result rows when a stage finishes between run polls without changing run status or processed count", async () => {
     let finished = false;

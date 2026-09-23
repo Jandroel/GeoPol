@@ -8,29 +8,44 @@ const categories = [
   {
     key: "resolved",
     label: "Resueltos",
-    shortLabel: "resueltos",
     color: "var(--success)",
+    textColor: "var(--surface)",
   },
   {
     key: "review",
     label: "Por revisar",
-    shortLabel: "por revisar",
     color: "var(--amber)",
+    textColor: "var(--surface)",
   },
   {
     key: "unmatched",
     label: "Sin coincidencia",
-    shortLabel: "sin coincidencia",
     color: "var(--accent)",
+    textColor: "var(--chart-ink)",
   },
   {
     key: "blocked",
     label: "Referencia o datos pendientes",
-    shortLabel: "referencia pendiente",
     color: "var(--slate)",
+    textColor: "var(--chart-ink)",
   },
 ] as const;
 type Category = (typeof categories)[number]["key"];
+
+const center = 120;
+const radius = 94;
+function point(turn: number, distance = radius) {
+  const angle = turn * 2 * Math.PI - Math.PI / 2;
+  return [
+    center + Math.cos(angle) * distance,
+    center + Math.sin(angle) * distance,
+  ];
+}
+function slice(start: number, share: number) {
+  const [x1, y1] = point(start);
+  const [x2, y2] = point(start + share);
+  return `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${share > 0.5 ? 1 : 0} 1 ${x2} ${y2} Z`;
+}
 
 /** Historical stage distribution. Exploring a segment never filters current results. */
 export function StageChart({
@@ -46,11 +61,22 @@ export function StageChart({
   const category = categories.find((item) => item.key === active);
   let offset = 0;
   const segments = categories.map((item) => {
-    const share = stage.units ? (stage[item.key] / stage.units) * 100 : 0;
+    const share = stage.units ? stage[item.key] / stage.units : 0;
     const start = offset;
     offset += share;
-    return { ...item, share, start };
+    const [x, y] = point(start + share / 2, 7);
+    const label =
+      share === 1 ? [center, center] : point(start + share / 2, radius * 0.61);
+    return {
+      ...item,
+      share,
+      start,
+      label,
+      dx: share === 1 ? 0 : x - center,
+      dy: share === 1 ? 0 : y - center,
+    };
   });
+  const activeSegment = segments.find((item) => item.key === active);
   function clearSelection() {
     setSelected(null);
     setHovered(null);
@@ -64,44 +90,107 @@ export function StageChart({
       }}
     >
       <div className="stage-visual-layout">
-        <div className="stage-ring">
-          <svg
-            viewBox="0 0 180 180"
-            aria-hidden="true"
-            className="stage-ring-svg"
-          >
-            <circle className="stage-ring-track" cx="90" cy="90" r="68" />
-            {segments
-              .filter((item) => item.share > 0)
-              .map((item) => (
-                <circle
-                  key={item.key}
-                  className={`stage-ring-segment${active === item.key ? " is-highlighted" : ""}${active && active !== item.key ? " is-muted" : ""}`}
-                  cx="90"
-                  cy="90"
-                  r="68"
-                  pathLength="100"
-                  strokeDasharray={`${Math.max(0, item.share - (item.share === 100 ? 0 : Math.min(0.65, item.share / 5)))} 100`}
-                  transform={`rotate(${item.start * 3.6 - 90} 90 90)`}
-                  style={{ "--chart-color": item.color } as CSSProperties}
-                  onMouseEnter={() => setHovered(item.key)}
-                  onMouseLeave={() => setHovered(null)}
-                  onClick={() =>
-                    setSelected(selected === item.key ? null : item.key)
-                  }
-                  data-category={item.key}
-                />
-              ))}
-          </svg>
-          <div className="stage-ring-value" aria-hidden="true">
-            <strong>{number(active ? stage[active] : stage.units)}</strong>
-            {active && (
-              <span className="stage-ring-percentage">
-                {percentage(stage[active], stage.units)}
-              </span>
+        <div className="stage-pie-figure">
+          <div className="stage-pie-canvas">
+            <svg viewBox="0 0 240 240" aria-hidden="true" className="stage-pie">
+              {stage.units === 0 && (
+                <>
+                  <circle
+                    className="stage-pie-empty"
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                  />
+                  <text
+                    className="stage-pie-empty-label"
+                    x={center}
+                    y={center}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                  >
+                    Sin datos
+                  </text>
+                </>
+              )}
+              {segments
+                .filter((item) => item.share > 0)
+                .map((item) => {
+                  const highlighted = active === item.key;
+                  const Shape = item.share === 1 ? "circle" : "path";
+                  const geometry =
+                    item.share === 1
+                      ? { cx: center, cy: center, r: radius }
+                      : { d: slice(item.start, item.share) };
+                  return (
+                    <g
+                      key={item.key}
+                      data-slice={item.key}
+                      className={`stage-pie-slice${highlighted ? " is-highlighted" : ""}${active && !highlighted ? " is-muted" : ""}`}
+                      style={
+                        {
+                          "--chart-color": item.color,
+                          "--slice-text": item.textColor,
+                          "--slice-x": `${item.dx}px`,
+                          "--slice-y": `${item.dy}px`,
+                        } as CSSProperties
+                      }
+                      onMouseEnter={() => setHovered(item.key)}
+                      onMouseLeave={() => setHovered(null)}
+                      onClick={() =>
+                        setSelected(selected === item.key ? null : item.key)
+                      }
+                    >
+                      {/* Keep the hit area stationary while its visible slice moves. */}
+                      <Shape {...geometry} className="stage-pie-hit" />
+                      <g className="stage-pie-piece">
+                        {highlighted && (
+                          <Shape {...geometry} className="stage-pie-halo" />
+                        )}
+                        <Shape
+                          {...geometry}
+                          className={`stage-pie-segment${highlighted ? " is-highlighted" : ""}`}
+                          data-category={item.key}
+                          style={{ strokeWidth: item.share < 0.02 ? 0 : 1.5 }}
+                        />
+                        {item.share >= 0.12 && (
+                          <text
+                            className="stage-pie-label"
+                            x={item.label[0]}
+                            y={item.label[1]}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                          >
+                            {percentage(stage[item.key], stage.units)}
+                          </text>
+                        )}
+                      </g>
+                    </g>
+                  );
+                })}
+            </svg>
+            {category && active && (
+              <div
+                className="stage-pie-tooltip"
+                data-side={
+                  activeSegment && activeSegment.label[1] >= center
+                    ? "top"
+                    : "bottom"
+                }
+                aria-hidden="true"
+              >
+                <span>
+                  <i style={{ background: category.color }} />
+                  {category.label}
+                </span>
+                <strong>
+                  {number(stage[active])}
+                  <span>{percentage(stage[active], stage.units)}</span>
+                </strong>
+              </div>
             )}
-            <span>{category ? category.shortLabel : "evaluadas"}</span>
-            {!active && <small>en esta etapa</small>}
+          </div>
+          <div className="stage-pie-total">
+            <strong>{number(stage.units)}</strong> ubicaciones evaluadas
           </div>
         </div>
         <table className="quality-legend stage-chart-table">
