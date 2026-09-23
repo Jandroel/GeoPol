@@ -42,6 +42,37 @@ Antes de ejecutar se deben iniciar API, trabajador y Vite con la configuración 
 
 ## Evidencia local
 
+### Actividad, gráficas y navegación · 23 de septiembre de 2026
+
+- Suite general de backend: **644 pruebas aprobadas y una omitida**. Tras el
+  ajuste final del total por etapa, **21 pruebas de actividad y calidad aprobadas**.
+  El contador incluye ubicaciones que vuelven a ser elegibles al liberar reservas.
+- Suite de interfaz: **72 pruebas aprobadas**. Después del pulido visual final,
+  **30 pruebas de los cuatro módulos afectados aprobadas**. Formato, TypeScript y
+  build de producción correctos; continúa el aviso conocido de tamaño de MapLibre.
+- **Seis escenarios Chromium aprobados** contra API/base/almacenamiento sintéticos
+  aislados. Cubren importación, procesamiento, referencias, revisión, exportación,
+  mapas, actividad por operación, gráficas interactivas y navegación móvil.
+- El escenario visual distingue 12 de 40 ubicaciones evaluadas en la operación
+  actual del contador acumulado de 100. Comprueba que el reloj avance, que explorar
+  una categoría no altere filtros y que el menú restaure el foco al cerrar.
+- Comprobaciones responsive a 1440, 1280, 1024, 768 y 375 px, además del flujo
+  de calidad a 400 px. Sin desbordamiento global en las vistas comprobadas.
+  Se inspeccionaron capturas de actividad, gráficas y menú móvil. El escenario usa
+  movimiento reducido; las pruebas de componente verifican sus clases de estado.
+- Contraste calculado sobre el azul de actividad: texto blanco 10,41:1, contexto
+  8,37:1 y grupos del menú 6,86:1. La leyenda oscura sobre blanco alcanza 11,18:1.
+- El despliegue local respondió en 8000/5174, sirvió el build actualizado y permitió
+  consultar los tres procesamientos existentes. Se creó un respaldo privado;
+  la comparación de 11 tablas confirmó que los datos originales se conservaron.
+
+No cambió el esquema de base de datos (versión 6). Los tiempos históricos sin
+registro de etapa permanecen desconocidos; los tiempos nuevos se guardan por
+operación. Evidencias y respaldo en `.local/ui-polish-20260923/`, excluidos de Git.
+La revisión aplica las cuatro bases de diseño registradas en [DESIGN.md](DESIGN.md)
+a los componentes modificados; no constituye una certificación de accesibilidad
+ni una auditoría de toda la aplicación.
+
 ### Referencia base y automatización segura · 22 de septiembre de 2026
 
 - **448 pruebas de backend aprobadas y una omitida**, con SQLite. La prueba de

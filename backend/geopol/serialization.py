@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 
 from .domain.coordinate_context import documented_crs
 from .models import Audit, Catalog, Location, ProcessingDefaults, Revision, Upload
+from .processing_activity import activity_dict
 
 
 def iso(value):
@@ -96,6 +97,7 @@ def run_dict(db, run):
     result.update({key: iso(getattr(run, key)) for key in ("created_at", "started_at", "finished_at")})
     upload = db.get(Upload, run.upload_id)
     result["filename"] = upload.filename
+    result["activity"] = activity_dict(db, run)
     result["counts"] = dict(
         db.execute(
             select(Location.resolution, func.count())

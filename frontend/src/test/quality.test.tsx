@@ -132,6 +132,37 @@ beforeEach(() => {
   vi.mocked(post).mockResolvedValue(run);
 });
 describe("quality stages", () => {
+  it("explores historical chart categories without changing current-result or export filters", async () => {
+    const user = setup(<QualityPanel run={run} />);
+    const table = await screen.findByRole("table", {
+      name: /Distribución de Puertas/,
+    });
+    await user.click(
+      within(table).getByRole("button", { name: /Por revisar/ }),
+    );
+    expect(screen.getByLabelText("Flag de calidad del filtro")).toHaveValue("");
+    expect(screen.getByLabelText("Estado de revisión del filtro")).toHaveValue(
+      "",
+    );
+    expect(screen.getByLabelText("Etapa del filtro")).toHaveValue("");
+    expect(
+      screen.getByText("Por revisar: 2 de 4 evaluadas en esta etapa (50 %)."),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Preparar exportación" }),
+    );
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        `/runs/${run.id}/exports`,
+        expect.objectContaining({ format: "xlsx" }),
+      ),
+    );
+    const payload = vi
+      .mocked(post)
+      .mock.calls.find(([path]) => path.endsWith("/exports"))?.[1];
+    expect(payload).not.toHaveProperty("review_state");
+    expect(payload).not.toHaveProperty("quality_stage");
+  });
   it("refreshes result rows when a stage finishes between run polls without changing run status or processed count", async () => {
     let finished = false;
     vi.mocked(request).mockImplementation(async (path) => {
@@ -178,19 +209,25 @@ describe("quality stages", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    const initial = await screen.findByRole("row", { name: /QA-BLOCK-FRESH/ });
+    // Scope the row through its unique identifier: querying every accessible
+    // chart/table row can exhaust the default timeout in the parallel suite.
+    const initial = (
+      await screen.findByText("QA-BLOCK-FRESH", {}, { timeout: 3000 })
+    ).closest("tr")!;
     expect(initial).toHaveTextContent("Sin coincidencia");
     expect(initial).toHaveTextContent("Puertas");
     finished = true;
     await act(async () => {
       await client.invalidateQueries({ queryKey: ["quality", run.id] });
     });
-    await waitFor(() =>
-      expect(
-        screen.getByRole("row", { name: /QA-BLOCK-FRESH/ }),
-      ).toHaveTextContent("Aceptado automáticamente"),
+    await waitFor(
+      () =>
+        expect(
+          screen.getByText("QA-BLOCK-FRESH").closest("tr"),
+        ).toHaveTextContent("Aceptado automáticamente"),
+      { timeout: 3000 },
     );
-    const updated = screen.getByRole("row", { name: /QA-BLOCK-FRESH/ });
+    const updated = screen.getByText("QA-BLOCK-FRESH").closest("tr")!;
     expect(updated).toHaveTextContent("Cuadras");
     expect(updated).not.toHaveTextContent("Sin coincidencia");
   });

@@ -39,6 +39,12 @@ from .models import (
 )
 from .serialization import add_revision, audit, export_format, iso
 from .review_workflow import classify_review
+from .processing_activity import (
+    finish_activity,
+    progress_activity,
+    set_activity_total,
+    start_activity,
+)
 from .storage import checksum, storage_file
 
 logger = logging.getLogger("geopol.worker")
@@ -220,6 +226,7 @@ def process_run(run_id, job_id, token):
         if run.cancel_requested:
             raise Cancelled()
         run.started_at = run.started_at or time.time()
+        start_activity(run, db.get(Job, job_id))
         run.status = "PROCESSING" if run.ingested else "INGESTING"
         config, filename, upload_id, skip, ingested = (
             run.config,
@@ -282,6 +289,12 @@ def process_run(run_id, job_id, token):
                 if quality_mode
                 else select(Location).where(Location.run_id == run_id, Location.resolution == "PENDIENTE")
             )
+            if (quality_mode and quality_stage != "door") or run.config.get("processing_activity", {}).get(
+                "total_units"
+            ) is None:
+                # Reservations may expire or be released after queuing. Count
+                # currently eligible rows rather than claiming an early 100%.
+                set_activity_total(run, db.scalar(select(func.count()).select_from(pending.subquery())))
             selected = db.scalars(
                 pending.order_by(Location.id).limit(settings.batch_size).execution_options(yield_per=1)
             )
@@ -296,6 +309,7 @@ def process_run(run_id, job_id, token):
             if not items:
                 run.status = "COMPLETED_WITH_ISSUES" if run.issue_rows else "COMPLETED"
                 run.finished_at = time.time()
+                finish_activity(run, job_id)
                 supersede_parent(db, run)
                 audit(
                     db,
@@ -316,7 +330,7 @@ def process_run(run_id, job_id, token):
                     .having(func.count() > 1)
                 )
             )
-            result_bytes, batch_started = 0, time.monotonic()
+            result_bytes, batch_started, processed_in_batch = 0, time.monotonic(), 0
             for item in items:
                 # Resumed, already-ingested legacy work must not revive a CRS
                 # assigned by an old browser without a documented declaration.
@@ -383,11 +397,13 @@ def process_run(run_id, job_id, token):
                     item.resolution, item.manual, item.candidates, item.reason
                 )
                 add_revision(db, item, "worker", "automatic_resolution")
+                processed_in_batch += 1
                 if initial:
                     run.processed_units += 1
                 result_bytes += len(json.dumps(resolved, ensure_ascii=False).encode("utf-8"))
                 if result_bytes >= 16 * 1024 * 1024 or time.monotonic() - batch_started > 15:
                     break
+            progress_activity(run, processed_in_batch)
             renew(db, job_id, token)
             db.commit()
 
@@ -619,6 +635,7 @@ def work_once():
             target.status, target.error = status, error
             if kind == "RUN":
                 target.finished_at = time.time()
+                finish_activity(target, job_id)
             audit(db, "worker", f"job.{status.lower()}", target_id, {"kind": kind, "error": error})
         heartbeat(db)
         db.commit()

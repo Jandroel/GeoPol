@@ -538,7 +538,9 @@ test("synthetic operation: import, process, review, export and mobile navigation
     ).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(
-      page.getByRole("link", { name: "Carga de archivos", exact: true }),
+      page
+        .getByRole("dialog", { name: "Menú de navegación" })
+        .getByRole("button", { name: "Cerrar navegación" }),
     ).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(

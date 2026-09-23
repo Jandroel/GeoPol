@@ -1,13 +1,15 @@
 """Advance only pending locations; resolved results remain unchanged."""
 
 from typing import Literal
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Job, Run, User
+from ..models import Job, Run, User, uid
+from ..processing_activity import queue_activity
 from ..quality_workflow import quality_summary
 from ..schemas import Input
 from ..security import current_user
@@ -44,7 +46,9 @@ def advance(
         raise HTTPException(409, "Ya existe un trabajo en curso")
     run.config = {**run.config, "quality_target_stage": payload.stage}
     run.status, run.error, run.cancel_requested = "QUEUED", None, False
-    db.add(Job(kind="RUN", target_id=run.id))
+    job = Job(id=uid(), kind="RUN", target_id=run.id, created_at=time.time())
+    queue_activity(run, job, total_units=summary["eligible_units"])
+    db.add(job)
     audit(
         db,
         user.username,

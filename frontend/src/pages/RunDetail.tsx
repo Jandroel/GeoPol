@@ -23,6 +23,7 @@ import { ExportPanel } from "../components/ExportPanel";
 import { ReprocessPanel } from "../components/ReprocessPanel";
 import { RunReadinessPanel } from "../components/RunReadinessPanel";
 import { QualityPanel } from "../components/QualityPanel";
+import { RunActivity } from "../components/RunActivity";
 export function RunDetail() {
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,7 +72,8 @@ export function RunDetail() {
         description={`Creado ${date(run.created_at)}`}
         actions={<Badge value={run.status} />}
       />
-      <ErrorNotice error={error || run.error} />
+      <ErrorNotice error={error} />
+      <RunActivity run={run} />
       {run.superseded_by && (
         <Notice>
           Esta ejecución se conserva como histórico y ya no aparece en la
@@ -89,12 +91,6 @@ export function RunDetail() {
             Consultar su historial y decisiones
           </Link>
           .
-        </Notice>
-      )}
-      {active && (
-        <Notice>
-          El trabajo se ejecuta en el servidor. Puedes cerrar esta ventana y
-          consultar el avance al volver.
         </Notice>
       )}
       <div className="run-summary panel">
@@ -135,18 +131,6 @@ export function RunDetail() {
       )}
       {!active && !run.superseded_by && tab === "results" && (
         <RunReadinessPanel runId={run.id} canManage={canManage} />
-      )}
-      {active && (
-        <div className="processing-progress">
-          <progress
-            value={run.processed_units}
-            max={Math.max(1, run.location_units)}
-          />
-          <span>
-            {label(run.status)} · {number(run.processed_units)} /{" "}
-            {number(run.location_units)} unidades
-          </span>
-        </div>
       )}
       {canManage &&
         (active || ["FAILED", "CANCELLED"].includes(run.status)) && (

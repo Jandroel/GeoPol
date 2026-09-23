@@ -5,6 +5,7 @@ import { isActiveRun } from "../lib/format";
 import type { Page, Run } from "../types";
 import { Empty, ErrorNotice, Loading, PageHeader } from "../components/ui";
 import { QualityPanel } from "../components/QualityPanel";
+import { RunActivity } from "../components/RunActivity";
 export function Quality() {
   const [params, setParams] = useSearchParams();
   const runId = params.get("run_id") ?? "";
@@ -73,7 +74,10 @@ export function Quality() {
         ) : selected.isError ? (
           <ErrorNotice error={selected.error} />
         ) : (
-          <QualityPanel key={runId} run={selected.data} />
+          <>
+            <RunActivity run={selected.data} />
+            <QualityPanel key={runId} run={selected.data} />
+          </>
         )
       ) : (
         <Empty

@@ -1,5 +1,7 @@
 """HTTP endpoints for runs."""
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -16,6 +18,7 @@ from ..models import (
     uid,
 )
 from ..schemas import ReprocessInput, ReviewState, RunInput
+from ..processing_activity import queue_activity
 from ..security import current_user
 from ..serialization import audit, location_dict, processing_defaults_dict, run_dict, run_readiness_dict
 from ..storage import storage_file
@@ -89,7 +92,9 @@ def new_run(db, payload, user, parent_run_id=None):
         parent_run_id=parent_run_id,
     )
     db.add(item)
-    db.add(Job(kind="RUN", target_id=item.id))
+    job = Job(id=uid(), kind="RUN", target_id=item.id, created_at=time.time())
+    queue_activity(item, job)
+    db.add(job)
     audit(
         db,
         user.username,
@@ -170,7 +175,9 @@ def retry_run(identifier: str, db: Session = Depends(get_db), user: User = Depen
     ).rowcount
     if changed != 1:
         raise HTTPException(409, "Solo se reintentan lotes fallidos o cancelados que siguen vigentes")
-    db.add(Job(kind="RUN", target_id=identifier))
+    job = Job(id=uid(), kind="RUN", target_id=identifier, created_at=time.time())
+    queue_activity(item, job)
+    db.add(job)
     audit(db, user.username, "run.retry", identifier)
     db.commit()
     db.refresh(item)

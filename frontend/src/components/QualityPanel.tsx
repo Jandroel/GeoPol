@@ -1,14 +1,13 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, ListFilter } from "lucide-react";
+import { ListFilter } from "lucide-react";
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { isActiveRun, number } from "../lib/format";
 import {
   percentage,
   qualityFlagLabel,
-  qualityStageLabel,
   reviewStateLabels,
   reviewStateLabel,
 } from "../lib/quality";
@@ -16,76 +15,9 @@ import type { QualityOverview, Run } from "../types";
 import { Empty, ErrorNotice, Loading, Notice } from "./ui";
 import { ExportPanel } from "./ExportPanel";
 import { ResultsTable } from "./ResultsTable";
+import { StageChart } from "./StageChart";
+import { QualityProgressCard } from "./QualityProgressCard";
 
-const chartCategories = [
-  { key: "resolved", label: "Resueltos", color: "var(--success)" },
-  { key: "review", label: "Por revisar", color: "var(--amber)" },
-  { key: "unmatched", label: "Sin coincidencia", color: "var(--accent)" },
-  {
-    key: "blocked",
-    label: "Referencia o datos pendientes",
-    color: "var(--slate)",
-  },
-] as const;
-function StageChart({ stage }: { stage: QualityOverview["stages"][number] }) {
-  let previous = 0;
-  const gradient = chartCategories
-    .map(({ key, color }) => {
-      const start = previous;
-      previous += stage.units ? (stage[key] / stage.units) * 100 : 0;
-      return `${color} ${start}% ${previous}%`;
-    })
-    .join(", ");
-  return (
-    <div className="quality-chart-content">
-      <div
-        className="quality-donut"
-        aria-hidden="true"
-        style={
-          {
-            background: stage.units
-              ? `conic-gradient(${gradient})`
-              : "var(--border)",
-          } as CSSProperties
-        }
-      >
-        <span>
-          <strong>{number(stage.units)}</strong>
-          <small>ubicaciones</small>
-        </span>
-      </div>
-      <table className="quality-legend">
-        <caption className="sr-only">
-          Distribución de {stage.label}. Porcentajes sobre {stage.units}{" "}
-          ubicaciones evaluadas en esta etapa.
-        </caption>
-        <thead className="sr-only">
-          <tr>
-            <th>Estado</th>
-            <th>Cantidad</th>
-            <th>Porcentaje</th>
-          </tr>
-        </thead>
-        <tbody>
-          {chartCategories.map(({ key, label, color }) => (
-            <tr key={key}>
-              <th scope="row">
-                <span
-                  className="legend-swatch"
-                  style={{ background: color }}
-                  aria-hidden="true"
-                />
-                {label}
-              </th>
-              <td>{number(stage[key])}</td>
-              <td>{percentage(stage[key], stage.units)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 export function QualityPanel({ run }: { run: Run }) {
   const { user } = useAuth();
   const client = useQueryClient();
@@ -168,53 +100,17 @@ export function QualityPanel({ run }: { run: Run }) {
         informa si fue resuelta automáticamente, requiere una decisión o espera
         datos de referencia; la precisión geográfica se conserva por separado.
       </Notice>
-      <section className="panel form-panel quality-progress-summary">
-        <div>
-          <h2>Avance por calidad</h2>
-          <p>
-            {number(data.totals.resolved)} de {number(data.totals.units)}{" "}
-            ubicaciones resueltas (
-            {percentage(data.totals.resolved, data.totals.units)}). El archivo
-            original contiene {number(data.totals.source_rows)} filas.
-          </p>
-        </div>
-        <progress
-          aria-label="Ubicaciones resueltas"
-          value={data.totals.resolved}
-          max={Math.max(1, data.totals.units)}
-        />
-        <p className="field-hint">
-          Los resueltos se conservan al avanzar.{" "}
-          {number(data.held_review_units)} ubicaciones esperan revisión y no
-          pasan automáticamente a una etapa menos precisa.
-        </p>
-        <ErrorNotice error={error} />
-        {data.next_stage && canManage && (
-          <div className="button-row">
-            <button
-              className="button primary"
-              disabled={
-                busy || active || !data.can_advance || !!run.superseded_by
-              }
-              onClick={() => void advance(data.next_stage!)}
-            >
-              {busy
-                ? "Iniciando etapa…"
-                : `Continuar con ${qualityStageLabel(data.next_stage).toLowerCase()}`}
-              <ArrowRight size={17} aria-hidden="true" />
-            </button>
-            <span className="field-hint">
-              {number(data.eligible_units)} ubicaciones elegibles
-            </span>
-          </div>
-        )}
-        {active && (
-          <p role="status">
-            Etapa en procesamiento. Los conteos se actualizan automáticamente.
-          </p>
-        )}
-      </section>
+      <QualityProgressCard
+        data={data}
+        active={active}
+        busy={busy}
+        canManage={canManage}
+        superseded={!!run.superseded_by}
+        onAdvance={(stage) => void advance(stage)}
+        error={<ErrorNotice error={error} />}
+      />
       <p className="field-hint">
+        Selecciona una categoría en los gráficos para explorar sus cantidades.
         Los gráficos resumen lo evaluado en cada etapa; los filtros y
         exportaciones muestran los resultados vigentes. Una ubicación puede
         aparecer en varios gráficos, por lo que sus cantidades no se suman.

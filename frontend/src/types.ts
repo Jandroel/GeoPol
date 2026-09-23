@@ -35,6 +35,27 @@ export interface Run {
   config: Record<string, unknown>;
   parent_run_id?: string | null;
   superseded_by?: string | null;
+  activity?: RunActivityData;
+}
+export interface RunActivityData {
+  job_id: string | null;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED" | null;
+  phase:
+    | "ingestion"
+    | "resolution"
+    | "queued"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | "unknown";
+  stage: string | null;
+  queued_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  processed_units: number | null;
+  total_units: number | null;
+  source_rows: number;
+  worker_online: boolean | null;
 }
 export interface Candidate {
   id: string;
