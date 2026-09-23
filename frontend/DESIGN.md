@@ -1,5 +1,99 @@
 # Interfaz de GeoPol
 
+Este documento es la referencia de diseño del proyecto. Todo cambio de UI/UX
+sigue el orden acordado: **UX y sistema → jerarquía y espaciado → dirección visual
+→ pulido final**. Las decisiones específicas del usuario prevalecen sobre las
+preferencias estéticas generales de una skill.
+
+## Contexto y dirección
+
+GeoPol es una herramienta de operación institucional para cargar Excel de la
+PNP/SIDPOL, contrastarlos con referencias geográficas, resolver ubicaciones con
+evidencia y revisar las excepciones. Sus usuarios trabajan con miles de registros;
+la interfaz debe facilitar la siguiente decisión y hacer visible el trabajo real.
+La dirección es sobria, clara y orientada a datos, con identidad INEI.
+
+La prioridad de una pantalla de procesamiento es: archivo y etapa activos,
+avance de la operación, resolución geográfica y siguiente acción, distribuciones
+por etapa, y resultados/exportaciones. Procesar una ubicación no significa
+verificarla. El flag de calidad, el estado de revisión y la precisión geográfica
+siguen siendo conceptos independientes.
+
+## Bases consultadas
+
+Revisión de repositorios: 23 de septiembre de 2026. Se consultan como guías de
+diseño; sus ejemplos no sustituyen la identidad ni las reglas de GeoPol.
+
+| Referencia | Aplicación en este proyecto |
+| ---------- | -------------------------- |
+| [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill/blob/main/.claude/skills/ui-ux-pro-max/SKILL.md) | UX, accesibilidad, estados, selección de patrones adecuados y revisión responsive. |
+| [Refactoring UI](https://github.com/jaywilburn/refactoring-ui-skill/blob/main/skills/refactoring-ui/SKILL.md) | Jerarquía mediante tamaño, peso, contraste y proximidad; densidad apropiada para trabajo operativo. Es una adaptación comunitaria. |
+| [Frontend Design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md) | Dirección visual basada en el uso real, lenguaje específico, una prioridad visual clara y eliminación de adornos repetitivos. |
+| [Impeccable](https://github.com/pbakaus/impeccable/blob/e0881d2de397d5e9761d7b35ff5017d8f5ebf69b/skill/SKILL.src.md) | Revisión de consistencia, tipografía, interacción, adaptación y pulido; su modo operativo prioriza completar tareas. |
+
+Impeccable reorganizó su antigua skill `frontend-design`. También se revisaron sus
+referencias de [tipografía](https://github.com/pbakaus/impeccable/blob/209444a9d552c18bcaa74e26bf66a25fc568a767/source/skills/frontend-design/reference/typography.md),
+[espacio](https://github.com/pbakaus/impeccable/blob/209444a9d552c18bcaa74e26bf66a25fc568a767/source/skills/frontend-design/reference/spatial-design.md)
+e [interacción](https://github.com/pbakaus/impeccable/blob/209444a9d552c18bcaa74e26bf66a25fc568a767/source/skills/frontend-design/reference/interaction-design.md)
+en esa revisión identificable. No es necesario incorporar sus instaladores o
+ejecutables al funcionamiento de la aplicación.
+
+## Sistema y criterios de implementación
+
+- Reutilizar componentes y tokens antes de crear variantes. `src/styles.css`
+  contiene la paleta; las hojas de cada componente acotan sus reglas visuales.
+- Mantener Segoe UI como familia principal por legibilidad y disponibilidad en
+  el entorno Windows de operación, con fallbacks locales. Una nueva familia
+  debe resolver una necesidad concreta; no se añaden solicitudes de fuentes remotas.
+- Usar 14–16 px para lectura e interacción habitual; 12–13 px para contexto
+  secundario, sin microtexto decorativo. Títulos con pesos 600–700 y cifras
+  tabulares para cantidades y duración. Evitar mayúsculas espaciadas en etiquetas.
+- Agrupar con una escala de 4, 8, 12, 16, 24 y 32 px. La distancia entre secciones
+  debe ser mayor que entre elementos relacionados. Excepciones ópticas pequeñas
+  son válidas cuando mejoran el resultado, no constituyen nuevas escalas.
+- Usar contenedores cuando hay una tarea o conjunto de datos independiente.
+  Evitar paneles anidados, sombras y degradados sin función. Reservar el mayor
+  contraste para el trabajo activo y las acciones que lo requieren.
+- Mantener el blanco pedido por el usuario y los azules INEI aunque una guía
+  sugiera otra paleta. Verde comunica resolución; ámbar, atención; rojo, fallo.
+  El color siempre lleva texto o una señal adicional.
+- Adaptar grupos y columnas al ancho disponible. Las tablas pueden desplazarse
+  dentro de su contenedor; la página completa no debe desbordarse. No ocultar
+  acciones esenciales para lograr el ajuste.
+
+## Interacción y movimiento
+
+- Las gráficas permiten explorar categorías con mouse, teclado y controles
+  táctiles. La leyenda conserva las cantidades y porcentajes legibles. Explorar
+  un gráfico histórico no cambia silenciosamente filtros ni exportaciones.
+- El menú lateral se puede contraer; las etiquetas siguen disponibles. En móvil
+  se abre como panel con foco contenido, cierre mediante Escape, retorno del foco
+  y fondo fuera del recorrido del teclado. Los controles conservan al menos 44 px.
+- Diseñar reposo, foco, hover, carga, error y finalización. Los mensajes indican
+  qué ocurre y cuál es el siguiente paso; no repetir instrucciones en varias zonas.
+- Animar cambios de estado y respuestas a acciones con transiciones breves de
+  opacidad o transformación. No animar cifras inventadas ni mover continuamente
+  gráficos ya finalizados. Respetar `prefers-reduced-motion`.
+- El cronómetro usa tiempos registrados por operación. Un histórico sin ese dato
+  muestra «Tiempo no disponible». La barra indica ubicaciones evaluadas en la
+  etapa actual, y el avance por calidad indica ubicaciones resueltas: no se mezclan.
+- Confirmar guardados y decisiones geográficas con la respuesta del servidor;
+  no mostrar una verificación exitosa de forma optimista.
+
+## Flujo de revisión
+
+1. Definir tarea, contenido, estados y siguiente acción antes de cambiar estilos.
+2. Revisar jerarquía y agrupación; quitar duplicados y etiquetas innecesarias.
+3. Aplicar la dirección institucional y los componentes existentes.
+4. Inspeccionar escritorio y móvil, teclado, contraste, etiquetas largas, vacíos,
+   errores y movimiento reducido. Corregir los defectos observados en conjunto.
+5. Confirmar con pruebas apropiadas y una segunda revisión visual acotada.
+   Registrar alcance y límites en `QA.md`; no extender el pulido indefinidamente.
+
+La revisión del 23 de septiembre aplica estos criterios al panel de actividad,
+avance por calidad, gráficas y navegación. No acredita una auditoría completa de
+todas las pantallas anteriores.
+
 ## Referencia de color
 
 La referencia principal es el logotipo del INEI aportado por el usuario el
