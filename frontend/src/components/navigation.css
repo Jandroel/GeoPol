@@ -234,13 +234,17 @@
 }
 @media (max-width: 760px) {
   .navigation-shell .sidebar {
+    visibility: hidden;
+    transform: translateX(-100%);
     width: min(310px, calc(100vw - 28px));
     padding: max(20px, env(safe-area-inset-top)) 16px
       max(20px, env(safe-area-inset-bottom));
     box-shadow: 12px 0 40px rgb(13 51 84 / 18%);
-    transition:
-      transform 200ms ease,
-      visibility 200ms;
+    transition: transform 200ms ease;
+  }
+  .navigation-shell .sidebar.open {
+    visibility: visible;
+    transform: translateX(0);
   }
   .navigation-shell .workspace {
     margin-left: 0;

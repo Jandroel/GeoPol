@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   BookOpen,
@@ -124,19 +124,39 @@ export function Layout() {
     }
   }, [collapsed]);
 
+  useLayoutEffect(() => {
+    if (!drawerOpen) return;
+    let focusFrame = 0;
+    let cancelled = false;
+    const focusWhenAvailable = () => {
+      const drawer = sidebar.current;
+      if (cancelled || !drawer) return;
+      // Do not interrupt a user who has already moved into the navigation.
+      if (drawer.contains(document.activeElement)) return;
+      const button = drawer.querySelector<HTMLButtonElement>(".mobile-close");
+      if (
+        button &&
+        !button.closest("[inert]") &&
+        getComputedStyle(button).visibility === "visible"
+      ) {
+        button.focus();
+        if (document.activeElement === button) return;
+      }
+      // A breakpoint/style update may still expose the closed drawer's
+      // visibility during the commit. Wait for focusability, not N frames.
+      focusFrame = requestAnimationFrame(focusWhenAvailable);
+    };
+    focusWhenAvailable();
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(focusFrame);
+    };
+  }, [drawerOpen]);
+
   useEffect(() => {
     if (!drawerOpen) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    let focusFrame = requestAnimationFrame(() => {
-      // The browser must render the newly visible, non-inert drawer before
-      // accepting focus. One frame can still precede that style update.
-      focusFrame = requestAnimationFrame(() => {
-        sidebar.current
-          ?.querySelector<HTMLButtonElement>(".mobile-close")
-          ?.focus({ preventScroll: true });
-      });
-    });
     const controls = () =>
       Array.from(
         sidebar.current?.querySelectorAll<HTMLElement>(
@@ -170,7 +190,6 @@ export function Layout() {
     };
     document.addEventListener("keydown", keyboard);
     return () => {
-      cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", keyboard);
       document.body.style.overflow = originalOverflow;
       if (mobileRef.current) menuButton.current?.focus();

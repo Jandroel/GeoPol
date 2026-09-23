@@ -210,4 +210,53 @@ describe("Navegación del espacio de trabajo", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(document.body.style.overflow).toBe("");
   });
+
+  it("enfoca al abrir después de plegar y cambiar de breakpoint sin esperar frames", () => {
+    show("/runs/example-run");
+    fireEvent.click(screen.getByRole("button", { name: "Contraer menú" }));
+    fireEvent.click(screen.getByRole("button", { name: "Expandir menú" }));
+    viewport(true);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir navegación" }));
+    const drawer = screen.getByRole("dialog", { name: "Menú de navegación" });
+    expect(drawer).not.toHaveAttribute("inert");
+    expect(
+      within(drawer).getByRole("button", { name: "Cerrar navegación" }),
+    ).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(
+      screen.getByRole("button", { name: "Abrir navegación" }),
+    ).toHaveFocus();
+    viewport(false);
+    viewport(true);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir navegación" }));
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Cerrar navegación",
+      }),
+    ).toHaveFocus();
+  });
+
+  it("espera a que el control sea visible y cancela el foco pendiente si se cierra", async () => {
+    viewport(true);
+    show();
+    const close = document.querySelector<HTMLButtonElement>(".mobile-close")!;
+    const opener = screen.getByRole("button", { name: "Abrir navegación" });
+    close.style.visibility = "hidden";
+    fireEvent.click(opener);
+    expect(close).not.toHaveFocus();
+    close.style.visibility = "visible";
+    await waitFor(() => expect(close).toHaveFocus());
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(opener).toHaveFocus();
+
+    close.style.visibility = "hidden";
+    fireEvent.click(opener);
+    fireEvent.keyDown(document, { key: "Escape" });
+    close.style.visibility = "visible";
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    expect(opener).toHaveFocus();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
 });
