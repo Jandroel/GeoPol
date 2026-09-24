@@ -88,9 +88,42 @@ test("five reference Excels, staged qualities and independent export preserve co
     await toggle.press("Enter");
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await card.locator("summary").first().click();
-    await card
-      .getByLabel(`Archivo Excel · ${title}`, { exact: true })
-      .setInputFiles(resolve(fixtures, `${kind}.xlsx`));
+    const fileInput = card.getByLabel(`Archivo Excel · ${title}`, {
+      exact: true,
+    });
+    if (kind === "doors") {
+      await fileInput.focus();
+      await card.screenshot({
+        path: resolve(artifacts, "ui-excel-attach.png"),
+      });
+      const chooserEvent = page.waitForEvent("filechooser");
+      await fileInput.press("Enter");
+      const chooser = await chooserEvent;
+      const filename =
+        "Referencia_de_puertas_PreCensos_2025_version_de_prueba_con_nombre_largo.xlsx";
+      await chooser.setFiles({
+        name: filename,
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        buffer: await readFile(resolve(fixtures, "doors.xlsx")),
+      });
+      await expect(card.locator(".excel-file-name")).toHaveText(filename);
+      await expect(
+        card.getByText("Cambiar Excel", { exact: true }),
+      ).toBeVisible();
+      await page.setViewportSize({ width: 400, height: 900 });
+      await card.screenshot({
+        path: resolve(artifacts, "ui-excel-attach-mobile.png"),
+      });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+    } else {
+      await fileInput.setInputFiles(resolve(fixtures, `${kind}.xlsx`));
+    }
     await card
       .getByRole("button", { name: "Leer columnas de referencia", exact: true })
       .click();

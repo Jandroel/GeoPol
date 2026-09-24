@@ -2,6 +2,23 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Selector de Excel destacado · 24 de septiembre de 2026
+
+Los cinco selectores de referencia usan un botón verde con icono de hoja de
+cálculo y nombre/tamaño del archivo separado. Se conserva el input nativo,
+su etiqueta, la restricción `.xlsx`, la validación y el bloqueo durante carga.
+
+- **10 pruebas de componente aprobadas**, TypeScript/Vite, formato y diff correctos.
+- **Escenario Chromium de cinco Excel aprobado en 33,5 s**: apertura del selector
+  nativo con Enter, archivo con nombre largo, importación, procesamiento y exportación.
+- Capturas inspeccionadas en escritorio y a 400 px: foco visible y nombre completo
+  con salto de línea, sin desplazamiento horizontal global. El blanco sobre el
+  botón verde alcanza contraste 5,27:1 (7,68:1 en hover).
+- El escenario usó datos sintéticos y servicios aislados en 18001/15175. Las
+  capturas privadas `ui-excel-attach.png` y `ui-excel-attach-mobile.png` quedan en
+  `.local/ui-polish-20260923/`, fuera de Git. La web operativa 5174 sirve el build
+  actualizado; no se modificaron datos ni lógica del backend.
+
 ## Carga compacta y totales de resultados · 23 de septiembre de 2026
 
 - La carga inicial muestra los cinco tipos de referencia sin desplazar la página

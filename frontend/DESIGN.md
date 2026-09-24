@@ -55,8 +55,13 @@ ejecutables al funcionamiento de la aplicación.
   Evitar paneles anidados, sombras y degradados sin función. Reservar el mayor
   contraste para el trabajo activo y las acciones que lo requieren.
 - Mantener el blanco pedido por el usuario y los azules INEI aunque una guía
-  sugiera otra paleta. Verde comunica resolución; ámbar, atención; rojo, fallo.
+  sugiera otra paleta. En los estados, verde comunica resolución; ámbar, atención; rojo, fallo.
   El color siempre lleva texto o una señal adicional.
+- Por petición del usuario, el selector de referencias Excel usa un botón verde
+  `#107C41`, icono de hoja de cálculo y texto «Adjuntar Excel»/«Cambiar Excel».
+  Este color identifica la acción sobre el archivo, no una validación geográfica.
+  El input nativo conserva teclado, foco, formato y estado deshabilitado; nombre
+  y tamaño se muestran al lado y se apilan cuando falta espacio.
 - Adaptar grupos y columnas al ancho disponible. Las tablas pueden desplazarse
   dentro de su contenedor; la página completa no debe desbordarse. No ocultar
   acciones esenciales para lograr el ajuste.

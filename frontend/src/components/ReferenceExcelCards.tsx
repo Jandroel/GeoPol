@@ -472,19 +472,52 @@ function ReferenceExcelCard({
                   para reanudar.
                 </p>
               )}
-              <label>
-                Archivo Excel · {slot.title}
-                <input
-                  type="file"
-                  accept=".xlsx"
-                  required
-                  disabled={busy}
-                  onChange={(e) => {
-                    setFile(e.target.files?.[0] ?? null);
-                    setOffset(0);
-                  }}
-                />
-              </label>
+              <div className="excel-file-field">
+                <label htmlFor={`reference-${slot.kind}-file`}>
+                  Archivo Excel · {slot.title}
+                </label>
+                <div className="excel-file-picker">
+                  <div
+                    className={`excel-file-control ${busy ? "is-disabled" : ""}`}
+                  >
+                    <span className="excel-file-button" aria-hidden="true">
+                      <FileSpreadsheet size={21} strokeWidth={1.8} />
+                      {file ? "Cambiar Excel" : "Adjuntar Excel"}
+                    </span>
+                    <input
+                      id={`reference-${slot.kind}-file`}
+                      className="excel-file-input"
+                      type="file"
+                      accept=".xlsx"
+                      aria-describedby={`reference-${slot.kind}-file-hint`}
+                      required
+                      disabled={busy}
+                      onChange={(e) => {
+                        setFile(e.target.files?.[0] ?? null);
+                        setOffset(0);
+                      }}
+                    />
+                  </div>
+                  <div
+                    className="excel-file-summary"
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >
+                    <span className="excel-file-name">
+                      {file?.name ?? "Ningún archivo seleccionado"}
+                    </span>
+                    <span
+                      className="excel-file-hint"
+                      id={`reference-${slot.kind}-file-hint`}
+                    >
+                      {file
+                        ? `${number(Math.max(1, Math.ceil(file.size / 1024)))} KB · `
+                        : ""}
+                      Libro de Excel (.xlsx)
+                    </span>
+                  </div>
+                </div>
+              </div>
               {busy && (
                 <div role="status">
                   <progress value={offset} max={file?.size || 1} /> Preparando
