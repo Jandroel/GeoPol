@@ -87,10 +87,13 @@ test("five reference Excels, staged qualities and independent export preserve co
     await toggle.focus();
     await toggle.press("Enter");
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
-    await card.locator("summary").first().click();
     const fileInput = card.getByLabel(`Archivo Excel · ${title}`, {
       exact: true,
     });
+    await expect(fileInput).toBeVisible();
+    await expect(
+      card.getByText("Adjuntar Excel", { exact: true }),
+    ).toBeVisible();
     if (kind === "doors") {
       await fileInput.focus();
       await card.screenshot({
@@ -131,7 +134,7 @@ test("five reference Excels, staged qualities and independent export preserve co
       .getByLabel("Versión de la fuente", { exact: true })
       .fill("qa-quality-1");
     await card
-      .getByLabel("Fuente / institución", { exact: true })
+      .getByLabel("Origen de los datos / institución", { exact: true })
       .fill("SINTÉTICO: prueba aislada, sin uso operativo");
     await card
       .getByLabel(`Sistema de coordenadas · ${title}`)
@@ -148,7 +151,6 @@ test("five reference Excels, staged qualities and independent export preserve co
     await expect(
       card.getByRole("status", { name: "Disponibilidad de la referencia" }),
     ).toContainText("1 elementos disponibles");
-    await card.locator("summary").first().click();
     await toggle.click();
   }
   await expect(

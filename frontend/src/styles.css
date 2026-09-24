@@ -201,6 +201,22 @@
 .reference-slot .field-hint {
   margin: 8px 0;
 }
+.reference-import {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.reference-import h4 {
+  margin: 0;
+  color: var(--primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+.reference-import-hint {
+  margin: 6px 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
 .reference-mapping {
   margin: 8px 0 16px;
 }

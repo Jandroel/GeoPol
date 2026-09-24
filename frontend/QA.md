@@ -2,6 +2,20 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Referencias con un solo desplegable · 24 de septiembre de 2026
+
+Abrir cada tipo de referencia muestra directamente «Adjuntar Excel». La lista
+se identifica como «Catálogo guardado» y la procedencia como «Origen de los datos /
+institución». La ayuda diferencia reutilizar datos guardados de importar otro
+archivo; cuando no hay catálogos, la lista está deshabilitada y se explica el motivo.
+
+**18 pruebas de componente aprobadas**, compilación TypeScript/Vite, formato y
+diff correctos. El escenario Chromium de cinco referencias pasó en **34,5 s**,
+comprobando el botón tras una única apertura, selección con teclado, importación
+y exportación. Se inspeccionaron las capturas de escritorio y móvil con nombre
+largo, sin desbordamiento horizontal. Se conservan los borradores, el catálogo
+activo y los controles de coordenadas. La web local sirve el build actualizado.
+
 ## Selector de Excel destacado · 24 de septiembre de 2026
 
 Los cinco selectores de referencia usan un botón verde con icono de hoja de

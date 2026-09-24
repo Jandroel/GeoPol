@@ -102,7 +102,7 @@ describe("safe processing defaults", () => {
       }),
     );
     await user.selectOptions(
-      screen.getByLabelText("Fuente para puertas / viviendas"),
+      screen.getByLabelText("Catálogo guardado · Puertas / viviendas"),
       catalog.id,
     );
     await user.click(
@@ -111,7 +111,7 @@ describe("safe processing defaults", () => {
       }),
     );
     await user.selectOptions(
-      screen.getByLabelText("Fuente para límites administrativos"),
+      screen.getByLabelText("Catálogo guardado · Límites administrativos"),
       catalog.id,
     );
     expect(screen.getByLabelText("Flujo de procesamiento")).toHaveValue(

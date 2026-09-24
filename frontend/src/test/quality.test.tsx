@@ -428,7 +428,6 @@ describe("five independent Excel references", () => {
       name: "Configurar referencia: Puertas / viviendas",
     });
     await user.click(toggle);
-    await user.click(screen.getByText("Importar Excel de puertas / viviendas"));
     await user.upload(
       screen.getByLabelText("Archivo Excel · Puertas / viviendas"),
       new File(["qa"], "replacement.xlsx"),
@@ -511,9 +510,10 @@ describe("five independent Excel references", () => {
         name: "Configurar referencia: Puertas / viviendas",
       }),
     );
-    await user.click(
-      within(card).getByText("Importar Excel de puertas / viviendas"),
-    );
+    expect(within(card).getByText("Adjuntar Excel")).toBeVisible();
+    expect(
+      within(card).getByLabelText("Catálogo guardado · Puertas / viviendas"),
+    ).toBeDisabled();
     await user.upload(
       within(card).getByLabelText("Archivo Excel · Puertas / viviendas"),
       new File(["synthetic"], "doors.xlsx", {

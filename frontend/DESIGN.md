@@ -139,6 +139,11 @@ sobre azul principal alcanza 6,11:1.
   mapeos e importaciones. Una selección no equivale a disponibilidad geográfica.
   Si se prepara un reemplazo, se conserva visible la fuente que se utilizará.
   En móvil, los bloques se apilan y el estado pasa debajo del nombre.
+- Abrir un tipo de referencia muestra directamente el botón de Excel, sin un
+  segundo desplegable. «Catálogo guardado» identifica una referencia reutilizable;
+  «Importar un Excel nuevo» permite crear otra al guardar su importación.
+  «Origen de los datos / institución» se reserva para la procedencia. La ayuda
+  distingue las alternativas y explica cuándo se guarda un catálogo.
 - Resultados presenta el total junto a sus filtros, calculado por el servidor
   para la búsqueda aplicada y su resolución/flag/etapa. La etiqueta distingue
   el total general del total filtrado; el rango indica las ubicaciones visibles

@@ -151,7 +151,10 @@ export function ReferenceExcelCards({
             {selectedCount} de 5 seleccionadas
           </span>
         </div>
-        <p>Abre una fuente para elegir un catálogo o importar un Excel.</p>
+        <p>
+          Abre un tipo de referencia para adjuntar un Excel o reutilizar un
+          catálogo guardado.
+        </p>
       </div>
       <div className="panel reference-list">
         {referenceSlots.map((slot) => (
@@ -414,13 +417,15 @@ function ReferenceExcelCard({
         hidden={!expanded}
       >
         <label>
-          Fuente para {slot.title.toLowerCase()}
+          Catálogo guardado · {slot.title}
           <select
+            aria-label={`Catálogo guardado · ${slot.title}`}
+            aria-describedby={`reference-${slot.kind}-catalog-hint`}
             value={selected}
             onChange={(e) => onSelect(e.target.value)}
-            disabled={busy}
+            disabled={busy || choices.length === 0}
           >
-            <option value="">Sin archivo seleccionado</option>
+            <option value="">Ningún catálogo seleccionado</option>
             {choices.map((catalog) => (
               <option key={catalog.id} value={catalog.id}>
                 {catalog.name} · {catalog.version}
@@ -428,6 +433,11 @@ function ReferenceExcelCard({
             ))}
           </select>
         </label>
+        <p className="field-hint" id={`reference-${slot.kind}-catalog-hint`}>
+          {choices.length
+            ? "Ya importado y guardado en GeoPol. Puedes usarlo sin volver a subir el archivo."
+            : "Aún no hay catálogos de este tipo. Adjunta un Excel para crear uno."}
+        </p>
         {active && (
           <p
             className="field-hint"
@@ -461,8 +471,19 @@ function ReferenceExcelCard({
             </p>
           </details>
         )}
-        <details>
-          <summary>Importar Excel de {slot.title.toLowerCase()}</summary>
+        <section
+          className="reference-import"
+          aria-labelledby={`reference-${slot.kind}-import-heading`}
+        >
+          <h4 id={`reference-${slot.kind}-import-heading`}>
+            {choices.length
+              ? "O importar un Excel nuevo"
+              : "Importar un Excel nuevo"}
+          </h4>
+          <p className="reference-import-hint">
+            Al guardar la importación, se creará un catálogo que podrás
+            reutilizar.
+          </p>
           <ErrorNotice error={error} />
           {!profile ? (
             <form onSubmit={load} className="stack">
@@ -565,7 +586,7 @@ function ReferenceExcelCard({
                 </label>
               </div>
               <label>
-                Fuente / institución
+                Origen de los datos / institución
                 <input
                   value={source}
                   required
@@ -730,7 +751,7 @@ function ReferenceExcelCard({
               </div>
             </form>
           )}
-        </details>
+        </section>
       </div>
     </article>
   );
