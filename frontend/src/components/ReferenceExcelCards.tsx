@@ -416,28 +416,24 @@ function ReferenceExcelCard({
         id={`reference-${slot.kind}-editor`}
         hidden={!expanded}
       >
-        <label>
-          Catálogo guardado · {slot.title}
-          <select
-            aria-label={`Catálogo guardado · ${slot.title}`}
-            aria-describedby={`reference-${slot.kind}-catalog-hint`}
-            value={selected}
-            onChange={(e) => onSelect(e.target.value)}
-            disabled={busy || choices.length === 0}
-          >
-            <option value="">Ningún catálogo seleccionado</option>
-            {choices.map((catalog) => (
-              <option key={catalog.id} value={catalog.id}>
-                {catalog.name} · {catalog.version}
-              </option>
-            ))}
-          </select>
-        </label>
-        <p className="field-hint" id={`reference-${slot.kind}-catalog-hint`}>
-          {choices.length
-            ? "Ya importado y guardado en GeoPol. Puedes usarlo sin volver a subir el archivo."
-            : "Aún no hay catálogos de este tipo. Adjunta un Excel para crear uno."}
-        </p>
+        {choices.length > 0 && (
+          <label className="reference-catalog-choice">
+            Catálogo guardado
+            <select
+              aria-label={`Catálogo guardado · ${slot.title}`}
+              value={selected}
+              onChange={(e) => onSelect(e.target.value)}
+              disabled={busy}
+            >
+              <option value="">Seleccionar catálogo…</option>
+              {choices.map((catalog) => (
+                <option key={catalog.id} value={catalog.id}>
+                  {catalog.name} · {catalog.version}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {active && (
           <p
             className="field-hint"
@@ -473,28 +469,16 @@ function ReferenceExcelCard({
         )}
         <section
           className="reference-import"
-          aria-labelledby={`reference-${slot.kind}-import-heading`}
+          aria-label={`Importar Excel · ${slot.title}`}
         >
-          <h4 id={`reference-${slot.kind}-import-heading`}>
-            {choices.length
-              ? "O importar un Excel nuevo"
-              : "Importar un Excel nuevo"}
-          </h4>
-          <p className="reference-import-hint">
-            Al guardar la importación, se creará un catálogo que podrás
-            reutilizar.
-          </p>
           <ErrorNotice error={error} />
           {!profile ? (
-            <form onSubmit={load} className="stack">
-              {saved && (
-                <p className="field-hint">
-                  Carga pendiente: {saved.filename}. Selecciona el mismo archivo
-                  para reanudar.
-                </p>
-              )}
+            <form onSubmit={load} className="reference-file-form">
               <div className="excel-file-field">
-                <label htmlFor={`reference-${slot.kind}-file`}>
+                <label
+                  className="sr-only"
+                  htmlFor={`reference-${slot.kind}-file`}
+                >
                   Archivo Excel · {slot.title}
                 </label>
                 <div className="excel-file-picker">
@@ -525,16 +509,20 @@ function ReferenceExcelCard({
                     aria-atomic="true"
                   >
                     <span className="excel-file-name">
-                      {file?.name ?? "Ningún archivo seleccionado"}
+                      {file?.name ??
+                        (saved
+                          ? "Vuelve a adjuntar el archivo pendiente"
+                          : "Archivo .xlsx")}
                     </span>
                     <span
                       className="excel-file-hint"
                       id={`reference-${slot.kind}-file-hint`}
                     >
                       {file
-                        ? `${number(Math.max(1, Math.ceil(file.size / 1024)))} KB · `
-                        : ""}
-                      Libro de Excel (.xlsx)
+                        ? `${number(Math.max(1, Math.ceil(file.size / 1024)))} KB · Excel (.xlsx)`
+                        : saved
+                          ? "Selecciona el mismo Excel para reanudar."
+                          : "Al guardar, podrás reutilizarlo como catálogo."}
                     </span>
                   </div>
                 </div>
@@ -545,13 +533,14 @@ function ReferenceExcelCard({
                   columnas…
                 </div>
               )}
-              <button className="button secondary" disabled={!file || busy}>
-                {busy ? "Leyendo archivo…" : "Leer columnas de referencia"}
-              </button>
+              {(file || busy) && (
+                <button className="button secondary" disabled={!file || busy}>
+                  {busy ? "Leyendo archivo…" : "Leer columnas de referencia"}
+                </button>
+              )}
             </form>
           ) : (
             <form onSubmit={importCatalog} className="stack">
-              <p className="field-hint">{upload?.filename}</p>
               <label>
                 Hoja · {slot.title}
                 <select

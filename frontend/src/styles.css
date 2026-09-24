@@ -190,7 +190,7 @@
   transform: rotate(180deg);
 }
 .reference-slot-editor {
-  padding: 8px 20px 20px;
+  padding: 16px 20px 20px;
 }
 .reference-slot-editor[hidden] {
   display: none;
@@ -201,21 +201,25 @@
 .reference-slot .field-hint {
   margin: 8px 0;
 }
-.reference-import {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-.reference-import h4 {
-  margin: 0;
-  color: var(--primary);
-  font-size: 14px;
-  font-weight: 600;
-}
-.reference-import-hint {
-  margin: 6px 0 16px;
-  color: var(--muted);
+.reference-catalog-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
   font-size: 13px;
+}
+.reference-catalog-choice select {
+  min-width: 0;
+}
+.reference-import:not(:first-child) {
+  margin-top: 16px;
+}
+.reference-file-form {
+  display: grid;
+  gap: 12px;
+}
+.reference-file-form > .button {
+  justify-self: end;
 }
 .reference-mapping {
   margin: 8px 0 16px;
@@ -468,7 +472,11 @@
     grid-row: 1 / span 2;
   }
   .reference-slot-editor {
-    padding: 8px 16px 16px;
+    padding: 16px;
+  }
+  .reference-catalog-choice {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
   .intake-source .upload-panel {
     padding: 16px;

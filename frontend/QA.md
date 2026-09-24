@@ -2,6 +2,21 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Editor de referencias simplificado · 24 de septiembre de 2026
+
+Se retiraron los títulos, etiquetas visibles y explicaciones repetidos. El selector
+de catálogo aparece solo cuando existen opciones; el adjunto verde permanece
+visible con una sola apertura. La acción de leer columnas aparece después de
+elegir el archivo. El aviso de reanudación se integra en el selector de Excel.
+
+**18 pruebas de componente aprobadas**, compilación TypeScript/Vite, formato y
+diff correctos. El escenario Chromium de los cinco Excel pasó en **31,4 s**,
+incluidas importación, procesamiento y exportación. Se inspeccionaron capturas
+de escritorio y móvil a 400 px, con nombre largo y catálogo guardado: foco visible,
+etiqueta/selector apilados en móvil y sin desbordamiento horizontal de la página.
+Se mantienen los controles de coordenadas, los borradores y la identificación del
+catálogo activo tras un fallo. La web operativa 5174 responde con el build nuevo.
+
 ## Referencias con un solo desplegable · 24 de septiembre de 2026
 
 Abrir cada tipo de referencia muestra directamente «Adjuntar Excel». La lista

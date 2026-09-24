@@ -512,8 +512,8 @@ describe("five independent Excel references", () => {
     );
     expect(within(card).getByText("Adjuntar Excel")).toBeVisible();
     expect(
-      within(card).getByLabelText("Catálogo guardado · Puertas / viviendas"),
-    ).toBeDisabled();
+      within(card).queryByLabelText("Catálogo guardado · Puertas / viviendas"),
+    ).not.toBeInTheDocument();
     await user.upload(
       within(card).getByLabelText("Archivo Excel · Puertas / viviendas"),
       new File(["synthetic"], "doors.xlsx", {

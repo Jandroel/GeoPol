@@ -151,6 +151,16 @@ test("five reference Excels, staged qualities and independent export preserve co
     await expect(
       card.getByRole("status", { name: "Disponibilidad de la referencia" }),
     ).toContainText("1 elementos disponibles");
+    if (kind === "doors") {
+      await card.screenshot({
+        path: resolve(artifacts, "ui-excel-catalog.png"),
+      });
+      await page.setViewportSize({ width: 400, height: 900 });
+      await card.screenshot({
+        path: resolve(artifacts, "ui-excel-catalog-mobile.png"),
+      });
+      await page.setViewportSize({ width: 1440, height: 1000 });
+    }
     await toggle.click();
   }
   await expect(
