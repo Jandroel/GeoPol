@@ -80,7 +80,16 @@ def record_quality_revision(item, actor, action):
 def quality_summary(db, run):
     totals = {
         key: 0
-        for key in ("units", "source_rows", "resolved", "review", "unmatched", "blocked", "unprocessed")
+        for key in (
+            "units",
+            "source_rows",
+            "resolved",
+            "review",
+            "unmatched",
+            "blocked",
+            "unprocessed",
+            "excluded",
+        )
     }
     stages = {
         stage["key"]: {
@@ -106,7 +115,7 @@ def quality_summary(db, run):
             "label": f"Flag {flag}" if flag else "Sin flag asignado",
             **{key: 0 for key in totals},
         }
-        for flag in (1, 2, None)
+        for flag in (1, 2, 10, None)
     }
     review_states = {state: {"state": state, "units": 0, "source_rows": 0} for state in get_args(ReviewState)}
     query = (
@@ -131,7 +140,9 @@ def quality_summary(db, run):
         flag_group = flags.get(flag, flags[None])
         flag_group["units"] += 1
         flag_group["source_rows"] += source_rows
-        flag_group[status if status in {"resolved", "review", "unmatched", "blocked"} else "unprocessed"] += 1
+        flag_group[
+            status if status in {"resolved", "review", "unmatched", "blocked", "excluded"} else "unprocessed"
+        ] += 1
         state_group = review_states.get(review_state, review_states["unprocessed"])
         state_group["units"] += 1
         state_group["source_rows"] += source_rows

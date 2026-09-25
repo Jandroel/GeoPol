@@ -10,17 +10,34 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..db import get_db
 from ..domain.ingestion import inspect_file, iter_records
+from ..domain.upload_validation import validate_upload
 from ..models import (
     Upload,
     User,
     uid,
 )
-from ..schemas import UploadInput
+from ..schemas import UploadInput, UploadValidationInput
 from ..serialization import audit
 from ..storage import checksum, storage_file, upload_lock
 from .common import operator, owned_upload, upload_dict
 
 router = APIRouter()
+
+
+@router.post("/api/uploads/{identifier}/validation")
+def upload_validation(
+    identifier: str,
+    payload: UploadValidationInput,
+    user: User = Depends(operator),
+    db: Session = Depends(get_db),
+):
+    item = owned_upload(db, identifier, user)
+    if item.status != "COMPLETE":
+        raise HTTPException(409, "Complete la carga primero")
+    try:
+        return validate_upload(storage_file("uploads", item.id), item.filename, **payload.model_dump())
+    except (ValueError, KeyError, OSError) as exc:
+        raise HTTPException(422, f"Validación no disponible: {str(exc)[:250]}") from None
 
 
 @router.post("/api/uploads", status_code=201)

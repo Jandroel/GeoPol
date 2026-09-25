@@ -4,6 +4,8 @@ Public flags 1/2 describe the structure of the supplied location, never its
 verification, probability or resulting spatial precision. Legacy quality_code
 values remain internal review-routing categories for compatibility. A source
 coordinate can corroborate a reference but cannot alone prove an exact door.
+Flag 10 preserves an explicit input exclusion or records entirely empty location
+input; it never means an unsuccessful geographic search.
 """
 
 from __future__ import annotations
@@ -13,10 +15,60 @@ import json
 import re
 
 from . import matching
-from .normalization import DECISION_WARNINGS, canonical_street_type, key, street_parts, valid_pair
+from .normalization import DECISION_WARNINGS, canonical_street_type, key, street_parts, text, valid_pair
 
 
 POLICY_VERSION = "quality-2.0"
+INPUT_VALIDATION_VERSION = "input-validation-1.0"
+
+
+def flag10_reason(normalized: dict) -> str | None:
+    """Honor an explicit exclusion; infer it only from entirely empty original fields."""
+    if normalized.get("source_quality_flag") == 10:
+        return "FLAG_10_DECLARADO_EN_ORIGEN"
+    if (
+        normalized.get("location_input_empty") is True
+        and not text(normalized.get("source_quality_flag_original"))
+        and "FILA_ORIGEN_CON_INCIDENCIA" not in (normalized.get("warnings") or [])
+    ):
+        return "FLAG_10_SIN_DATOS_DE_UBICACION"
+    return None
+
+
+def excluded_input_result(normalized: dict) -> dict | None:
+    reason = flag10_reason(normalized)
+    if not reason:
+        return None
+    return {
+        "resolution": "EXCLUIDO_FLAG_10",
+        "method": "VALIDACION_ENTRADA",
+        "precision": "DESCONOCIDA",
+        "evidence_band": "SIN_EVIDENCIA",
+        "product": "NINGUNO",
+        "latitude": None,
+        "longitude": None,
+        "geometry": None,
+        "reason": reason,
+        "candidates": [],
+        "attempts": [
+            {
+                "method": "VALIDACION_ENTRADA",
+                "status": "excluded",
+                "reason": reason,
+                "policy_version": INPUT_VALIDATION_VERSION,
+            }
+        ],
+        "quality_flag": 10,
+        "quality_flag_reason": reason,
+        "quality_status": "excluded",
+        "quality_stage": None,
+        "quality_code": None,
+        "quality_reason": reason,
+        "quality_policy_version": INPUT_VALIDATION_VERSION,
+        "review_state": "excluded",
+    }
+
+
 STAGES = (
     {"key": "door", "label": "Puertas", "kinds": ("door",)},
     {"key": "block", "label": "Cuadras", "kinds": ("block",)},
@@ -158,6 +210,9 @@ def location_quality_flag(normalized: dict) -> dict:
     def classified(value, reason):
         return {"quality_flag": value, "quality_flag_reason": reason}
 
+    exclusion = flag10_reason(normalized)
+    if exclusion:
+        return classified(10, exclusion)
     if warnings & _FLAG_CONFLICTS:
         return classified(None, "FLAG_SIN_ASIGNAR_COMPONENTES_CONTRADICTORIOS")
     coordinates = valid_pair(normalized.get("latitude"), normalized.get("longitude"))
@@ -196,6 +251,8 @@ def location_quality_flag(normalized: dict) -> dict:
 def quality_review_state(result: dict) -> str:
     """Describe processing/review separately from the input's public flag."""
     resolution = result.get("resolution")
+    if resolution == "EXCLUIDO_FLAG_10":
+        return "excluded"
     if resolution == "ACEPTADO_AUTOMATICO":
         return "automatic"
     if resolution == "ACEPTADO_MANUAL" and result.get("product") in {"PUNTO", "AREA_TRAMO"}:
@@ -546,6 +603,9 @@ def resolve_quality_stage(
         result = deepcopy(previous_result)
         result["quality_skipped"] = True
         return result
+    excluded = excluded_input_result(normalized)
+    if excluded is not None:
+        return excluded
     query = deepcopy(normalized)
     if reference_truncated is not None:
         query["reference_truncated"] = reference_truncated

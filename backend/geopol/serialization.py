@@ -48,6 +48,8 @@ def location_dict(item):
         "quality_policy_version",
     )
     result = {key: getattr(item, key) for key in fields}
+    result["source_quality_flag"] = (item.normalized or {}).get("source_quality_flag")
+    result["source_quality_flag_original"] = (item.normalized or {}).get("source_quality_flag_original")
     result["review_expires_at"] = iso(item.review_expires_at)
     result["candidate_count"] = len(item.candidates or [])
     return result

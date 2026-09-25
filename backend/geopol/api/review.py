@@ -17,7 +17,7 @@ from ..models import (
     Run,
     User,
 )
-from ..schemas import DecisionInput, MemoryRevokeInput, ReviewState
+from ..schemas import DecisionInput, MemoryRevokeInput, QualityFlag, ReviewState
 from ..domain.normalization import normalize_record
 from ..review_workflow import classify_review
 from ..security import current_user
@@ -86,6 +86,11 @@ def review_filters(query, stage, bucket):
 
 
 def editable_run(db, item):
+    if item.resolution == "EXCLUIDO_FLAG_10":
+        raise HTTPException(
+            409,
+            "Registro separado por FLAG 10. Corrija el archivo de origen e impórtelo de nuevo para evaluarlo.",
+        )
     run = db.get(Run, item.run_id)
     if run.status not in FINISHED:
         raise HTTPException(409, "Espere a que termine el lote antes de revisarlo")
@@ -104,7 +109,7 @@ def review(
     stage: StageFilter = "open",
     include_superseded: bool = False,
     quality_code: int | None = Query(None, ge=1, le=4),
-    quality_flag: int | None = Query(None, ge=1, le=2),
+    quality_flag: QualityFlag | None = None,
     review_state: ReviewState | None = None,
     quality_stage: str | None = Query(
         None, pattern="^(door|block|intersection|street|nucleus|jurisdiction)$"
@@ -128,7 +133,7 @@ def review_summary(
     q: str = Query("", max_length=100),
     include_superseded: bool = False,
     quality_code: int | None = Query(None, ge=1, le=4),
-    quality_flag: int | None = Query(None, ge=1, le=2),
+    quality_flag: QualityFlag | None = None,
     review_state: ReviewState | None = None,
     quality_stage: str | None = Query(
         None, pattern="^(door|block|intersection|street|nucleus|jurisdiction)$"
@@ -167,7 +172,7 @@ def next_review(
     exclude_id: str | None = None,
     include_superseded: bool = False,
     quality_code: int | None = Query(None, ge=1, le=4),
-    quality_flag: int | None = Query(None, ge=1, le=2),
+    quality_flag: QualityFlag | None = None,
     review_state: ReviewState | None = None,
     quality_stage: str | None = Query(
         None, pattern="^(door|block|intersection|street|nucleus|jurisdiction)$"
@@ -292,6 +297,8 @@ def apply_decision(db, item, payload, user, *, group_id=None):
     invoking this same decision path. Any failure rolls back the entire group.
     """
     identifier = item.id
+    if item.resolution == "EXCLUIDO_FLAG_10":
+        raise HTTPException(409, "Los registros con FLAG 10 no participan en la revisión geográfica")
     if payload.learn_address and payload.action not in {"accept_candidate", "manual_point"}:
         raise HTTPException(422, "Solo una ubicación geográfica confirmada se puede reutilizar")
     values = dict(
@@ -371,6 +378,8 @@ def apply_decision(db, item, payload, user, *, group_id=None):
             {"location_original": address, "ubigeo": item.ubigeo, "district": item.normalized.get("district")}
         )
         corrected["legacy"] = item.normalized.get("legacy", {})
+        for field in ("source_quality_flag", "source_quality_flag_original", "source_quality_flag_column"):
+            corrected[field] = item.normalized.get(field)
         corrected["complaint_id"] = item.complaint_id
         corrected["manual_address_before"] = item.location_normalized
         corrected["warnings"] = sorted(

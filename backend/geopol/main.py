@@ -17,7 +17,7 @@ from .api import (
     uploads,
 )
 from .config import settings
-from .api import quality, reference_excels
+from .api import quality, reference_excels, statistics
 
 app = FastAPI(
     title="GeoPol",
@@ -55,5 +55,6 @@ for router in (
     exports.router,
     quality.router,
     reference_excels.router,
+    statistics.router,
 ):
     app.include_router(router)

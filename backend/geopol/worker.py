@@ -21,7 +21,7 @@ from .db import SessionLocal
 from .domain import RULES_VERSION
 from .domain.ingestion import iter_records
 from .domain.matching import resolve_location
-from .domain.quality import resolve_quality_stage
+from .domain.quality import excluded_input_result, resolve_quality_stage
 from .quality_workflow import QUALITY_FIELDS, stage_scope
 from .domain.normalization import normalize_record
 from .excel_export import ExcelExportError, write_xlsx
@@ -134,7 +134,14 @@ def unit_key(normalized, ordinal):
         "source_crs",
     )
     canonical = {k: normalized.get(k) for k in keys}
-    for extra in ("center_name", "center_code", "jurisdiction_name", "jurisdiction_code"):
+    for extra in (
+        "center_name",
+        "center_code",
+        "jurisdiction_name",
+        "jurisdiction_code",
+        "source_quality_flag_original",
+        "location_input_empty",
+    ):
         if normalized.get(extra):
             canonical[extra] = normalized[extra]
     if not canonical["complaint_id"]:
@@ -335,58 +342,65 @@ def process_run(run_id, job_id, token):
                 # Resumed, already-ingested legacy work must not revive a CRS
                 # assigned by an old browser without a documented declaration.
                 normalized = apply_coordinate_declaration(item.normalized, run.config)
-                names = tuple(search_key(n) for n in normalized.get("search_names", []) if n)
-                features, truncated = references.lookup(
-                    run.reference_id,
-                    item.ubigeo,
-                    names,
-                    normalized.get("manzana_code"),
-                    ("jurisdiction",)
-                    if quality_mode and quality_stage == "jurisdiction"
-                    else ("site", "nucleus")
-                    if quality_mode and quality_stage == "nucleus" and normalized.get("center_code")
-                    else (),
-                )
-                normalized["reference_truncated"] = truncated
-                normalized["available_reference_kinds"] = catalog.kinds if catalog else []
-                if quality_mode:
-                    resolved = resolve_quality_stage(
-                        normalized, features, reference_available=bool(catalog), stage=quality_stage
+                resolved = excluded_input_result(normalized)
+                if resolved is None:
+                    names = tuple(search_key(n) for n in normalized.get("search_names", []) if n)
+                    features, truncated = references.lookup(
+                        run.reference_id,
+                        item.ubigeo,
+                        names,
+                        normalized.get("manzana_code"),
+                        ("jurisdiction",)
+                        if quality_mode and quality_stage == "jurisdiction"
+                        else ("site", "nucleus")
+                        if quality_mode and quality_stage == "nucleus" and normalized.get("center_code")
+                        else (),
                     )
-                else:
-                    resolved = resolve_location(normalized, features, reference_available=bool(catalog))
-                    resolved = resolve_memory(db, normalized, resolved, run.created_at)
-                if item.complaint_id in conflicts or {"FILA_ORIGEN_CON_INCIDENCIA", "CRS_CONFLICTIVO"} & set(
-                    normalized.get("warnings", [])
-                ):
-                    resolved.update(
-                        resolution="REVISION_REQUERIDA",
-                        latitude=None,
-                        longitude=None,
-                        geometry=None,
-                        product="DIRECCION_SIN_PUNTO" if item.location_normalized else "NINGUNO",
-                        evidence_band="REVISION",
-                        reason="Ubicaciones contradictorias, CRS en conflicto o incidencia en la fila de origen; requiere conciliación",
-                    )
+                    normalized["reference_truncated"] = truncated
+                    normalized["available_reference_kinds"] = catalog.kinds if catalog else []
                     if quality_mode:
-                        resolved.update(
-                            quality_status="review",
-                            quality_code=3 if quality_stage == "door" else None,
-                            quality_reason=resolved["reason"],
+                        resolved = resolve_quality_stage(
+                            normalized, features, reference_available=bool(catalog), stage=quality_stage
                         )
+                    else:
+                        resolved = resolve_location(normalized, features, reference_available=bool(catalog))
+                        resolved = resolve_memory(db, normalized, resolved, run.created_at)
+                    if item.complaint_id in conflicts or {
+                        "FILA_ORIGEN_CON_INCIDENCIA",
+                        "CRS_CONFLICTIVO",
+                    } & set(normalized.get("warnings", [])):
+                        resolved.update(
+                            resolution="REVISION_REQUERIDA",
+                            latitude=None,
+                            longitude=None,
+                            geometry=None,
+                            product="DIRECCION_SIN_PUNTO" if item.location_normalized else "NINGUNO",
+                            evidence_band="REVISION",
+                            reason="Ubicaciones contradictorias, CRS en conflicto o incidencia en la fila de origen; requiere conciliación",
+                        )
+                        if quality_mode:
+                            resolved.update(
+                                quality_status="review",
+                                quality_code=3 if quality_stage == "door" else None,
+                                quality_reason=resolved["reason"],
+                            )
                 for key in (
-                    "resolution",
-                    "method",
-                    "precision",
-                    "evidence_band",
-                    "product",
-                    "latitude",
-                    "longitude",
-                    "geometry",
-                    "reason",
-                    "candidates",
-                    "attempts",
-                ) + (QUALITY_FIELDS if quality_mode else ()):
+                    (
+                        "resolution",
+                        "method",
+                        "precision",
+                        "evidence_band",
+                        "product",
+                        "latitude",
+                        "longitude",
+                        "geometry",
+                        "reason",
+                        "candidates",
+                        "attempts",
+                    )
+                    + QUALITY_FIELDS
+                    + ("quality_flag", "quality_flag_reason", "review_state")
+                ):
                     if key in resolved:
                         setattr(item, key, resolved[key])
                 initial = item.revision == 0
@@ -436,6 +450,7 @@ EXPORT_COLUMNS_V5 = EXPORT_COLUMNS + (
     "quality_reason",
     "quality_policy_version",
 )
+EXPORT_COLUMNS_V6 = EXPORT_COLUMNS_V5 + ("source_quality_flag", "source_quality_flag_original")
 
 
 def safe_cell(value, safe):
@@ -482,7 +497,9 @@ def process_export(export_id, job_id, token):
     row_count = 0
     schema = manifest.get("schema_version", 1)
     columns = (
-        EXPORT_COLUMNS_V5
+        EXPORT_COLUMNS_V6
+        if schema >= 6
+        else EXPORT_COLUMNS_V5
         if schema >= 5
         else EXPORT_COLUMNS_V4
         if schema >= 4

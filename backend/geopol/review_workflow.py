@@ -27,6 +27,8 @@ def classify_review(
     coordinate; those other reasons remain in the original evidence for later review.
     A human 'unresolved' decision closes the task until an explicit reopen.
     """
+    if resolution == "EXCLUIDO_FLAG_10":
+        return "CLOSED", "none"
     if latest_action != "reopen" and (resolution in {"ACEPTADO_AUTOMATICO", "ACEPTADO_MANUAL"} or manual):
         return "CLOSED", "none"
     if resolution == "ERROR_TECNICO":

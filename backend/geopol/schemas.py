@@ -1,6 +1,15 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, model_validator
+
+
+def _quality_flag(value: int) -> int:
+    if value not in {1, 2, 10}:
+        raise ValueError("El flag de calidad debe ser 1, 2 o 10")
+    return value
+
+
+QualityFlag = Annotated[int, AfterValidator(_quality_flag)]
 
 ReviewState = Literal[
     "automatic",
@@ -10,6 +19,7 @@ ReviewState = Literal[
     "unmatched",
     "reference_pending",
     "unprocessed",
+    "excluded",
 ]
 
 
@@ -25,6 +35,13 @@ class LoginInput(Input):
 class UploadInput(Input):
     filename: str = Field(min_length=1, max_length=255)
     size: int = Field(gt=0)
+
+
+class UploadValidationInput(Input):
+    sheet: str | None = Field(default=None, max_length=150)
+    mapping: dict[str, str] | None = Field(default=None, max_length=40)
+    delimiter: Literal[",", ";", "\t", "|"] | None = None
+    encoding: Literal["utf-8-sig", "utf-8", "cp1252", "latin-1"] | None = None
 
 
 class RunInput(Input):
@@ -104,7 +121,7 @@ class ExportInput(Input):
     format: Literal["csv", "xlsx"] = "csv"
     safe_spreadsheet: bool = True
     quality_code: int | None = Field(default=None, ge=1, le=4)
-    quality_flag: int | None = Field(default=None, ge=1, le=2)
+    quality_flag: QualityFlag | None = None
     review_state: ReviewState | None = None
     quality_stage: Literal["door", "block", "intersection", "street", "nucleus", "jurisdiction"] | None = None
 

@@ -17,7 +17,7 @@ from ..models import (
     User,
     uid,
 )
-from ..schemas import ReprocessInput, ReviewState, RunInput
+from ..schemas import ReprocessInput, QualityFlag, ReviewState, RunInput
 from ..processing_activity import queue_activity
 from ..security import current_user
 from ..serialization import audit, location_dict, processing_defaults_dict, run_dict, run_readiness_dict
@@ -248,7 +248,7 @@ def run_results(
     page_size: int = Query(25, ge=1, le=100),
     resolution: str | None = None,
     quality_code: int | None = Query(None, ge=1, le=4),
-    quality_flag: int | None = Query(None, ge=1, le=2),
+    quality_flag: QualityFlag | None = None,
     review_state: ReviewState | None = None,
     quality_stage: str | None = Query(
         None, pattern="^(door|block|intersection|street|nucleus|jurisdiction)$"

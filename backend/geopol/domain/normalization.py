@@ -62,7 +62,73 @@ ALIASES = {
     "longitude": ("yy", "longitude", "longitud", "lon", "lng"),
     "coordinate_origin": ("coordinate_origin", "origen_coordenadas"),
     "crs": ("crs", "srid"),
+    "source_quality_flag": ("source_quality_flag", "FLAG", "FLAG_CALIDAD", "FLAG DE CALIDAD"),
 }
+
+# Input evidence is checked before normalization: an invalid coordinate or an
+# unrecognized number is still evidence to investigate, never a reason to discard.
+LOCATION_INPUT_FIELDS = frozenset(ALIASES) - {
+    "complaint_id",
+    "coordinate_origin",
+    "crs",
+    "source_quality_flag",
+}
+_EXTRA_LOCATION_COLUMNS = {
+    "DEPARTAMENTO",
+    "PROVINCIA",
+    "REGION",
+    "DIRECCION",
+    "DEPARTAMENTODELHECHO",
+    "PROVINCIADELHECHO",
+    "DISTRITODELHECHO",
+    "REFERENCIA",
+    "REFERENCIAHECHO",
+    "LATHECHO",
+    "LONGHECHO",
+    "LATITUDHECHO",
+    "LONGITUDHECHO",
+    "DEPARTAMENTOHECHO",
+    "DEPAHECHO",
+    "PROVHECHO",
+    "PROVINCIAHECHO",
+    "NOMBDEP",
+    "NOMBPROV",
+    "NOMBDIST",
+    "NOMBCCPP",
+    "CODCCPP",
+    "NOMVIA",
+    "P131",
+    "P132",
+    "P17",
+    "P21",
+    "P22",
+    "P23K",
+}
+
+
+def source_flag_metadata(raw: dict, selected: dict) -> dict:
+    """Preserve declared flags and conservatively detect entirely empty location input."""
+    recognized = suggest_mapping(list(raw))
+    evidence_columns = {
+        source
+        for canonical, source in {**recognized, **selected}.items()
+        if canonical in LOCATION_INPUT_FIELDS and source in raw
+    }
+    # Explicitly unmapped familiar fields must not be mistaken for absent data.
+    evidence_columns.update(source for name, source in recognized.items() if name in LOCATION_INPUT_FIELDS)
+    evidence_columns.update(name for name in raw if column_key(name) in _EXTRA_LOCATION_COLUMNS)
+    original = raw.get(selected.get("source_quality_flag") or recognized.get("source_quality_flag"))
+    value = text(original)
+    parsed = int(value) if re.fullmatch(r"\d{1,2}", value) else None
+    source_flag = parsed if parsed in {1, 2, 10} else None
+    return {
+        "source_quality_flag": source_flag,
+        "source_quality_flag_original": original,
+        "source_quality_flag_column": selected.get("source_quality_flag")
+        or recognized.get("source_quality_flag"),
+        "location_input_empty": bool(evidence_columns)
+        and not any(text(raw.get(name)) for name in evidence_columns),
+    }
 
 
 def suggest_mapping(columns: list[str]) -> dict[str, str]:
@@ -556,4 +622,5 @@ def normalize_record(raw: dict, mapping: dict | None = None) -> dict:
         )
     )
     result["decision_constraints"] = sorted(set(warnings) & DECISION_WARNINGS)
+    result.update(source_flag_metadata(raw, selected))
     return result

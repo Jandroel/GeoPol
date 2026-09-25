@@ -29,6 +29,8 @@ _FIELDS = {
     "complaint_id": ("Denuncia", 20),
     "ubigeo": ("UBIGEO", 12),
     "quality_flag": ("Flag de calidad", 18),
+    "source_quality_flag": ("Flag de origen", 18),
+    "source_quality_flag_original": ("Valor original del flag", 23),
     "review_state": ("Estado de revisión", 24),
     "quality_flag_reason": ("Motivo del flag", 56),
     "quality_code": ("Calidad (provisional)", 22),
@@ -70,6 +72,7 @@ _ACCENT = Border(bottom=Side(style="thin", color="008FD3"))
 _STATE_COLORS = {
     "ACEPTADO_AUTOMATICO": ("E5F2EC", "176547"),
     "ACEPTADO_MANUAL": ("E9F3FC", "12426B"),
+    "EXCLUIDO_FLAG_10": ("F2F4F7", "526779"),
     "REVISION_REQUERIDA": ("FFF3DC", "805700"),
     "SIN_COINCIDENCIA": ("F4F5F7", "566473"),
     "NO_EVALUABLE_REFERENCIA": ("FFF3DC", "805700"),

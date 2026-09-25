@@ -8,6 +8,7 @@ from sqlalchemy import and_, func, insert, literal, select, update
 from sqlalchemy.orm import Session
 
 from ..db import get_db
+from ..domain.normalization import suggest_mapping
 from ..models import (
     Catalog,
     Export,
@@ -79,6 +80,15 @@ def create_export(
             .select_from(Location)
             .where(*filters)
         )
+    source_mapping = {
+        **suggest_mapping(run.config.get("source_columns", upload.profile.get("columns", []))),
+        **(run.config.get("mapping") or {}),
+    }
+    has_input_flags = bool(source_mapping.get("source_quality_flag")) or bool(
+        db.scalar(
+            select(Location.id).where(Location.run_id == identifier, Location.quality_flag == 10).limit(1)
+        )
+    )
     export = Export(
         id=uid(),
         run_id=identifier,
@@ -86,7 +96,11 @@ def create_export(
         safe_spreadsheet=payload.safe_spreadsheet if payload.format == "csv" else True,
         created_by=user.id,
         manifest={
-            "schema_version": 5 if run.config.get("workflow") == "quality_v1" else 3,
+            "schema_version": 6
+            if has_input_flags
+            else 5
+            if run.config.get("workflow") == "quality_v1"
+            else 3,
             "format": payload.format,
             "run_id": identifier,
             "run_name": run.name,
