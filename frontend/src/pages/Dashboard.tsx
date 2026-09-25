@@ -1,12 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  CheckCheck,
-  ClipboardCheck,
-  Files,
-  Layers3,
-  MapPin,
-  Plus,
-} from "lucide-react";
+import { ArrowRight, MapPinned, BookOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import { request } from "../lib/api";
 import { number } from "../lib/format";
@@ -14,6 +7,9 @@ import type { Dashboard as DashboardData } from "../types";
 import { ErrorNotice, Loading, PageHeader, ViewLink } from "../components/ui";
 import { RunTable } from "../components/RunTable";
 import { useAuth } from "../auth";
+import { NewRun } from "./NewRun";
+import "./intake-workspace.css";
+
 export function Dashboard() {
   const { user } = useAuth();
   const data = useQuery({
@@ -21,129 +17,114 @@ export function Dashboard() {
     queryFn: () => request<DashboardData>("/dashboard"),
     refetchInterval: 15000,
   });
-  if (data.isPending) return <Loading />;
-  if (data.isError) return <ErrorNotice error={data.error} />;
-  const d = data.data;
   const allowed = ["admin", "operator"].includes(user?.role ?? "");
-  const other = Math.max(
-    0,
-    d.location_units - d.accepted - d.review_required - d.unresolved,
-  );
-  const segments = [
-    { name: "Aceptadas", value: d.accepted, color: "var(--success)" },
-    { name: "En evaluación", value: d.review_required, color: "var(--amber)" },
-    { name: "Sin resolver", value: d.unresolved, color: "var(--slate)" },
-    { name: "Otros estados", value: other, color: "var(--border)" },
-  ];
+  const d = data.data;
   return (
     <>
       <PageHeader
-        title="Resumen"
-        actions={
-          allowed && (
-            <Link className="button primary" to="/runs/new">
-              <Plus size={18} aria-hidden="true" />
-              Nuevo procesamiento
-            </Link>
-          )
-        }
+        title="Vista general"
+        description="Carga la información de SIDPOL y las referencias censales para comenzar."
       />
-      <div className="scope-label">
-        <span className="tiny-dot" />
-        Los indicadores de ubicación corresponden a las ejecuciones terminadas
-        vigentes. Procesamientos incluye todo el historial.
-      </div>
-      <div className="stats-grid">
-        {[
-          {
-            title: "Procesamientos",
-            value: d.runs,
-            subtitle: undefined,
-            icon: Files,
-          },
-          {
-            title: "Filas de origen",
-            value: d.source_rows,
-            subtitle: undefined,
-            icon: Layers3,
-          },
-          {
-            title: "Unidades de ubicación",
-            value: d.location_units,
-            subtitle: "Agrupadas por denuncia y lugar",
-            icon: MapPin,
-          },
-          {
-            title: "Pendientes de atención",
-            value: d.review_open,
-            subtitle: `${number(d.review_actionable)} con evidencia para decidir`,
-            icon: ClipboardCheck,
-          },
-        ].map((s, i) => (
-          <article
-            className={`stat-card ${i === 3 ? "highlight" : ""}`}
-            key={s.title}
-          >
-            <div className="stat-top">
-              <span>{s.title}</span>
-              <s.icon size={20} aria-hidden="true" />
-            </div>
-            <strong>{number(s.value)}</strong>
-            {s.subtitle && <small>{s.subtitle}</small>}
-            {i === 3 && <ViewLink to="/review">Abrir bandeja</ViewLink>}
-          </article>
-        ))}
-      </div>
-      <section className="panel distribution dashboard-distribution">
-        <div className="panel-heading">
-          <div>
-            <h2>Resolución de ubicaciones</h2>
+      <div className="overview-workspace">
+        <section
+          className="overview-introduction"
+          aria-label="GeoPol y resumen operativo"
+        >
+          <div className="overview-identity">
+            <MapPinned size={36} strokeWidth={1.5} aria-hidden="true" />
+            <span>
+              GeoPol <small>INEI · Información geoespacial</small>
+            </span>
           </div>
-          <CheckCheck size={22} className="muted" aria-hidden="true" />
+          <div className="overview-intro-copy">
+            <p className="overview-eyebrow">SIDPOL / DATACRIM + CENSOS</p>
+            <h2>Geocodificación de hechos delictivos</h2>
+            <p>
+              Contrasta direcciones con referencias geográficas, resuelve
+              coincidencias y revisa las excepciones.
+            </p>
+          </div>
+          <div className="overview-summary">
+            <h3>Estado de la información</h3>
+            {data.isPending ? (
+              <Loading />
+            ) : data.isError ? (
+              <ErrorNotice error={data.error} />
+            ) : (
+              d && (
+                <>
+                  <dl>
+                    <div>
+                      <dt>Filas de origen</dt>
+                      <dd>{number(d.source_rows)}</dd>
+                    </div>
+                    <div>
+                      <dt>Ubicaciones</dt>
+                      <dd>{number(d.location_units)}</dd>
+                    </div>
+                    <div>
+                      <dt>Aceptadas</dt>
+                      <dd>{number(d.accepted)}</dd>
+                    </div>
+                    <div>
+                      <dt>Por revisar</dt>
+                      <dd>{number(d.review_actionable)}</dd>
+                    </div>
+                  </dl>
+                  <p>
+                    Ejecuciones terminadas vigentes. Las filas pueden
+                    corresponder a una misma ubicación.
+                  </p>
+                </>
+              )
+            )}
+            <Link to="/statistics" className="overview-statistics-link">
+              Consultar estadística <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+          </div>
+          <Link to="/documentation" className="overview-guide-link">
+            <BookOpen size={18} aria-hidden="true" /> Requisitos y guía de carga
+          </Link>
+        </section>
+        <div className="overview-intake">
+          {allowed ? (
+            <NewRun mode="overview" />
+          ) : (
+            <section className="panel overview-readonly">
+              <h2>Consulta de información</h2>
+              <p>
+                Tu perfil permite consultar resultados y documentación. La carga
+                de archivos está disponible para operadores y administradores.
+              </p>
+              <Link className="button primary" to="/statistics">
+                Ver resultados <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+              <Link className="button secondary" to="/procedures">
+                Ver procedimientos
+              </Link>
+            </section>
+          )}
         </div>
-        <div className="distribution-body">
-          <div
-            className="donut"
-            style={{
-              background: d.location_units
-                ? `conic-gradient(var(--success) 0 ${(d.accepted / d.location_units) * 100}%,var(--amber) ${(d.accepted / d.location_units) * 100}% ${((d.accepted + d.review_required) / d.location_units) * 100}%,var(--slate) ${((d.accepted + d.review_required) / d.location_units) * 100}% ${((d.accepted + d.review_required + d.unresolved) / d.location_units) * 100}%,var(--border) 0)`
-                : "var(--border)",
-            }}
-            role="img"
-            aria-label={`${number(d.location_units)} ubicaciones: ${segments.map((s) => `${s.value} ${s.name}`).join(", ")}`}
-          >
-            <div>
-              <strong>
-                {d.location_units
-                  ? `${Math.round((d.accepted / d.location_units) * 100)}%`
-                  : "—"}
-              </strong>
-              <span>aceptadas</span>
-            </div>
-          </div>
-          <div className="chart-legend">
-            {segments
-              .filter((s, i) => i < 3 || s.value > 0)
-              .map((s) => (
-                <div key={s.name}>
-                  <span className="legend-label">
-                    <i style={{ background: s.color }} />
-                    {s.name}
-                  </span>
-                  <strong>{number(s.value)}</strong>
-                </div>
-              ))}
-          </div>
-        </div>
-      </section>
-      <section className="panel">
+      </div>
+      <section className="panel overview-recent">
         <div className="panel-heading">
           <div>
             <h2>Procesamientos recientes</h2>
+            <p>
+              {d
+                ? `${number(d.runs)} en el historial`
+                : "Historial de ejecuciones"}
+            </p>
           </div>
           <ViewLink to="/runs">Ver todos</ViewLink>
         </div>
-        <RunTable runs={d.recent_runs} />
+        {d ? (
+          <RunTable runs={d.recent_runs} />
+        ) : data.isPending ? (
+          <Loading />
+        ) : (
+          <ErrorNotice error={data.error} />
+        )}
       </section>
     </>
   );

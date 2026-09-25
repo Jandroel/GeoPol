@@ -54,7 +54,7 @@ export function readReviewFilters(params: URLSearchParams): ReviewFilters {
     q: (params.get("q") ?? "").slice(0, 100),
     page: Number.isSafeInteger(page) && page > 0 ? page : 1,
     includeSuperseded: params.get("include_superseded") === "true",
-    qualityFlag: ["1", "2"].includes(params.get("quality_flag") ?? "")
+    qualityFlag: ["1", "2", "10"].includes(params.get("quality_flag") ?? "")
       ? params.get("quality_flag")!
       : "",
     reviewState: Object.hasOwn(
@@ -94,6 +94,7 @@ export function validReviewReturn(value: string | null, runId: string) {
   // Only internal, known screens may be used as a return destination.
   if (value && /^\/review(?:\?|$)/.test(value)) return value;
   if (value && /^\/runs\/[a-zA-Z0-9-]+(?:\?|$)/.test(value)) return value;
+  if (value && /^\/(?:statistics|procedures)(?:\?|$)/.test(value)) return value;
   return `/runs/${runId}`;
 }
 export function nextReviewParams(

@@ -1,0 +1,223 @@
+.procedure-selector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+.procedure-selector > label {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.procedure-selector > .notice {
+  flex-basis: 100%;
+}
+.procedure-workspace {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.85fr) minmax(0, 2.2fr);
+  gap: 24px;
+  align-items: start;
+}
+.procedure-context,
+.procedure-main {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.procedure-main > *,
+.procedure-context > * {
+  min-width: 0;
+  margin-bottom: 0;
+}
+.procedure-file,
+.procedure-references,
+.procedure-methods {
+  padding: 20px;
+}
+.procedure-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  color: var(--primary);
+}
+.procedure-section-title svg {
+  flex-shrink: 0;
+}
+.procedure-section-title h2 {
+  font-size: 16px;
+  margin: 0;
+}
+.procedure-file-name {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+}
+.procedure-file p {
+  margin: 6px 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.procedure-file dl {
+  margin: 20px 0;
+  display: grid;
+  gap: 14px;
+}
+.procedure-file dt {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+.procedure-file dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.procedure-references ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.procedure-references li + li {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.procedure-references li strong,
+.procedure-references li span,
+.procedure-references li small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.procedure-references li strong {
+  font-size: 14px;
+}
+.procedure-references li span,
+.procedure-references p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.procedure-references li small {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--primary);
+}
+.procedure-methods-hint {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: -4px 0 16px;
+}
+.procedure-method-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.procedure-method {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.procedure-method summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 74px;
+  padding: 12px;
+  cursor: pointer;
+  border-radius: inherit;
+}
+.procedure-method summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--primary);
+  font-size: 19px;
+}
+.procedure-method[open] summary::after {
+  content: "−";
+}
+.procedure-method summary:hover {
+  background: var(--primary-light);
+}
+.procedure-method summary strong,
+.procedure-method summary small {
+  display: block;
+}
+.procedure-method summary strong {
+  font-size: 14px;
+  color: var(--primary);
+}
+.procedure-method summary small {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.procedure-number {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.procedure-method p {
+  padding: 0 14px 14px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.procedure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.procedure-main .quality-progress-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  padding: 0;
+  overflow: hidden;
+}
+.procedure-main .quality-progress-next {
+  border-left: 0;
+  border-top: 1px solid var(--border);
+}
+@media (min-width: 1500px) {
+  .procedure-main .quality-progress-card {
+    grid-template-columns: 1fr 1fr;
+  }
+  .procedure-main .quality-progress-next {
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+}
+@media (max-width: 1050px) {
+  .procedure-workspace {
+    grid-template-columns: 1fr;
+  }
+  .procedure-context {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .procedure-context,
+  .procedure-method-grid {
+    grid-template-columns: 1fr;
+  }
+  .procedure-selector,
+  .procedure-file,
+  .procedure-references,
+  .procedure-methods {
+    padding: 16px;
+  }
+  .procedure-actions .button {
+    width: 100%;
+  }
+}

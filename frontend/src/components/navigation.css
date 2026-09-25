@@ -37,6 +37,31 @@
   margin-top: 26px;
   gap: 24px;
 }
+.module-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.module-sections a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 2px 11px;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.module-sections a:hover {
+  color: var(--primary);
+}
+.module-sections a[aria-current="page"] {
+  border-color: var(--accent);
+  font-weight: 600;
+  color: var(--primary);
+}
 .navigation-group {
   display: grid;
   gap: 5px;

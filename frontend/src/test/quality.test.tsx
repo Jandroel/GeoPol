@@ -7,11 +7,15 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QualityPanel } from "../components/QualityPanel";
-import { ReferenceExcelCards } from "../components/ReferenceExcelCards";
+import {
+  ReferenceExcelCards,
+  ReferenceWorkspaceProvider,
+} from "../components/ReferenceExcelCards";
 import { post, request } from "../lib/api";
 import { uploadFile } from "../lib/upload";
 import {
@@ -19,7 +23,7 @@ import {
   readReviewFilters,
   reviewParams,
 } from "../lib/review";
-import type { QualityOverview, Run } from "../types";
+import type { QualityOverview, Run, Upload } from "../types";
 
 const auth = vi.hoisted(() => ({
   user: { id: "quality-user", role: "admin" },
@@ -267,7 +271,7 @@ describe("quality stages", () => {
   it("separates the structural flag from the review decision and does not show provisional 3/4 codes", async () => {
     const user = setup(<QualityPanel run={run} />);
     const flags = await screen.findByLabelText("Flag de calidad del filtro");
-    expect(within(flags).getAllByRole("option")).toHaveLength(3);
+    expect(within(flags).getAllByRole("option")).toHaveLength(4);
     expect(
       within(flags).queryByRole("option", {
         name: /Revisión rápida|Flag 3|Flag 4/,
@@ -391,6 +395,301 @@ describe("quality stages", () => {
   });
 });
 describe("five independent Excel references", () => {
+  const profile = {
+    columns: ["UBIGEO", "NOMVIA", "OTRA_VIA", "P17"],
+    sheets: ["Puertas"],
+    sheet: "Puertas",
+    suggested_mapping: {
+      ubigeo: "UBIGEO",
+      street_name: "NOMVIA",
+      door_number: "P17",
+    },
+    warnings: [],
+  };
+  const catalog = {
+    id: "saved-door",
+    name: "Puertas QA",
+    version: "v1",
+    source: "QA",
+    feature_count: 1,
+    sha256: "qa",
+    kinds: ["door"],
+  };
+
+  it("clears document-specific confirmation when replacing an Excel and after saving, retaining only institution preference", async () => {
+    vi.mocked(uploadFile).mockImplementation(async (file) => ({
+      id: file.name,
+      filename: file.name,
+      size: file.size,
+      offset: file.size,
+      status: "COMPLETE",
+    }));
+    vi.mocked(post).mockImplementation(async (path) =>
+      path.endsWith("/preview") ? profile : catalog,
+    );
+    const onSelect = vi.fn();
+    const user = setup(
+      <ReferenceExcelCards
+        catalogs={[]}
+        selected={{}}
+        onSelect={onSelect}
+        onBusy={vi.fn()}
+      />,
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Puertas / viviendas",
+      }),
+    );
+    async function prepare(filename: string) {
+      await user.upload(
+        screen.getByLabelText("Archivo Excel · Puertas / viviendas"),
+        new File([filename], filename),
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Leer columnas de referencia" }),
+      );
+      await screen.findByLabelText("Versión de la fuente");
+    }
+    async function confirmDocument(version: string) {
+      await user.click(screen.getByLabelText("Versión de la fuente"));
+      await user.paste(version);
+      await user.selectOptions(
+        screen.getByLabelText("Sistema de coordenadas · Puertas / viviendas"),
+        "EPSG:4326",
+      );
+      await user.click(
+        screen.getByLabelText(
+          "Documento que confirma WGS84 · Puertas / viviendas",
+        ),
+      );
+      await user.paste(`Metadatos del archivo ${version}`);
+      await user.click(
+        screen.getByText("Diccionario de categorías de vía (si son códigos)"),
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Añadir categoría de vía" }),
+      );
+      await user.type(screen.getByLabelText("Código 1"), "1");
+      await user.click(screen.getByLabelText("Tipo de vía 1"));
+      await user.paste("AVENIDA");
+    }
+    function expectFreshDocument() {
+      expect(screen.getByLabelText("Versión de la fuente")).toHaveValue("");
+      expect(
+        screen.getByLabelText("Sistema de coordenadas · Puertas / viviendas"),
+      ).toHaveValue("");
+      expect(
+        screen.queryByLabelText(
+          "Documento que confirma WGS84 · Puertas / viviendas",
+        ),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Código 1")).not.toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Origen de los datos / institución"),
+      ).toHaveValue("Institución QA");
+    }
+    await prepare("A.xlsx");
+    await user.clear(
+      screen.getByLabelText("Origen de los datos / institución"),
+    );
+    await user.paste("Institución QA");
+    await confirmDocument("version-A");
+    await user.click(
+      screen.getByRole("button", { name: "Cambiar archivo de referencia" }),
+    );
+    await prepare("B.xlsx");
+    expectFreshDocument();
+    await confirmDocument("version-B");
+    await user.click(
+      screen.getByRole("button", { name: "Guardar y utilizar referencia" }),
+    );
+    await waitFor(() =>
+      expect(onSelect).toHaveBeenCalledWith("doors", catalog.id),
+    );
+    await prepare("C.xlsx");
+    expectFreshDocument();
+    expect(screen.getByLabelText("Nombre del catálogo")).toHaveValue("C");
+  });
+
+  it("retains a selected File, mappings and async completions while reference cards are unmounted", async () => {
+    let finishUpload!: (value: Upload) => void;
+    let finishImport!: (value: unknown) => void;
+    vi.mocked(uploadFile).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishUpload = resolve;
+        }),
+    );
+    vi.mocked(post).mockImplementation((path) =>
+      path.endsWith("/preview")
+        ? Promise.resolve(profile)
+        : new Promise((resolve) => {
+            finishImport = resolve;
+          }),
+    );
+    const onBusy = vi.fn();
+    const onSelect = vi.fn();
+    function Workspace() {
+      const [visible, setVisible] = useState(true);
+      return (
+        <ReferenceWorkspaceProvider>
+          <button onClick={() => setVisible((value) => !value)}>
+            {visible ? "Ir a validación" : "Volver a archivos"}
+          </button>
+          {visible && (
+            <ReferenceExcelCards
+              catalogs={[]}
+              selected={{}}
+              onBusy={onBusy}
+              onSelect={onSelect}
+            />
+          )}
+        </ReferenceWorkspaceProvider>
+      );
+    }
+    const user = setup(<Workspace />);
+    await user.click(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Puertas / viviendas",
+      }),
+    );
+    const file = new File(["synthetic"], "pending.xlsx");
+    await user.upload(
+      screen.getByLabelText("Archivo Excel · Puertas / viviendas"),
+      file,
+    );
+    await user.click(screen.getByRole("button", { name: "Ir a validación" }));
+    await user.click(screen.getByRole("button", { name: "Volver a archivos" }));
+    // A restored File must submit even though the remounted native input is empty.
+    await user.click(
+      screen.getByRole("button", { name: "Leer columnas de referencia" }),
+    );
+    await waitFor(() =>
+      expect(uploadFile).toHaveBeenCalledWith(
+        file,
+        "quality-user",
+        expect.any(Function),
+        undefined,
+        "reference.doors",
+      ),
+    );
+    expect(onBusy).toHaveBeenLastCalledWith("doors", true);
+    await user.click(screen.getByRole("button", { name: "Ir a validación" }));
+    await act(async () =>
+      finishUpload({
+        id: "persisted-upload",
+        filename: file.name,
+        size: file.size,
+        offset: file.size,
+        status: "COMPLETE",
+      }),
+    );
+    await waitFor(() =>
+      expect(onBusy).toHaveBeenLastCalledWith("doors", false),
+    );
+    await user.click(screen.getByRole("button", { name: "Volver a archivos" }));
+    await user.type(
+      screen.getByLabelText("Versión de la fuente"),
+      "persisted-version",
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Nombre de vía"),
+      "OTRA_VIA",
+    );
+    await user.click(screen.getByRole("button", { name: "Ir a validación" }));
+    await user.click(screen.getByRole("button", { name: "Volver a archivos" }));
+    expect(screen.getByLabelText("Versión de la fuente")).toHaveValue(
+      "persisted-version",
+    );
+    expect(screen.getByLabelText("Nombre de vía")).toHaveValue("OTRA_VIA");
+    await user.click(
+      screen.getByRole("button", { name: "Guardar y utilizar referencia" }),
+    );
+    await waitFor(() => expect(finishImport).toBeTypeOf("function"));
+    await user.click(screen.getByRole("button", { name: "Ir a validación" }));
+    await act(async () => finishImport(catalog));
+    await waitFor(() =>
+      expect(onBusy).toHaveBeenLastCalledWith("doors", false),
+    );
+    expect(onSelect).toHaveBeenCalledWith("doors", catalog.id);
+    await user.click(screen.getByRole("button", { name: "Volver a archivos" }));
+    const restoredCard = screen
+      .getByRole("button", {
+        name: "Configurar referencia: Puertas / viviendas",
+      })
+      .closest("article")!;
+    expect(within(restoredCard).getByText("Adjuntar Excel")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Leyendo archivo…" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Versión de la fuente"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a failed background preview recoverable after leaving the reference screen", async () => {
+    let rejectPreview!: (reason: Error) => void;
+    vi.mocked(uploadFile).mockResolvedValue({
+      id: "failed-upload",
+      filename: "failed.xlsx",
+      size: 2,
+      offset: 2,
+      status: "COMPLETE",
+    });
+    vi.mocked(post).mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectPreview = reject;
+        }),
+    );
+    const onBusy = vi.fn();
+    function Workspace() {
+      const [visible, setVisible] = useState(true);
+      return (
+        <ReferenceWorkspaceProvider>
+          <button onClick={() => setVisible((value) => !value)}>
+            Cambiar pantalla
+          </button>
+          {visible && (
+            <ReferenceExcelCards
+              catalogs={[]}
+              selected={{}}
+              onBusy={onBusy}
+              onSelect={vi.fn()}
+            />
+          )}
+        </ReferenceWorkspaceProvider>
+      );
+    }
+    const user = setup(<Workspace />);
+    await user.click(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Puertas / viviendas",
+      }),
+    );
+    await user.upload(
+      screen.getByLabelText("Archivo Excel · Puertas / viviendas"),
+      new File(["QA"], "failed.xlsx"),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Leer columnas de referencia" }),
+    );
+    await waitFor(() => expect(rejectPreview).toBeTypeOf("function"));
+    await user.click(screen.getByRole("button", { name: "Cambiar pantalla" }));
+    await act(async () =>
+      rejectPreview(new Error("Error de perfil recuperable")),
+    );
+    await user.click(screen.getByRole("button", { name: "Cambiar pantalla" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Error de perfil recuperable",
+    );
+    expect(
+      screen.getByRole("button", { name: "Leer columnas de referencia" }),
+    ).toBeEnabled();
+    expect(onBusy).toHaveBeenLastCalledWith("doors", false);
+  });
+
   it("announces a background import failure and keeps the active catalog identifiable beside its draft", async () => {
     let rejectPreview!: (error: Error) => void;
     vi.mocked(uploadFile).mockResolvedValue({

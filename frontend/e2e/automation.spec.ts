@@ -33,7 +33,9 @@ test("base reference, unconfirmed source CRS and explicit equivalent review work
   await page
     .getByRole("button", { name: "Ingresar al espacio de trabajo" })
     .click();
-  await expect(page.getByRole("heading", { name: "Resumen" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Vista general" }),
+  ).toBeVisible();
   const token = await page.evaluate(() =>
     sessionStorage.getItem("geopol.session"),
   );

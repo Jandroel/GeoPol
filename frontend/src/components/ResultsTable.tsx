@@ -22,6 +22,7 @@ export const resolutions = [
   "INFORMACION_INSUFICIENTE",
   "NO_EVALUABLE_REFERENCIA",
   "ERROR_TECNICO",
+  "EXCLUIDO_FLAG_10",
 ];
 export function ResultsTable({
   runId,

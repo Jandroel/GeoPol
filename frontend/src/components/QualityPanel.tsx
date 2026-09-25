@@ -76,9 +76,9 @@ export function QualityPanel({ run }: { run: Run }) {
   if (summary.isError) return <ErrorNotice error={summary.error} />;
   const data = summary.data;
   const qualityFlag = selectedFlag ? Number(selectedFlag) : undefined;
-  const closedSelection = ["automatic", "accepted_manual"].includes(
-    selectedReviewState,
-  );
+  const closedSelection =
+    selectedFlag === "10" ||
+    ["automatic", "accepted_manual", "excluded"].includes(selectedReviewState);
   const reviewParams = new URLSearchParams({
     run_id: run.id,
     stage: closedSelection ? "closed" : "open",
@@ -235,7 +235,7 @@ export function QualityPanel({ run }: { run: Run }) {
               onChange={(e) => setSelectedFlag(e.target.value)}
             >
               <option value="">Todos los flags</option>
-              {[1, 2].map((code) => {
+              {[1, 2, 10].map((code) => {
                 const value = data.flags.find((item) => item.flag === code);
                 return (
                   <option key={code} value={code}>

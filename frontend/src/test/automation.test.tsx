@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NewRun } from "../pages/NewRun";
+import { NewRun, UploadWorkspaceProvider } from "../pages/NewRun";
 import { EquivalentReview } from "../components/EquivalentReview";
 import { ReprocessPanel } from "../components/ReprocessPanel";
 import { documentedCrs } from "../components/CoordinatePolicy";
@@ -92,6 +92,98 @@ async function upload() {
   return user;
 }
 describe("safe processing defaults", () => {
+  it("keeps the source, mapping and selected reference when moving between overview and validation", async () => {
+    mockCreation();
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, options: RequestInit = {}) => {
+        if (url.endsWith("/validation"))
+          return Promise.resolve(
+            Response.json({
+              filename: {
+                valid: false,
+                expected: "DATACRIM_DDMMYYYY.xlsx",
+                date: null,
+                message: "Nombre fuera de la convención recomendada",
+              },
+              columns: {
+                detected: ["complaint_id", "location_original"],
+                required: ["Datos de ubicación"],
+                missing: [],
+                mapping: {},
+              },
+              flag_column_present: false,
+              total_rows: 3,
+              flag10_existing: 0,
+              flag10_autoeligible: 1,
+              issue_rows: 0,
+              warnings: [],
+              ready: true,
+            }),
+          );
+        return previousFetch(url, options);
+      }),
+    );
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/"]}>
+          <UploadWorkspaceProvider>
+            <Routes>
+              <Route path="/" element={<NewRun mode="overview" />} />
+              <Route
+                path="/validation"
+                element={<NewRun mode="validation" />}
+              />
+            </Routes>
+          </UploadWorkspaceProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", {
+        name: "Configurar referencia: Puertas / viviendas",
+      }),
+    );
+    await user.selectOptions(
+      await screen.findByLabelText("Catálogo guardado · Puertas / viviendas"),
+      catalog.id,
+    );
+    await user.upload(
+      document.querySelector("#source-file")!,
+      new File(["synthetic"], "synthetic.csv", { type: "text/csv" }),
+    );
+    fireEvent.submit(document.querySelector(".upload-panel")!);
+    await screen.findByRole("heading", { name: "Validación" });
+    await user.clear(screen.getByLabelText("Nombre del procesamiento"));
+    await user.type(
+      screen.getByLabelText("Nombre del procesamiento"),
+      "Lote conservado",
+    );
+    await screen.findByText("Nombre fuera de la convención recomendada");
+    expect(
+      screen.getByRole("button", { name: "Iniciar procesamiento" }),
+    ).toBeEnabled();
+    await user.click(screen.getByRole("link", { name: "Cambiar referencias" }));
+    expect(screen.getByText("synthetic.csv", { exact: true })).toBeVisible();
+    expect(screen.getByText("1 de 5 seleccionadas")).toBeVisible();
+    await user.click(
+      screen.getByRole("link", { name: "Continuar validación" }),
+    );
+    expect(screen.getByLabelText("Nombre del procesamiento")).toHaveValue(
+      "Lote conservado",
+    );
+    expect(screen.getByLabelText("Dirección / lugar del hecho")).toHaveValue(
+      "location_original",
+    );
+    expect(
+      screen.getByLabelText("Sistema de coordenadas originales"),
+    ).toHaveValue("unconfirmed");
+  });
   it("uses the independently selected reference files once each in the quality workflow", async () => {
     const writes = mockCreation();
     setup(<NewRun />);
@@ -190,6 +282,28 @@ describe("safe processing defaults", () => {
       crs: "EPSG:4326",
       crs_evidence: "Metadatos de fixture sintética WGS84",
     });
+  });
+  it("clears source coordinate evidence when replacing the Excel", async () => {
+    const writes = mockCreation();
+    setup(<NewRun />);
+    const user = await upload();
+    await user.selectOptions(
+      screen.getByLabelText("Sistema de coordenadas originales"),
+      "EPSG:4326",
+    );
+    fireEvent.change(screen.getByLabelText("Fuente de confirmación de WGS84"), {
+      target: { value: "Documento exclusivo del archivo A" },
+    });
+    await user.click(screen.getByRole("button", { name: "Cambiar archivo" }));
+    await upload();
+    expect(
+      screen.getByLabelText("Sistema de coordenadas originales"),
+    ).toHaveValue("unconfirmed");
+    await user.click(
+      screen.getByRole("button", { name: "Iniciar procesamiento" }),
+    );
+    await screen.findByText("Procesamiento creado");
+    expect(writes[0]).toMatchObject({ crs: null, crs_evidence: null });
   });
   it("does not inherit a legacy WGS84 assumption when reprocessing", async () => {
     const writes = mockCreation();

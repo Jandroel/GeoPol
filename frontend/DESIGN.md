@@ -133,10 +133,27 @@ sobre azul principal alcanza 6,11:1.
 
 ## Jerarquía y contenido
 
-- La carga inicial reúne el archivo PNP y las cinco fuentes en dos columnas.
-  Las fuentes usan filas compactas con estado y un único editor desplegado;
-  los formularios permanecen montados al ocultarlos para conservar borradores,
-  mapeos e importaciones. Una selección no equivale a disponibilidad geográfica.
+- La propuesta del 25 de septiembre reorganiza el sistema en cinco módulos:
+  Vista general, Validación, Procedimientos, Estadística y Documentación.
+  Las tareas auxiliares se agrupan en navegación local; las rutas anteriores
+  permanecen disponibles. El análisis de las siete láminas se registra en
+  [propuesta-2.md](../docs/propuesta-2.md).
+- Vista general combina identidad institucional y datos operativos a la izquierda
+  con la carga SIDPOL/Censos a la derecha. El mapa decorativo de la referencia se
+  sustituye por formularios funcionales, como indica la lámina 1C. El archivo y
+  su configuración se mantienen en un contexto de sesión al pasar a Validación.
+- Validación presenta primero comprobaciones y conteos reales, luego mapeo y
+  evidencia de coordenadas. Los campos complementarios se abren a petición.
+  La ausencia de FLAG o un nombre fuera de convención se explica sin atribuir
+  una validación geográfica. FLAG 10 se distingue de una búsqueda sin coincidencia.
+- Estadística conserva la relación entre mapa, resumen y distribución territorial
+  de la propuesta. El número de geometrías visibles y el total se muestran por
+  separado. Documentación emplea categorías, búsqueda, lista y lector con contenido
+  real y descarga de guías internas; no incluye documentos ficticios.
+- La carga inicial agrupa el archivo PNP y las cinco fuentes en el espacio de
+  trabajo de Vista general. Las fuentes usan filas compactas con estado y un
+  único editor desplegado; un contexto de sesión conserva borradores, mapeos e
+  importaciones al cambiar de módulo. Una selección no equivale a disponibilidad geográfica.
   Si se prepara un reemplazo, se conserva visible la fuente que se utilizará.
   En móvil, los bloques se apilan y el estado pasa debajo del nombre.
 - Abrir un tipo de referencia muestra directamente el botón de Excel, sin un

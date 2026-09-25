@@ -227,9 +227,11 @@ export function Review() {
                   reviewState: e.target.value,
                   ...(e.target.value
                     ? {
-                        stage: ["automatic", "accepted_manual"].includes(
-                          e.target.value,
-                        )
+                        stage: [
+                          "automatic",
+                          "accepted_manual",
+                          "excluded",
+                        ].includes(e.target.value)
                           ? "closed"
                           : "open",
                         bucket: ["quick_review", "detailed_review"].includes(

@@ -31,9 +31,15 @@ test("review prerequisites, reference reprocessing, save-next and finalization",
   await page
     .getByRole("button", { name: "Ingresar al espacio de trabajo" })
     .click();
-  await expect(page.getByRole("heading", { name: "Resumen" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Vista general" }),
+  ).toBeVisible();
 
   await test.step("Prepare a documented reference and process without attaching it", async () => {
+    await page
+      .getByRole("navigation", { name: "Navegación principal" })
+      .getByRole("link", { name: "Validación", exact: true })
+      .click();
     await page.getByRole("link", { name: "Catálogos de referencia" }).click();
     await page
       .getByRole("button", { name: "Importar catálogo", exact: true })
@@ -299,7 +305,9 @@ test("synthetic operation: import, process, review, export and mobile navigation
     await page
       .getByRole("button", { name: "Ingresar al espacio de trabajo" })
       .click();
-    await expect(page.getByRole("heading", { name: "Resumen" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Vista general" }),
+    ).toBeVisible();
     await page.screenshot({
       path: resolve(artifacts, "ui-dashboard.png"),
       fullPage: false,
@@ -310,6 +318,10 @@ test("synthetic operation: import, process, review, export and mobile navigation
   const catalogName = `QA catálogo sintético ${marker}`;
   const runName = `QA navegador sintético ${marker}`;
   await test.step("Import a versioned synthetic GeoJSON reference", async () => {
+    await page
+      .getByRole("navigation", { name: "Navegación principal" })
+      .getByRole("link", { name: "Validación", exact: true })
+      .click();
     await page.getByRole("link", { name: "Catálogos de referencia" }).click();
     await page
       .getByRole("button", { name: "Importar catálogo", exact: true })
@@ -337,6 +349,10 @@ test("synthetic operation: import, process, review, export and mobile navigation
 
   let runUrl = "";
   await test.step("Upload and map a synthetic CSV, wait for server processing", async () => {
+    await page
+      .getByRole("navigation", { name: "Navegación principal" })
+      .getByRole("link", { name: "Procedimientos", exact: true })
+      .click();
     await page
       .getByRole("link", { name: "Procesamientos", exact: true })
       .click();
@@ -515,7 +531,9 @@ test("synthetic operation: import, process, review, export and mobile navigation
   await test.step("Mobile layout, keyboard navigation and no external geographic services", async () => {
     await page.setViewportSize({ width: 400, height: 900 });
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Resumen" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Vista general" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Abrir navegación" }),
     ).toBeVisible();
@@ -547,6 +565,10 @@ test("synthetic operation: import, process, review, export and mobile navigation
       page.getByRole("button", { name: "Abrir navegación" }),
     ).toBeFocused();
     await page.keyboard.press("Enter");
+    await page
+      .getByRole("navigation", { name: "Navegación principal" })
+      .getByRole("link", { name: "Documentación", exact: true })
+      .click();
     await page
       .getByRole("link", { name: "Reglas y metodología", exact: true })
       .click();

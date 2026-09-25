@@ -22,7 +22,7 @@ test("live operation, interactive charts and collapsible navigation remain disti
     .getByRole("button", { name: "Ingresar al espacio de trabajo" })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Resumen", exact: true }),
+    page.getByRole("heading", { name: "Vista general", exact: true }),
   ).toBeVisible();
 
   // Stable artificial response allows visual/timer QA without holding or changing a real job.

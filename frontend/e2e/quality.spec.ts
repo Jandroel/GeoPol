@@ -31,7 +31,7 @@ test("five reference Excels, staged qualities and independent export preserve co
     .getByRole("button", { name: "Ingresar al espacio de trabajo" })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Resumen", exact: true }),
+    page.getByRole("heading", { name: "Vista general", exact: true }),
   ).toBeVisible();
   await page.goto("/runs/new");
   await page.evaluate(async () => {

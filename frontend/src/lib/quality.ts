@@ -1,6 +1,7 @@
 export const qualityFlagLabels: Record<number, string> = {
   1: "Flag 1 · Puerta, cuadra, cruce o coordenadas",
   2: "Flag 2 · Núcleo y distrito / vía y jurisdicción",
+  10: "Flag 10 · Excluido del procesamiento geográfico",
 };
 export const reviewStateLabels = {
   automatic: "Automático",
@@ -9,6 +10,7 @@ export const reviewStateLabels = {
   accepted_manual: "Aceptado manualmente",
   unmatched: "Sin coincidencia",
   reference_pending: "Referencia pendiente",
+  excluded: "Excluido por FLAG 10",
   unprocessed: "Pendiente de procesamiento",
 };
 export const qualityStageLabels: Record<string, string> = {

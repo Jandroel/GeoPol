@@ -657,7 +657,13 @@ function ResultRecord() {
                 motivos o los finalizados.
               </Notice>
             )}
-            {!canReview ? (
+            {r.resolution === "EXCLUIDO_FLAG_10" ? (
+              <Notice>
+                Esta fila se conserva con FLAG 10 y está excluida de la revisión
+                geográfica. Para incorporarla, corrige el archivo de origen e
+                importa una nueva versión.
+              </Notice>
+            ) : !canReview ? (
               <Notice>
                 Tu rol permite consultar esta ubicación. La decisión requiere un
                 revisor o administrador.

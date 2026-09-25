@@ -56,6 +56,13 @@ export function QualityProgressCard({
         </div>
         <p className="quality-progress-source">
           El archivo original contiene {number(source_rows)} filas.
+          {!!data.totals.excluded && (
+            <>
+              {" "}
+              {number(data.totals.excluded)} ubicaciones excluidas por FLAG 10
+              se conservan en los resultados.
+            </>
+          )}
         </p>
       </div>
       <div className="quality-progress-next">

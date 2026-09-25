@@ -105,7 +105,9 @@ export interface LocationResult {
   quality_status?: string | null;
   quality_reason?: string | null;
   quality_policy_version?: string | null;
-  quality_flag?: 1 | 2 | null;
+  quality_flag?: 1 | 2 | 10 | null;
+  source_quality_flag?: number | null;
+  source_quality_flag_original?: number | string | null;
   quality_flag_reason?: string | null;
   review_state?: ReviewState | null;
 }
@@ -116,6 +118,7 @@ export type ReviewState =
   | "accepted_manual"
   | "unmatched"
   | "reference_pending"
+  | "excluded"
   | "unprocessed";
 export interface ReviewSummary {
   open: Record<
@@ -159,6 +162,7 @@ export interface QualityOverview {
     unmatched: number;
     blocked: number;
     unprocessed: number;
+    excluded?: number;
   };
   qualities: {
     code: number | null;
@@ -167,7 +171,7 @@ export interface QualityOverview {
     source_rows: number;
   }[];
   flags: {
-    flag: 1 | 2 | null;
+    flag: 1 | 2 | 10 | null;
     label?: string;
     units: number;
     source_rows: number;

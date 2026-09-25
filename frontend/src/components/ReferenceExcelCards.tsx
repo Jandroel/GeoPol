@@ -1,4 +1,13 @@
-import { useState, type FormEvent } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { useAuth } from "../auth";
@@ -124,18 +133,108 @@ const referenceIssueLabels: Record<string, string> = {
   PAR_COORDENADAS_INCOMPLETO: "Falta la latitud o la longitud",
   COORDENADAS_FUERA_DE_RANGO: "Coordenadas fuera de rango",
 };
-export function ReferenceExcelCards({
-  catalogs,
-  selected,
-  onSelect,
-  onBusy,
+
+interface ReferenceDraft {
+  file: File | null;
+  upload: Upload | null;
+  profile: Profile | null;
+  mapping: Record<string, string>;
+  name: string;
+  source: string;
+  version: string;
+  crs: string;
+  evidence: string;
+  streetTypes: { code: string; name: string }[];
+  busy: boolean;
+  offset: number;
+  error: unknown;
+}
+function emptyDraft(kind: ReferenceExcelKind, source?: string): ReferenceDraft {
+  return {
+    file: null,
+    upload: null,
+    profile: null,
+    mapping: {},
+    name: "",
+    source:
+      source ?? (kind === "jurisdictions" ? "SIDPOL / DATACRIM" : "Pre Censos"),
+    version: "",
+    crs: "",
+    evidence: "",
+    streetTypes: [],
+    busy: false,
+    offset: 0,
+    error: null,
+  };
+}
+type ReferenceDrafts = Record<ReferenceExcelKind, ReferenceDraft>;
+const ReferenceWorkspaceContext = createContext<{
+  drafts: ReferenceDrafts;
+  setDrafts: Dispatch<SetStateAction<ReferenceDrafts>>;
+  expanded: ReferenceExcelKind | null;
+  setExpanded: Dispatch<SetStateAction<ReferenceExcelKind | null>>;
+} | null>(null);
+
+/** Keep file drafts in memory for the signed-in workspace, including async completions. */
+export function ReferenceWorkspaceProvider({
+  children,
 }: {
+  children: ReactNode;
+}) {
+  const [drafts, setDrafts] = useState<ReferenceDrafts>(
+    () =>
+      Object.fromEntries(
+        referenceSlots.map(({ kind }) => [kind, emptyDraft(kind)]),
+      ) as ReferenceDrafts,
+  );
+  const [expanded, setExpanded] = useState<ReferenceExcelKind | null>(null);
+  return (
+    <ReferenceWorkspaceContext.Provider
+      value={{ drafts, setDrafts, expanded, setExpanded }}
+    >
+      {children}
+    </ReferenceWorkspaceContext.Provider>
+  );
+}
+
+function useReferenceDraft(kind: ReferenceExcelKind) {
+  const workspace = useContext(ReferenceWorkspaceContext)!;
+  const setDrafts = workspace.setDrafts;
+  const setDraft = useCallback(
+    (update: SetStateAction<ReferenceDraft>) => {
+      setDrafts((current) => ({
+        ...current,
+        [kind]: typeof update === "function" ? update(current[kind]) : update,
+      }));
+    },
+    [kind, setDrafts],
+  );
+  return [workspace.drafts[kind], setDraft] as const;
+}
+
+interface ReferenceExcelCardsProps {
   catalogs: Reference[];
   selected: Partial<Record<ReferenceExcelKind, string>>;
   onSelect: (kind: ReferenceExcelKind, id: string) => void;
   onBusy: (kind: ReferenceExcelKind, busy: boolean) => void;
-}) {
-  const [expanded, setExpanded] = useState<ReferenceExcelKind | null>(null);
+}
+export function ReferenceExcelCards(props: ReferenceExcelCardsProps) {
+  const workspace = useContext(ReferenceWorkspaceContext);
+  return workspace ? (
+    <ReferenceCardsContent {...props} />
+  ) : (
+    <ReferenceWorkspaceProvider>
+      <ReferenceCardsContent {...props} />
+    </ReferenceWorkspaceProvider>
+  );
+}
+function ReferenceCardsContent({
+  catalogs,
+  selected,
+  onSelect,
+  onBusy,
+}: ReferenceExcelCardsProps) {
+  const { expanded, setExpanded } = useContext(ReferenceWorkspaceContext)!;
   const selectedCount = referenceSlots.filter((slot) =>
     catalogs.some((catalog) => catalog.id === selected[slot.kind]),
   ).length;
@@ -196,23 +295,53 @@ function ReferenceExcelCard({
 }) {
   const { user } = useAuth();
   const client = useQueryClient();
-  const [file, setFile] = useState<File | null>(null);
-  const [upload, setUpload] = useState<Upload | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [name, setName] = useState("");
-  const [source, setSource] = useState(
-    slot.kind === "jurisdictions" ? "SIDPOL / DATACRIM" : "Pre Censos",
-  );
-  const [version, setVersion] = useState("");
-  const [crs, setCrs] = useState("");
-  const [evidence, setEvidence] = useState("");
-  const [streetTypes, setStreetTypes] = useState<
-    { code: string; name: string }[]
-  >([]);
-  const [busy, setBusy] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [error, setError] = useState<unknown>();
+  const [draftState, setDraft] = useReferenceDraft(slot.kind);
+  const {
+    file,
+    upload,
+    profile,
+    mapping,
+    name,
+    source,
+    version,
+    crs,
+    evidence,
+    streetTypes,
+    busy,
+    offset,
+    error,
+  } = draftState;
+  function fieldSetter<K extends keyof ReferenceDraft>(field: K) {
+    return (value: SetStateAction<ReferenceDraft[K]>) =>
+      setDraft((current) => ({
+        ...current,
+        [field]:
+          typeof value === "function"
+            ? (value as (previous: ReferenceDraft[K]) => ReferenceDraft[K])(
+                current[field],
+              )
+            : value,
+      }));
+  }
+  const setUpload = fieldSetter("upload"),
+    setProfile = fieldSetter("profile"),
+    setMapping = fieldSetter("mapping"),
+    setName = fieldSetter("name"),
+    setSource = fieldSetter("source"),
+    setVersion = fieldSetter("version"),
+    setCrs = fieldSetter("crs"),
+    setEvidence = fieldSetter("evidence"),
+    setStreetTypes = fieldSetter("streetTypes"),
+    setBusy = fieldSetter("busy"),
+    setOffset = fieldSetter("offset"),
+    setError = fieldSetter("error");
+  function changeFile(next: File | null) {
+    // Confirmation and dictionaries belong to one document, never its replacement.
+    setDraft((current) => ({
+      ...emptyDraft(slot.kind, current.source),
+      file: next,
+    }));
+  }
   const scope = `reference.${slot.kind}`;
   const saved = getResume(user!.id, scope);
   const choices = catalogs.filter(
@@ -346,9 +475,7 @@ function ReferenceExcelCard({
       );
       onSelect(catalog.id);
       clearResume(scope);
-      setUpload(null);
-      setProfile(null);
-      setFile(null);
+      setDraft((current) => emptyDraft(slot.kind, current.source));
       void client.invalidateQueries({ queryKey: ["references"] });
     } catch (e) {
       setError(e);
@@ -495,11 +622,11 @@ function ReferenceExcelCard({
                       type="file"
                       accept=".xlsx"
                       aria-describedby={`reference-${slot.kind}-file-hint`}
-                      required
+                      required={!file}
                       disabled={busy}
                       onChange={(e) => {
-                        setFile(e.target.files?.[0] ?? null);
-                        setOffset(0);
+                        const next = e.target.files?.[0];
+                        if (next && next !== file) changeFile(next);
                       }}
                     />
                   </div>
@@ -717,8 +844,7 @@ function ReferenceExcelCard({
                   className="button secondary"
                   disabled={busy}
                   onClick={() => {
-                    setProfile(null);
-                    setUpload(null);
+                    changeFile(null);
                   }}
                 >
                   Cambiar archivo de referencia

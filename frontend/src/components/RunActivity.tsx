@@ -136,7 +136,7 @@ export function RunActivity({ run }: { run: Run }) {
   const offline = active && activity?.worker_online === false;
   const explanation = failed
     ? run.error ||
-      "No se pudo completar esta etapa. Puedes reanudarla desde esta página."
+      "No se pudo completar esta etapa. Consulta el detalle del procesamiento para reanudarla."
     : cancelled
       ? "El trabajo se detuvo. Los resultados registrados se conservan."
       : offline
@@ -148,7 +148,7 @@ export function RunActivity({ run }: { run: Run }) {
             : active
               ? "El trabajo continúa en el servidor. Puedes salir y consultar el avance al volver."
               : completed
-                ? "Los resultados están disponibles en las pestañas de esta página."
+                ? "La etapa terminó. Puedes consultar los resultados o continuar con las ubicaciones pendientes."
                 : "El detalle de actividad estará disponible cuando se inicie el trabajo.";
 
   return (

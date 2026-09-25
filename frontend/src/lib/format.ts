@@ -44,6 +44,7 @@ Object.assign(labels, {
   INFORMACION_INSUFICIENTE: "Información insuficiente",
   NO_EVALUABLE_REFERENCIA: "Sin referencia evaluable",
   ERROR_TECNICO: "Error técnico",
+  EXCLUIDO_FLAG_10: "Excluido por FLAG 10",
   PUNTO: "Punto",
   AREA_TRAMO: "Área o tramo",
   MANZANA: "Manzana",

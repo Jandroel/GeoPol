@@ -34,7 +34,9 @@ test("synthetic geometry renders in WebGL and explicit address reuse can be revo
     .getByRole("button", { name: "Ingresar al espacio de trabajo" })
     .click();
   await expect(page.getByLabel("Contraseña", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Resumen" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Vista general" }),
+  ).toBeVisible();
   const token = await page.evaluate(() =>
     sessionStorage.getItem("geopol.session"),
   );

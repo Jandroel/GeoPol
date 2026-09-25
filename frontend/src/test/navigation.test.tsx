@@ -77,16 +77,14 @@ describe("Navegación del espacio de trabajo", () => {
     const nav = screen.getByRole("navigation", {
       name: "Navegación principal",
     });
-    await user.click(
-      within(nav).getByRole("link", { name: "Seguimiento por calidad" }),
-    );
+    await user.click(within(nav).getByRole("link", { name: "Estadística" }));
     expect(
-      within(nav).getByRole("link", { name: "Seguimiento por calidad" }),
+      within(nav).getByRole("link", { name: "Estadística" }),
     ).toHaveAttribute("aria-current", "page");
     expect(
       within(
         screen.getByRole("navigation", { name: "Ubicación actual" }),
-      ).getByText("Seguimiento por calidad"),
+      ).getByText("Estadística"),
     ).toBeVisible();
     view.unmount();
     show();
@@ -104,10 +102,10 @@ describe("Navegación del espacio de trabajo", () => {
       name: "Navegación principal",
     });
     expect(
-      within(nav).getByRole("link", { name: "Procesamientos" }),
+      within(nav).getByRole("link", { name: "Procedimientos" }),
     ).toHaveAttribute("aria-current", "page");
     expect(
-      within(nav).getByRole("link", { name: "Carga de archivos" }),
+      within(nav).getByRole("link", { name: "Validación" }),
     ).not.toHaveAttribute("aria-current");
     const breadcrumb = screen.getByRole("navigation", {
       name: "Ubicación actual",
@@ -116,28 +114,35 @@ describe("Navegación del espacio de trabajo", () => {
       within(breadcrumb).getByText("Detalle del procesamiento"),
     ).toHaveAttribute("aria-current", "page");
     await user.click(
-      within(breadcrumb).getByRole("link", { name: "Procesamientos" }),
+      within(breadcrumb).getByRole("link", { name: "Procedimientos" }),
     );
     expect(
       within(breadcrumb).queryByText("Detalle del procesamiento"),
     ).not.toBeInTheDocument();
   });
 
-  it("omite acciones no autorizadas de carga y auditoría para un revisor", () => {
+  it("mantiene los cinco módulos y omite las acciones locales no autorizadas para un revisor", () => {
     auth.user.role = "reviewer";
-    show("/review");
+    const view = show("/references");
     const nav = screen.getByRole("navigation", {
       name: "Navegación principal",
     });
+    expect(within(nav).getAllByRole("link")).toHaveLength(5);
     expect(
-      within(nav).queryByRole("link", { name: "Carga de archivos" }),
+      within(
+        screen.getByRole("navigation", { name: "Secciones de Validación" }),
+      ).queryByRole("link", { name: "Validar archivo" }),
     ).not.toBeInTheDocument();
     expect(
-      within(nav).queryByRole("link", { name: "Auditoría" }),
-    ).not.toBeInTheDocument();
-    expect(
-      within(nav).getByRole("link", { name: "Revisión de ubicaciones" }),
+      within(nav).getByRole("link", { name: "Validación" }),
     ).toHaveAttribute("aria-current", "page");
+    view.unmount();
+    show("/documentation");
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Secciones de Documentación" }),
+      ).queryByRole("link", { name: "Auditoría" }),
+    ).not.toBeInTheDocument();
   });
 
   it("retiene el foco dentro del menú móvil y lo devuelve al botón al cerrar con Escape", async () => {
@@ -158,7 +163,7 @@ describe("Navegación del espacio de trabajo", () => {
     const first = within(drawer).getByRole("link", {
       name: "GeoPol, vista general",
     });
-    const last = within(drawer).getByRole("link", { name: "Auditoría" });
+    const last = within(drawer).getByRole("link", { name: "Documentación" });
     first.focus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(last).toHaveFocus();
@@ -177,7 +182,7 @@ describe("Navegación del espacio de trabajo", () => {
     await user.click(screen.getByRole("button", { name: "Abrir navegación" }));
     await user.click(
       within(screen.getByRole("dialog")).getByRole("link", {
-        name: "Procesamientos",
+        name: "Procedimientos",
       }),
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -258,5 +263,50 @@ describe("Navegación del espacio de trabajo", () => {
     );
     expect(opener).toHaveFocus();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["/runs/new", "Validación"],
+    ["/references", "Validación"],
+    ["/runs/history?tab=exports", "Procedimientos"],
+    ["/review?run_id=history&quality_flag=1", "Procedimientos"],
+    ["/results/location?back=%2Freview", "Procedimientos"],
+    ["/quality?run_id=history", "Estadística"],
+    ["/rules", "Documentación"],
+    ["/audit", "Documentación"],
+  ])(
+    "conserva el módulo correcto al abrir el enlace anterior %s",
+    (path, module) => {
+      show(path);
+      const nav = screen.getByRole("navigation", {
+        name: "Navegación principal",
+      });
+      expect(within(nav).getByRole("link", { name: module })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(
+        within(nav)
+          .getAllByRole("link")
+          .filter((link) => link.getAttribute("aria-current") === "page"),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("permite abrir auditoría desde las secciones de Documentación para administradores", async () => {
+    const user = userEvent.setup();
+    show("/documentation");
+    const local = screen.getByRole("navigation", {
+      name: "Secciones de Documentación",
+    });
+    await user.click(within(local).getByRole("link", { name: "Auditoría" }));
+    expect(
+      within(local).getByRole("link", { name: "Auditoría" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Navegación principal" }),
+      ).getByRole("link", { name: "Documentación" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 });

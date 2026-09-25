@@ -2,6 +2,51 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Cinco módulos y validación de origen · 25 de septiembre de 2026
+
+Se revisaron visualmente las siete láminas de Propuesta 2 y se reorganizó la
+navegación en Vista general, Validación, Procedimientos, Estadística y
+Documentación. El alcance y las diferencias justificadas están registrados en
+[propuesta-2.md](../docs/propuesta-2.md).
+
+- Backend: **664 pruebas aprobadas y una omitida** en la suite completa. Después
+  de las salvaguardas finales, **128 pruebas relevantes aprobadas**. PostgreSQL
+  no estaba configurado; la comprobación local utiliza SQLite.
+- Frontend: **100 pruebas de componente verificadas**. La ejecución serial
+  aprobó 99; la prueba restante agotó el tiempo al escribir textos largos. Tras
+  usar pegado de texto, las 13 pruebas de su archivo pasaron con las mismas
+  aserciones. La ejecución paralela anterior también sufrió límites de tiempo;
+  no se modificaron esos límites ni se relajaron comprobaciones.
+- Chromium: los seis escenarios existentes pasaron contra el build de producción.
+  El nuevo escenario de los cinco módulos pasó después de corregir dos selectores
+  del test; su última ejecución duró **17 s**. Verifica carga y navegación sin
+  pérdida de contexto, FLAG 10 declarado/automático, conteos, filtros, Excel de
+  seis filas, descarga de Markdown y menú móvil. Los píxeles del punto se
+  comprueban en el mapa real de escritorio y móvil, también al reactivar su capa.
+  Sin errores de página, solicitudes externas ni desbordamiento global a 400 px.
+- Se inspeccionaron las capturas de los cinco módulos, mapa y menú móvil. Los
+  controles de capas usan filas compactas y el visor muestra una espera accesible
+  hasta terminar de dibujar. TypeScript/Vite y formato correctos; permanece el
+  aviso conocido de tamaño del paquete MapLibre.
+- Los borradores del Excel principal y de las cinco referencias se conservan al
+  navegar, incluso si una carga o guardado finaliza fuera de la pantalla. Cambiar
+  el documento limpia la confirmación de CRS y los metadatos propios del anterior.
+- FLAG 10 de origen y FLAG 10 automático se distinguen. Solo los campos de
+  ubicación literalmente vacíos habilitan la asignación automática. Texto
+  parcial, datos territoriales o coordenadas inválidas impiden ese descarte.
+  Las exclusiones se conservan en resultados y exportaciones y no admiten una
+  decisión de revisión geográfica.
+
+La web operativa en 5174 y la API en 8002 responden con el build y las rutas nuevas.
+Se reiniciaron únicamente sus procesos registrados, sin trabajos en curso y
+conservando la base y el almacenamiento. Las pruebas de escritura usaron API
+18001, frontend 15175 y una base temporal sintética; sus procesos se cerraron.
+
+Las capturas sintéticas se conservan de forma privada en
+`.local/ui-propuesta-20260925/`, excluidas de Git. El mapa utiliza geometrías
+aceptadas locales y un fondo neutro; no se acredita cobertura de cartografía base
+institucional ni se inventan puntos para representar áreas o tramos.
+
 ## Editor de referencias simplificado · 24 de septiembre de 2026
 
 Se retiraron los títulos, etiquetas visibles y explicaciones repetidos. El selector

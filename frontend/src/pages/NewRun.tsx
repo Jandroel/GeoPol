@@ -1,7 +1,13 @@
-import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  createContext,
+  useContext,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Check, FileUp } from "lucide-react";
+import { ArrowRight, Check, FileUp, FileCheck2 } from "lucide-react";
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { clearResume, getResume, uploadFile } from "../lib/upload";
@@ -14,10 +20,18 @@ import type {
   Run,
   Upload,
 } from "../types";
-import { ErrorNotice, Notice, PageHeader } from "../components/ui";
+import { Empty, ErrorNotice, Notice, PageHeader } from "../components/ui";
 import { CoordinatePolicy } from "../components/CoordinatePolicy";
 import { ReferenceCapability } from "../components/ReferenceCapability";
-import { ReferenceExcelCards } from "../components/ReferenceExcelCards";
+import {
+  ReferenceExcelCards,
+  ReferenceWorkspaceProvider,
+} from "../components/ReferenceExcelCards";
+import {
+  InputValidationPanel,
+  type InputValidationReport,
+} from "../components/InputValidationPanel";
+import "./intake-workspace.css";
 const fields: [string, string][] = [
   ["complaint_id", "Identificador de denuncia"],
   ["location_original", "Dirección / lugar del hecho"],
@@ -37,10 +51,17 @@ const fields: [string, string][] = [
   ["latitude", "Latitud (xx)"],
   ["longitude", "Longitud (yy)"],
   ["coordinate_origin", "Origen de coordenadas"],
+  ["source_quality_flag", "FLAG de origen"],
 ];
-export function NewRun() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+const primaryFields = new Set([
+  "complaint_id",
+  "location_original",
+  "ubigeo",
+  "source_quality_flag",
+  "latitude",
+  "longitude",
+]);
+function useDraftState() {
   const [file, setFile] = useState<File | null>(null);
   const [upload, setUpload] = useState<Upload | null>(null);
   const [busy, setBusy] = useState(false);
@@ -54,10 +75,6 @@ export function NewRun() {
   const [referenceBusy, setReferenceBusy] = useState<
     Partial<Record<ReferenceExcelKind, boolean>>
   >({});
-  const referenceIds = [
-    ...new Set(Object.values(referenceSlots).filter(Boolean)),
-  ];
-  const importingReference = Object.values(referenceBusy).some(Boolean);
   const [workflow, setWorkflow] = useState("quality_v1");
   const [crsConfirmed, setCrsConfirmed] = useState(false);
   const [crsEvidence, setCrsEvidence] = useState("");
@@ -65,6 +82,132 @@ export function NewRun() {
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [delimiter, setDelimiter] = useState(",");
   const [encoding, setEncoding] = useState("utf-8-sig");
+  return {
+    file,
+    setFile,
+    upload,
+    setUpload,
+    busy,
+    setBusy,
+    error,
+    setError,
+    offset,
+    setOffset,
+    name,
+    setName,
+    reference,
+    setReference,
+    referenceSlots,
+    setReferenceSlots,
+    referenceBusy,
+    setReferenceBusy,
+    workflow,
+    setWorkflow,
+    crsConfirmed,
+    setCrsConfirmed,
+    crsEvidence,
+    setCrsEvidence,
+    sheet,
+    setSheet,
+    mapping,
+    setMapping,
+    delimiter,
+    setDelimiter,
+    encoding,
+    setEncoding,
+  };
+}
+const UploadWorkspace = createContext<ReturnType<typeof useDraftState> | null>(
+  null,
+);
+export function UploadWorkspaceProvider({ children }: { children: ReactNode }) {
+  const value = useDraftState();
+  return (
+    <UploadWorkspace.Provider value={value}>
+      <ReferenceWorkspaceProvider>{children}</ReferenceWorkspaceProvider>
+    </UploadWorkspace.Provider>
+  );
+}
+type IntakeMode = "overview" | "validation" | "legacy";
+export function NewRun({ mode = "legacy" }: { mode?: IntakeMode }) {
+  const draft = useContext(UploadWorkspace);
+  if (!draft)
+    return (
+      <UploadWorkspaceProvider>
+        <NewRun mode={mode} />
+      </UploadWorkspaceProvider>
+    );
+  return <NewRunForm mode={mode} draft={draft} />;
+}
+function NewRunForm({
+  mode,
+  draft,
+}: {
+  mode: IntakeMode;
+  draft: ReturnType<typeof useDraftState>;
+}) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const {
+    file,
+    setFile,
+    upload,
+    setUpload,
+    busy,
+    setBusy,
+    error,
+    setError,
+    offset,
+    setOffset,
+    name,
+    setName,
+    reference,
+    setReference,
+    referenceSlots,
+    setReferenceSlots,
+    referenceBusy,
+    setReferenceBusy,
+    workflow,
+    setWorkflow,
+    crsConfirmed,
+    setCrsConfirmed,
+    crsEvidence,
+    setCrsEvidence,
+    sheet,
+    setSheet,
+    mapping,
+    setMapping,
+    delimiter,
+    setDelimiter,
+    encoding,
+    setEncoding,
+  } = draft;
+  const referenceIds = [
+    ...new Set(Object.values(referenceSlots).filter(Boolean)),
+  ];
+  const importingReference = Object.values(referenceBusy).some(Boolean);
+  const validation = useQuery({
+    queryKey: [
+      "input-validation",
+      upload?.id,
+      sheet,
+      mapping,
+      delimiter,
+      encoding,
+    ],
+    queryFn: () =>
+      post<InputValidationReport>(`/uploads/${upload!.id}/validation`, {
+        sheet: sheet || undefined,
+        mapping: Object.fromEntries(
+          Object.entries(mapping).filter(([, value]) => value),
+        ),
+        delimiter,
+        encoding,
+      }),
+    enabled: mode === "validation" && !!upload,
+    staleTime: 60_000,
+    retry: false,
+  });
   const saved = getResume(user!.id);
   const refs = useQuery({
     queryKey: ["references"],
@@ -82,12 +225,43 @@ export function NewRun() {
     !referenceIds.length &&
     reference === "default" &&
     defaults.data?.status !== "ready";
+  function mappingControl([key, title]: [string, string]) {
+    return (
+      <label key={key}>
+        {title}
+        <select
+          aria-label={title}
+          value={mapping[key] ?? ""}
+          disabled={busy}
+          onChange={(e) => setMapping({ ...mapping, [key]: e.target.value })}
+        >
+          <option value="">No disponible en este archivo</option>
+          {upload?.profile?.columns.map((column) => (
+            <option key={column} value={column}>
+              {column}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  }
   function applyProfile(profile?: Profile) {
     if (!profile) return;
     setMapping(profile.suggested_mapping ?? {});
     setSheet(profile.sheet ?? profile.sheets?.[0] ?? "");
     setDelimiter(profile.delimiter ?? ",");
     setEncoding(profile.encoding ?? "utf-8-sig");
+  }
+  function resetSource() {
+    setUpload(null);
+    setFile(null);
+    setName("");
+    setMapping({});
+    setSheet("");
+    setCrsConfirmed(false);
+    setCrsEvidence("");
+    setError(null);
+    setOffset(0);
   }
   async function updateProfile(changes: {
     sheet?: string;
@@ -125,6 +299,7 @@ export function NewRun() {
       setUpload(result);
       applyProfile(result.profile);
       if (!name) setName(file.name.replace(/\.[^.]+$/, ""));
+      if (mode === "overview") navigate("/validation");
     } catch (e) {
       setError(e);
     } finally {
@@ -155,8 +330,11 @@ export function NewRun() {
         crs_evidence: crsConfirmed ? crsEvidence.trim() : null,
       });
       clearResume();
+      resetSource();
       navigate(
-        `/runs/${run.id}${workflow === "quality_v1" ? "?tab=quality" : ""}`,
+        mode === "legacy"
+          ? `/runs/${run.id}${workflow === "quality_v1" ? "?tab=quality" : ""}`
+          : `/procedures?run_id=${run.id}`,
       );
     } catch (e) {
       setError(e);
@@ -164,30 +342,64 @@ export function NewRun() {
       setBusy(false);
     }
   }
+  if (mode === "validation" && !upload)
+    return (
+      <>
+        <PageHeader
+          title="Validación"
+          description="Comprueba las columnas y los flags del archivo antes de iniciar los procedimientos."
+        />
+        <Empty
+          title="Primero carga el archivo de SIDPOL"
+          text={
+            saved
+              ? `Hay una carga guardada de ${saved.filename}. Vuelve a elegir el mismo archivo en Vista general para continuar.`
+              : "En Vista general puedes adjuntar el Excel de la PNP y elegir las referencias censales."
+          }
+          action={
+            <Link className="button primary" to="/">
+              Ir a carga de archivos <ArrowRight size={18} aria-hidden="true" />
+            </Link>
+          }
+        />
+      </>
+    );
   return (
-    <>
-      <PageHeader
-        title="Carga de archivos"
-        description="Carga el Excel de la PNP y selecciona las fuentes con las que se contrastarán sus direcciones."
-      />
-      <ol className="steps">
-        <li className={upload ? "done" : "current"}>
-          <span>{upload ? <Check size={16} aria-hidden="true" /> : "1"}</span>
-          Archivo de origen
-        </li>
-        <li className={upload ? "current" : ""}>
-          <span>2</span>Configuración y mapeo
-        </li>
-        <li>
-          <span>3</span>Procesamiento
-        </li>
-      </ol>
+    <div className={`intake-workspace intake-${mode}`}>
+      {mode !== "overview" && (
+        <PageHeader
+          title={mode === "validation" ? "Validación" : "Carga de archivos"}
+          description={
+            mode === "validation"
+              ? "Comprueba el archivo, sus columnas y los flags antes de ejecutar los procedimientos."
+              : "Carga el Excel de la PNP y selecciona las fuentes con las que se contrastarán sus direcciones."
+          }
+        />
+      )}
+      {mode !== "overview" && (
+        <ol className="steps">
+          <li className={upload ? "done" : "current"}>
+            <span>{upload ? <Check size={16} aria-hidden="true" /> : "1"}</span>
+            Archivo de origen
+          </li>
+          <li className={upload ? "current" : ""}>
+            <span>2</span>Validación y mapeo
+          </li>
+          <li>
+            <span>3</span>Procesamiento
+          </li>
+        </ol>
+      )}
       <ErrorNotice error={error} />
       <div className="intake-grid">
         <div className="intake-source">
           <div className="intake-source-heading">
             <div className="intake-section-heading">
-              <h2>Archivo de la PNP</h2>
+              <h2>
+                {mode === "overview"
+                  ? "SIDPOL / DATACRIM"
+                  : "Archivo de la PNP"}
+              </h2>
               <span className="intake-source-label">
                 {upload ? "Archivo cargado" : "Archivo de origen"}
               </span>
@@ -218,10 +430,12 @@ export function NewRun() {
                   type="file"
                   accept=".csv,.xlsx"
                   disabled={busy}
-                  required
+                  required={!file}
                   onChange={(e) => {
                     setFile(e.target.files?.[0] ?? null);
                     setOffset(0);
+                    setCrsConfirmed(false);
+                    setCrsEvidence("");
                   }}
                 />
               </label>
@@ -235,7 +449,10 @@ export function NewRun() {
                 </div>
               )}
               <div className="source-upload-actions">
-                <button className="button primary" disabled={!file || busy}>
+                <button
+                  className="button primary"
+                  disabled={!file || busy || importingReference}
+                >
                   {busy ? "Cargando archivo…" : "Cargar y verificar columnas"}
                   <ArrowRight size={18} aria-hidden="true" />
                 </button>
@@ -244,8 +461,36 @@ export function NewRun() {
                 </a>
               </div>
             </form>
+          ) : mode === "overview" ? (
+            <section className="panel loaded-source">
+              <FileCheck2 size={28} aria-hidden="true" />
+              <div>
+                <strong>{upload.filename}</strong>
+                <p>
+                  Archivo cargado. Continúa con la comprobación de columnas y
+                  flags.
+                </p>
+              </div>
+              <Link className="button primary" to="/validation">
+                Continuar validación <ArrowRight size={18} aria-hidden="true" />
+              </Link>
+              <button
+                className="text-link plain-button"
+                disabled={busy}
+                onClick={resetSource}
+              >
+                Cambiar Excel
+              </button>
+            </section>
           ) : (
             <form onSubmit={create} className="stack">
+              {mode === "validation" && (
+                <InputValidationPanel
+                  report={validation.data}
+                  pending={validation.isFetching}
+                  error={validation.error}
+                />
+              )}
               <section className="panel form-panel">
                 <div className="panel-heading">
                   <div>
@@ -360,9 +605,9 @@ export function NewRun() {
                 <ErrorNotice error={refs.error || defaults.error} />
                 {!!referenceIds.length && (
                   <Notice>
-                    Se utilizarán {referenceIds.length} fuentes seleccionadas a
-                    la derecha. Las fuentes pendientes se mostrarán como
-                    limitaciones de cobertura.
+                    Se utilizarán {referenceIds.length} fuentes seleccionadas.
+                    Las fuentes pendientes se mostrarán como limitaciones de
+                    cobertura.
                   </Notice>
                 )}
                 {!referenceIds.length && selectedCatalog && (
@@ -396,26 +641,23 @@ export function NewRun() {
                   </div>
                 </div>
                 <div className="form-grid mapping-grid">
-                  {fields.map(([key, title]) => (
-                    <label key={key}>
-                      {title}
-                      <select
-                        aria-label={title}
-                        value={mapping[key] ?? ""}
-                        onChange={(e) =>
-                          setMapping({ ...mapping, [key]: e.target.value })
-                        }
-                      >
-                        <option value="">No disponible en este archivo</option>
-                        {upload.profile?.columns.map((column) => (
-                          <option key={column} value={column}>
-                            {column}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
+                  {fields
+                    .filter(
+                      ([key]) =>
+                        mode !== "validation" || primaryFields.has(key),
+                    )
+                    .map(mappingControl)}
                 </div>
+                {mode === "validation" && (
+                  <details className="validation-extra-fields">
+                    <summary>Campos complementarios de la dirección</summary>
+                    <div className="form-grid mapping-grid">
+                      {fields
+                        .filter(([key]) => !primaryFields.has(key))
+                        .map(mappingControl)}
+                    </div>
+                  </details>
+                )}
                 <CoordinatePolicy
                   confirmed={crsConfirmed}
                   evidence={crsEvidence}
@@ -428,7 +670,7 @@ export function NewRun() {
                 <button
                   type="button"
                   className="button secondary"
-                  onClick={() => setUpload(null)}
+                  onClick={resetSource}
                   disabled={busy}
                 >
                   Cambiar archivo
@@ -442,7 +684,11 @@ export function NewRun() {
                     defaults.isPending ||
                     refs.isPending ||
                     defaultUnavailable ||
-                    (crsConfirmed && crsEvidence.trim().length < 8)
+                    (crsConfirmed && crsEvidence.trim().length < 8) ||
+                    (mode === "validation" &&
+                      (!validation.data?.ready ||
+                        validation.isFetching ||
+                        validation.isError))
                   }
                 >
                   {busy ? "Creando procesamiento…" : "Iniciar procesamiento"}
@@ -452,17 +698,49 @@ export function NewRun() {
             </form>
           )}
         </div>
-        <ReferenceExcelCards
-          catalogs={refs.data?.items ?? []}
-          selected={referenceSlots}
-          onSelect={(kind, id) =>
-            setReferenceSlots((current) => ({ ...current, [kind]: id }))
-          }
-          onBusy={(kind, pending) =>
-            setReferenceBusy((current) => ({ ...current, [kind]: pending }))
-          }
-        />
+        {mode === "validation" && upload ? (
+          <aside className="validation-reference-summary panel">
+            <h2>Referencias de contraste</h2>
+            {referenceIds.length ? (
+              <ul>
+                {referenceIds.map((id) => {
+                  const catalog = refs.data?.items.find(
+                    (item) => item.id === id,
+                  );
+                  return (
+                    <li key={id}>
+                      <strong>
+                        {catalog?.name ?? "Referencia seleccionada"}
+                      </strong>
+                      <span>{catalog?.version}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p>
+                {selectedCatalog
+                  ? `${selectedCatalog.name} · ${selectedCatalog.version}`
+                  : "Selecciona una referencia o confirma el procesamiento sin catálogo."}
+              </p>
+            )}
+            <Link className="button secondary" to="/">
+              Cambiar referencias
+            </Link>
+          </aside>
+        ) : (
+          <ReferenceExcelCards
+            catalogs={refs.data?.items ?? []}
+            selected={referenceSlots}
+            onSelect={(kind, id) =>
+              setReferenceSlots((current) => ({ ...current, [kind]: id }))
+            }
+            onBusy={(kind, pending) =>
+              setReferenceBusy((current) => ({ ...current, [kind]: pending }))
+            }
+          />
+        )}
       </div>
-    </>
+    </div>
   );
 }

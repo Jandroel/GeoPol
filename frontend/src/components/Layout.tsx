@@ -5,16 +5,13 @@ import {
   ChartNoAxesCombined,
   ChevronRight,
   ClipboardCheck,
-  Database,
-  Files,
-  FileUp,
   LayoutDashboard,
   LocateFixed,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  ShieldCheck,
+  Workflow,
   X,
 } from "lucide-react";
 import { useAuth } from "../auth";
@@ -22,40 +19,45 @@ import { label } from "../lib/format";
 import "./navigation.css";
 
 const navigation = [
-  {
-    to: "/runs/new",
-    label: "Carga de archivos",
-    icon: FileUp,
-    group: "Trabajo",
-  },
-  {
-    to: "/quality",
-    label: "Seguimiento por calidad",
-    icon: ChartNoAxesCombined,
-    group: "Trabajo",
-  },
-  { to: "/", label: "Vista general", icon: LayoutDashboard, group: "Trabajo" },
-  { to: "/runs", label: "Procesamientos", icon: Files, group: "Trabajo" },
-  {
-    to: "/review",
-    label: "Revisión de ubicaciones",
-    icon: ClipboardCheck,
-    group: "Trabajo",
-  },
-  {
-    to: "/references",
-    label: "Catálogos de referencia",
-    icon: Database,
-    group: "Referencias",
-  },
-  {
-    to: "/rules",
-    label: "Reglas y metodología",
-    icon: BookOpen,
-    group: "Referencias",
-  },
-  { to: "/audit", label: "Auditoría", icon: ShieldCheck, group: "Control" },
+  { to: "/", label: "Vista general", icon: LayoutDashboard },
+  { to: "/validation", label: "Validación", icon: ClipboardCheck },
+  { to: "/procedures", label: "Procedimientos", icon: Workflow },
+  { to: "/statistics", label: "Estadística", icon: ChartNoAxesCombined },
+  { to: "/documentation", label: "Documentación", icon: BookOpen },
 ];
+const sections: Record<
+  string,
+  { to: string; label: string; manage?: boolean; admin?: boolean }[]
+> = {
+  "/validation": [
+    { to: "/validation", label: "Validar archivo", manage: true },
+    { to: "/references", label: "Catálogos de referencia" },
+  ],
+  "/procedures": [
+    { to: "/procedures", label: "Procedimientos" },
+    { to: "/runs", label: "Procesamientos" },
+    { to: "/review", label: "Revisión de ubicaciones" },
+  ],
+  "/documentation": [
+    { to: "/documentation", label: "Biblioteca" },
+    { to: "/rules", label: "Reglas y metodología" },
+    { to: "/audit", label: "Auditoría", admin: true },
+  ],
+};
+function modulePath(path: string) {
+  if (["/validation", "/runs/new", "/references"].includes(path))
+    return "/validation";
+  if (
+    ["/procedures", "/runs", "/review"].includes(path) ||
+    path.startsWith("/runs/") ||
+    path.startsWith("/results/")
+  )
+    return "/procedures";
+  if (["/statistics", "/quality"].includes(path)) return "/statistics";
+  if (["/documentation", "/rules", "/audit"].includes(path))
+    return "/documentation";
+  return path;
+}
 const mobileQuery = "(max-width: 760px)";
 const collapseKey = "geopol.navigation.collapsed";
 function savedCollapsed() {
@@ -80,26 +82,31 @@ export function Layout() {
   mobileRef.current = mobile;
   const drawerOpen = mobile && open;
   const compact = !mobile && collapsed;
-  const items = navigation.filter((item) =>
-    item.to === "/audit"
-      ? user?.role === "admin"
-      : item.to !== "/runs/new" ||
-        ["admin", "operator"].includes(user?.role ?? ""),
-  );
+  const canManage = ["admin", "operator"].includes(user?.role ?? "");
   const runDetail =
     location.pathname.startsWith("/runs/") && location.pathname !== "/runs/new";
   const resultDetail = location.pathname.startsWith("/results/");
-  const activePath = runDetail
+  const activePath = modulePath(location.pathname);
+  const current = navigation.find((item) => item.to === activePath);
+  const localItems = (sections[activePath] ?? []).filter(
+    (item) =>
+      (!item.admin || user?.role === "admin") && (!item.manage || canManage),
+  );
+  const localPath = runDetail
     ? "/runs"
     : resultDetail
       ? "/review"
-      : location.pathname;
-  const current = items.find((item) => item.to === activePath);
+      : location.pathname === "/runs/new"
+        ? "/validation"
+        : location.pathname;
   const detailTitle = runDetail
     ? "Detalle del procesamiento"
     : resultDetail
       ? "Detalle de ubicación"
-      : null;
+      : location.pathname !== activePath
+        ? (localItems.find((item) => item.to === localPath)?.label ??
+          (location.pathname === "/quality" ? "Seguimiento por calidad" : null))
+        : null;
 
   useEffect(() => {
     const query = window.matchMedia?.(mobileQuery);
@@ -244,33 +251,27 @@ export function Layout() {
           )}
         </div>
         <nav aria-label="Navegación principal">
-          {["Trabajo", "Referencias", "Control"].map((group) => {
-            const groupItems = items.filter((item) => item.group === group);
-            return groupItems.length ? (
-              <div className="navigation-group" key={group}>
-                <p className="navigation-group-title">{group}</p>
-                {groupItems.map((item) => (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    onClick={() => setOpen(false)}
-                    aria-label={item.label}
-                    aria-current={item.to === activePath ? "page" : undefined}
-                    title={compact ? item.label : undefined}
-                    className={`nav-item ${item.to === activePath ? "active" : ""}`}
-                  >
-                    <item.icon size={20} aria-hidden="true" />
-                    <span className="navigation-link-label">{item.label}</span>
-                    <ChevronRight
-                      className="navigation-active-arrow"
-                      size={15}
-                      aria-hidden="true"
-                    />
-                  </Link>
-                ))}
-              </div>
-            ) : null;
-          })}
+          <div className="navigation-group">
+            {navigation.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setOpen(false)}
+                aria-label={item.label}
+                aria-current={item.to === activePath ? "page" : undefined}
+                title={compact ? item.label : undefined}
+                className={`nav-item ${item.to === activePath ? "active" : ""}`}
+              >
+                <item.icon size={20} aria-hidden="true" />
+                <span className="navigation-link-label">{item.label}</span>
+                <ChevronRight
+                  className="navigation-active-arrow"
+                  size={15}
+                  aria-hidden="true"
+                />
+              </Link>
+            ))}
+          </div>
         </nav>
         {!mobile && (
           <div className="navigation-footer">
@@ -355,6 +356,22 @@ export function Layout() {
           </div>
         </header>
         <main id="main-content" className="main-content" tabIndex={-1}>
+          {current && localItems.length > 0 && (
+            <nav
+              className="module-sections"
+              aria-label={`Secciones de ${current.label}`}
+            >
+              {localItems.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  aria-current={item.to === localPath ? "page" : undefined}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          )}
           <Outlet />
         </main>
       </div>
