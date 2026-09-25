@@ -144,11 +144,12 @@ sobre azul principal alcanza 6,11:1.
   Las tareas auxiliares se agrupan en navegación local; las rutas anteriores
   permanecen disponibles. El análisis de las siete láminas se registra en
   [propuesta-2.md](../docs/propuesta-2.md).
-- Vista general concentra la carga de SIDPOL y las cinco referencias dentro
-  del panel con la ilustración del Perú. El archivo principal y las referencias
-  comparten el mismo espacio de trabajo; no se añaden métricas ni una lista de
-  procesamientos recientes. El archivo y su configuración se mantienen en un
-  contexto de sesión al pasar a Validación.
+- Vista general presenta una portada abierta: el título y la ilustración del
+  Perú descansan sobre el fondo de la página, sin un marco exterior. La carga
+  SIDPOL y las cinco referencias forman dos secciones hermanas, cada una con una
+  única superficie. No se añaden métricas ni una lista de procesamientos recientes.
+  El archivo y su configuración se mantienen en un contexto de sesión al pasar
+  a Validación.
 - Validación presenta primero comprobaciones y conteos reales, luego mapeo y
   evidencia de coordenadas. Los campos complementarios se abren a petición.
   La ausencia de FLAG o un nombre fuera de convención se explica sin atribuir
@@ -167,21 +168,24 @@ sobre azul principal alcanza 6,11:1.
   datos. Se distinguen carga, error y lista vacía. Abrir un módulo consulta datos;
   no inicia ni continúa un procesamiento automáticamente.
 - La carga inicial agrupa el archivo PNP y las cinco fuentes en el espacio de
-  trabajo de Vista general. Las fuentes usan filas compactas con estado; cada
-  configuración se abre en un diálogo nativo con título, cierre mediante Escape
-  y retorno del foco a su control. Cerrar el diálogo conserva el borrador; el
-  contexto de sesión mantiene archivos, mapeos e importaciones al cambiar de
-  módulo. Una selección no equivale a disponibilidad geográfica.
+  trabajo de Vista general. Cada fila de referencia muestra su estado y la
+  acción directa «Adjuntar Excel», que abre el selector nativo de archivos.
+  Elegir un archivo abre su configuración en un diálogo nativo; cancelar el
+  selector no abre el diálogo ni reemplaza el borrador. El diálogo conserva
+  título, cierre mediante Escape y retorno del foco a su control. Cerrarlo
+  mantiene el borrador; el contexto de sesión conserva archivos, mapeos e
+  importaciones al cambiar de módulo. Una selección no equivale a disponibilidad
+  geográfica.
   Si se prepara un reemplazo, se conserva visible la fuente que se utilizará.
   La composición inicial cabe sin desplazamiento vertical en un escritorio
   estándar. En móvil, los bloques se apilan y siguen el flujo natural de la
   página; no se recorta contenido para forzar una altura de pantalla.
-- El diálogo de una referencia muestra directamente el botón de Excel, sin un
-  segundo desplegable. «Catálogo guardado» ocupa una fila compacta y solo
-  aparece cuando existen opciones. El adjunto conserva una única ayuda breve;
-  se eliminan títulos y explicaciones repetidos. «Leer columnas» aparece al
-  elegir un archivo, con ancho ajustado a su texto. Los avisos de reanudación,
-  errores y disponibilidad se mantienen junto a la acción correspondiente.
+- «Catálogo guardado» es una acción secundaria para reutilizar referencias
+  existentes y aparece cuando hay opciones. No es un paso obligatorio antes de
+  adjuntar un Excel. La configuración conserva el contenido técnico de lectura,
+  mapeo y evidencia; el adjunto mantiene una única ayuda breve. «Leer columnas»
+  aparece al elegir un archivo, con ancho ajustado a su texto. Los avisos de
+  reanudación, errores y disponibilidad permanecen junto a la acción correspondiente.
   «Origen de los datos / institución» se reserva para la procedencia.
 - Resultados presenta el total junto a sus filtros, calculado por el servidor
   para la búsqueda aplicada y su resolución/flag/etapa. La etiqueta distingue
@@ -216,11 +220,12 @@ No se añaden fuentes remotas, recursos de marca externos ni cartografía base.
 - Los colores de texto, superficies, bordes, acciones y estados usan tokens
   semánticos. Los fondos de marca se separan de los colores de enlace para
   mantener contraste en ambos temas. Los mapas actualizan también su lienzo.
-- Vista general integra el texto introductorio y la carga en un panel panorámico,
-  con el archivo SIDPOL y las cinco referencias en dos columnas cuando hay espacio.
-  La ilustración del Perú acompaña el contenido a la derecha y pierde protagonismo
-  en pantallas estrechas. La imagen se limita a esta página. Es un recurso
-  decorativo, no una capa de resultados; su generación se registra en
+- Vista general utiliza el fondo de la página como soporte de la introducción y
+  del Perú decorativo, sin encuadrarlos en una tarjeta. Las dos superficies de
+  carga se colocan en columnas cuando hay espacio y se apilan en móvil, sin
+  añadir contenedores concéntricos. La ilustración acompaña el contenido y pierde
+  protagonismo en pantallas estrechas. La imagen se limita a esta página. Es un
+  recurso decorativo, no una capa de resultados; su generación se registra en
   [visual-assets.md](../docs/visual-assets.md).
 - Estadística incorpora colores consistentes por estado, leyendas y controles
   que funcionan con teclado. Los números y nombres acompañan siempre al color.
@@ -233,10 +238,11 @@ Se volvió a consultar el repositorio de Refactoring UI solicitado por el usuari
 y su skill local. Se aplican jerarquía por proximidad y contraste, lectura de
 ancho controlado y color funcional sobre una base neutra.
 
-- La barra lateral utiliza una superficie clara u oscura según el tema. Cinco
-  acentos identifican los módulos: celeste, verde azulado, ámbar, violeta y rosa.
-  El módulo activo se distingue también por fondo, indicador lateral y texto;
-  el color no sustituye las etiquetas ni los nombres accesibles.
+- La barra lateral conserva el azul INEI también en el tema claro y utiliza un
+  azul más profundo en el oscuro. Texto, iconos y controles contrastan con esa
+  superficie en ambos temas. Los acentos identifican los módulos; el activo se
+  distingue también por fondo, indicador lateral y texto. El color no sustituye
+  las etiquetas ni los nombres accesibles, y el foco permanece visible.
 - La navegación y las filas de referencias usan iconos Lucide de 24 px elegidos
   por su función, sin cápsulas o recuadros decorativos. Las áreas de interacción
   conservan su tamaño accesible; el tamaño del icono no reduce el control.

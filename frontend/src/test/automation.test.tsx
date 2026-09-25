@@ -92,7 +92,7 @@ async function upload() {
   return user;
 }
 describe("safe processing defaults", () => {
-  it("keeps the source, mapping and selected reference when moving between overview and validation", async () => {
+  it("keeps a cancelled source replacement and resets old mapping only after another file is selected", async () => {
     mockCreation();
     const previousFetch = globalThis.fetch;
     vi.stubGlobal(
@@ -145,8 +145,8 @@ describe("safe processing defaults", () => {
     );
     const user = userEvent.setup();
     await user.click(
-      screen.getByRole("button", {
-        name: "Configurar referencia: Puertas / viviendas",
+      await screen.findByRole("button", {
+        name: "Usar catálogo guardado · Puertas / viviendas",
       }),
     );
     await user.selectOptions(
@@ -165,9 +165,10 @@ describe("safe processing defaults", () => {
     fireEvent.submit(document.querySelector(".upload-panel")!);
     await screen.findByRole("heading", { name: "Validación" });
     await user.clear(screen.getByLabelText("Nombre del procesamiento"));
-    await user.type(
-      screen.getByLabelText("Nombre del procesamiento"),
-      "Lote conservado",
+    await user.paste("Lote conservado");
+    await user.selectOptions(
+      screen.getByLabelText("Dirección / lugar del hecho"),
+      "complaint_id",
     );
     await screen.findByText("Nombre fuera de la convención recomendada");
     expect(
@@ -176,6 +177,10 @@ describe("safe processing defaults", () => {
     await user.click(screen.getByRole("link", { name: "Cambiar referencias" }));
     expect(screen.getByText("synthetic.csv", { exact: true })).toBeVisible();
     expect(screen.getByText("1 de 5 seleccionadas")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Archivo SIDPOL / DATACRIM"), {
+      target: { files: [] },
+    });
+    expect(screen.getByText("synthetic.csv", { exact: true })).toBeVisible();
     await user.click(
       screen.getByRole("link", { name: "Continuar validación" }),
     );
@@ -183,12 +188,30 @@ describe("safe processing defaults", () => {
       "Lote conservado",
     );
     expect(screen.getByLabelText("Dirección / lugar del hecho")).toHaveValue(
-      "location_original",
+      "complaint_id",
     );
     expect(
       screen.getByLabelText("Sistema de coordenadas originales"),
     ).toHaveValue("unconfirmed");
-  });
+    await user.click(screen.getByRole("link", { name: "Cambiar referencias" }));
+    await user.upload(
+      screen.getByLabelText("Archivo SIDPOL / DATACRIM"),
+      new File(["replacement"], "nuevo.csv", { type: "text/csv" }),
+    );
+    expect(
+      screen.queryByRole("link", { name: "Continuar validación" }),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Continuar validación" }),
+    );
+    await screen.findByRole("heading", { name: "Validación" });
+    expect(screen.getByLabelText("Nombre del procesamiento")).toHaveValue(
+      "nuevo",
+    );
+    expect(screen.getByLabelText("Dirección / lugar del hecho")).toHaveValue(
+      "location_original",
+    );
+  }, 10000);
   it("uses the independently selected reference files once each in the quality workflow", async () => {
     const writes = mockCreation();
     setup(<NewRun />);

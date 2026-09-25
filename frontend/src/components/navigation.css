@@ -1,17 +1,25 @@
 .navigation-shell {
   --navigation-width: 262px;
   --navigation-compact-width: 84px;
-  --nav-background: var(--surface);
-  --nav-text: var(--text);
-  --nav-active-text: var(--primary-dark);
 }
 .navigation-shell .sidebar {
+  --nav-background: var(--brand);
+  --nav-text: var(--on-brand);
+  --nav-muted: var(--brand-muted);
+  --nav-border: #386282;
+  --nav-hover-background: #1b5079;
+  --nav-hover-border: #7096b2;
+  --nav-active-background: #e8f4fb;
+  --nav-active-hover: #d9eef9;
+  --nav-active-text: #0d3354;
+  --nav-focus: var(--focus-on-dark);
   width: var(--navigation-width);
   padding: 24px 14px;
   background: var(--nav-background);
-  border-right: 1px solid var(--border);
+  color: var(--nav-text);
+  border-right: 1px solid var(--nav-border);
   scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-color: var(--nav-hover-border) transparent;
   scroll-padding-block: 20px;
 }
 .navigation-shell .workspace {
@@ -26,7 +34,7 @@
   gap: 8px;
   flex-shrink: 0;
   padding: 0 2px 24px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--nav-border);
 }
 .navigation-shell .brand {
   padding: 0;
@@ -36,7 +44,7 @@
   flex: 1;
   align-items: flex-start;
   letter-spacing: 0;
-  color: var(--primary-dark);
+  color: var(--nav-text);
 }
 .navigation-shell .brand-mark {
   flex: 0 0 32px;
@@ -45,7 +53,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--secondary);
+  color: var(--nav-focus);
 }
 .navigation-shell .brand-mark svg {
   width: 32px;
@@ -64,7 +72,7 @@
 .navigation-brand-subtitle {
   display: block;
   margin-top: 4px;
-  color: var(--muted);
+  color: var(--nav-muted);
   font-size: 12px;
   font-weight: 400;
   line-height: 1.5;
@@ -106,14 +114,14 @@
 .navigation-group-title {
   margin: 0 0 6px;
   padding: 0 13px;
-  color: #b8d6ea;
+  color: var(--nav-muted);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.2px;
 }
 .navigation-shell .nav-item {
-  --module-accent: #08769d;
-  --module-tint: #e8f5fb;
+  --module-accent: #78cfed;
+  --module-active-accent: #08769d;
   min-height: 52px;
   padding: 9px 10px;
   gap: 11px;
@@ -125,20 +133,20 @@
   position: relative;
 }
 .navigation-shell .nav-item[data-accent="teal"] {
-  --module-accent: #167766;
-  --module-tint: #e7f5ef;
+  --module-accent: #76d2b5;
+  --module-active-accent: #167766;
 }
 .navigation-shell .nav-item[data-accent="amber"] {
-  --module-accent: #95620d;
-  --module-tint: #fff4df;
+  --module-accent: #f2c16f;
+  --module-active-accent: #95620d;
 }
 .navigation-shell .nav-item[data-accent="violet"] {
-  --module-accent: #6655ad;
-  --module-tint: #f0edfa;
+  --module-accent: #bfb0f3;
+  --module-active-accent: #6655ad;
 }
 .navigation-shell .nav-item[data-accent="rose"] {
-  --module-accent: #ab456e;
-  --module-tint: #fcecf2;
+  --module-accent: #f0a2bf;
+  --module-active-accent: #ab456e;
 }
 .navigation-module-icon {
   display: grid;
@@ -148,31 +156,33 @@
   height: 24px;
   color: var(--module-accent);
 }
-.navigation-shell .navigation-module-icon svg,
-.navigation-shell .nav-item.active .navigation-module-icon svg {
+.navigation-shell .navigation-module-icon svg {
   color: var(--module-accent);
 }
+.navigation-shell .nav-item.active .navigation-module-icon svg {
+  color: var(--module-active-accent);
+}
 .navigation-shell .sidebar :is(a, button):focus-visible {
-  outline-color: var(--primary);
+  outline-color: var(--nav-focus);
 }
 .navigation-shell .nav-item > svg {
   flex-shrink: 0;
   color: currentColor;
 }
 .navigation-shell .nav-item:hover {
-  background: var(--background);
-  border-color: var(--border);
+  background: var(--nav-hover-background);
+  border-color: var(--nav-hover-border);
 }
 .navigation-shell .nav-item.active {
   color: var(--nav-active-text);
-  background: var(--module-tint);
+  background: var(--nav-active-background);
   border-color: transparent;
-  box-shadow: inset 3px 0 var(--module-accent);
+  box-shadow: inset 3px 0 var(--module-active-accent);
   font-weight: 600;
 }
 .navigation-shell .nav-item.active:hover {
-  background: var(--module-tint);
-  border-color: var(--module-accent);
+  background: var(--nav-active-hover);
+  border-color: var(--module-active-accent);
 }
 .navigation-link-label {
   flex: 1;
@@ -204,8 +214,8 @@
     border-color 150ms;
 }
 .navigation-collapse:hover {
-  background: var(--primary-light);
-  border-color: var(--border);
+  background: var(--nav-hover-background);
+  border-color: var(--nav-hover-border);
 }
 .navigation-shell .topbar {
   min-height: 56px;
@@ -260,7 +270,7 @@
   gap: 16px;
 }
 .navigation-compact .navigation-group + .navigation-group {
-  border-top: 1px solid rgb(255 255 255 / 17%);
+  border-top: 1px solid var(--nav-border);
   padding-top: 16px;
 }
 .navigation-compact .nav-item {
@@ -343,7 +353,8 @@
     border-radius: 10px;
   }
   .navigation-shell .mobile-close:hover {
-    background: var(--primary-light);
+    background: var(--nav-hover-background);
+    border-color: var(--nav-hover-border);
   }
   .navigation-shell .mobile-menu {
     display: flex;
@@ -388,25 +399,17 @@
     animation: navigation-scrim-in 180ms ease both;
   }
 }
+[data-theme="dark"] .navigation-shell .sidebar {
+  --nav-background: #0e2a42;
+  --nav-border: #294b66;
+  --nav-hover-background: #173d58;
+  --nav-hover-border: #638ca9;
+  --nav-active-background: #254d68;
+  --nav-active-hover: #315d78;
+  --nav-active-text: #edf7ff;
+}
 [data-theme="dark"] .navigation-shell .nav-item {
-  --module-accent: #78cfed;
-  --module-tint: #1a3b4d;
-}
-[data-theme="dark"] .navigation-shell .nav-item[data-accent="teal"] {
-  --module-accent: #76d2b5;
-  --module-tint: #193d39;
-}
-[data-theme="dark"] .navigation-shell .nav-item[data-accent="amber"] {
-  --module-accent: #f2c16f;
-  --module-tint: #433621;
-}
-[data-theme="dark"] .navigation-shell .nav-item[data-accent="violet"] {
-  --module-accent: #bfb0f3;
-  --module-tint: #332e4e;
-}
-[data-theme="dark"] .navigation-shell .nav-item[data-accent="rose"] {
-  --module-accent: #f0a2bf;
-  --module-tint: #442c3f;
+  --module-active-accent: var(--module-accent);
 }
 @media (prefers-reduced-motion: reduce) {
   .navigation-shell .sidebar,

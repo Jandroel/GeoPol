@@ -42,11 +42,11 @@ const profile = {
   warnings: [],
 };
 const onBusy = vi.fn();
-function Harness() {
+function Harness({ initialCatalogs = [] }: { initialCatalogs?: Reference[] }) {
   const [selected, setSelected] = useState<
     Partial<Record<ReferenceExcelKind, string>>
   >({});
-  const [catalogs, setCatalogs] = useState<Reference[]>([]);
+  const [catalogs, setCatalogs] = useState<Reference[]>(initialCatalogs);
   return (
     <ReferenceExcelCards
       editorMode="dialog"
@@ -60,13 +60,13 @@ function Harness() {
     />
   );
 }
-function setup() {
+function setup(initialCatalogs: Reference[] = []) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
   render(
     <QueryClientProvider client={client}>
-      <Harness />
+      <Harness initialCatalogs={initialCatalogs} />
     </QueryClientProvider>,
   );
   return userEvent.setup();
@@ -80,12 +80,26 @@ afterEach(() => {
 });
 
 describe("Reference editor dialog", () => {
-  it("keeps one mounted file input and returns focus after close and Escape cancellation", async () => {
+  it("opens the native chooser first, preserves a cancelled draft and keeps one input when configuring", async () => {
     const user = setup();
     const trigger = screen.getByRole("button", {
-      name: "Configurar referencia: Puertas / viviendas",
+      name: "Adjuntar Excel · Puertas / viviendas",
     });
+    const input = screen.getByLabelText(
+      "Archivo Excel · Puertas / viviendas",
+    ) as HTMLInputElement;
+    const picker = vi.spyOn(input, "click").mockImplementation(() => undefined);
     await user.click(trigger);
+    expect(picker).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent(input, new Event("cancel"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const file = new File(["qa"], "puertas.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    // The real chooser returns a change event to a hidden input; userEvent.upload
+    // would additionally focus that hidden input after our modal has opened.
+    fireEvent.change(input, { target: { files: [file] } });
     const dialog = screen.getByRole("dialog", {
       name: "Configurar Puertas / viviendas",
     });
@@ -94,18 +108,17 @@ describe("Reference editor dialog", () => {
     });
     expect(close).toHaveFocus();
     expect(document.body.style.overflow).toBe("hidden");
-    const input = within(dialog).getByLabelText(
-      "Archivo Excel · Puertas / viviendas",
-    ) as HTMLInputElement;
-    const file = new File(["qa"], "puertas.xlsx", {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    await user.upload(input, file);
+    expect(
+      within(dialog).getByLabelText("Archivo Excel · Puertas / viviendas"),
+    ).toBe(input);
     await user.click(close);
     expect(dialog).not.toHaveAttribute("open");
     expect(trigger).toHaveFocus();
     expect(document.body.style.overflow).toBe("auto");
-    await user.click(trigger);
+    const configure = screen.getByRole("button", {
+      name: "Configurar referencia: Puertas / viviendas",
+    });
+    await user.click(configure);
     expect(
       within(dialog).getByLabelText("Archivo Excel · Puertas / viviendas"),
     ).toBe(input);
@@ -119,8 +132,19 @@ describe("Reference editor dialog", () => {
       dialog,
       new Event("cancel", { bubbles: false, cancelable: true }),
     );
-    expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(trigger).toHaveFocus();
+    expect(configure).toHaveAttribute("aria-expanded", "false");
+    expect(configure).toHaveFocus();
+    await user.click(trigger);
+    fireEvent(input, new Event("cancel"));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger.closest("article")).toHaveTextContent("puertas.xlsx");
+    await user.click(configure);
+    expect(
+      within(dialog).getByRole("button", {
+        name: "Leer columnas de referencia",
+      }),
+    ).toBeEnabled();
+    expect(document.querySelectorAll("#reference-doors-file")).toHaveLength(1);
   });
 
   it("continues loading while closed, preserves mapping drafts and stays open after saving", async () => {
@@ -135,20 +159,19 @@ describe("Reference editor dialog", () => {
       path.endsWith("/preview") ? profile : catalog,
     );
     const user = setup();
+    await user.upload(
+      screen.getByLabelText("Archivo Excel · Puertas / viviendas"),
+      new File(["qa"], "puertas.xlsx"),
+    );
     const trigger = screen.getByRole("button", {
       name: "Configurar referencia: Puertas / viviendas",
     });
-    await user.click(trigger);
     const dialog = screen.getByRole("dialog", {
       name: "Configurar Puertas / viviendas",
     });
     const close = within(dialog).getByRole("button", {
       name: "Cerrar configuración de Puertas / viviendas",
     });
-    await user.upload(
-      within(dialog).getByLabelText("Archivo Excel · Puertas / viviendas"),
-      new File(["qa"], "puertas.xlsx"),
-    );
     await user.click(
       within(dialog).getByRole("button", {
         name: "Leer columnas de referencia",
@@ -156,7 +179,8 @@ describe("Reference editor dialog", () => {
     );
     expect(onBusy).toHaveBeenLastCalledWith("doors", true);
     await user.click(close);
-    expect(trigger).toHaveTextContent("Procesando…");
+    expect(trigger.closest("article")).toHaveTextContent("Procesando…");
+    expect(trigger).toHaveFocus();
     await act(async () =>
       finishUpload({
         id: "dialog-upload",
@@ -195,13 +219,18 @@ describe("Reference editor dialog", () => {
       ).toHaveTextContent("1 elementos disponibles"),
     );
     expect(dialog).toHaveAttribute("open");
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    await user.click(close);
+    expect(
+      screen.getByRole("button", {
+        name: "Adjuntar Excel · Puertas / viviendas",
+      }),
+    ).toHaveFocus();
   });
 
   it("dismisses a backdrop click without dismissing clicks inside the editor", async () => {
-    const user = setup();
+    const user = setup([catalog]);
     const trigger = screen.getByRole("button", {
-      name: "Configurar referencia: Puertas / viviendas",
+      name: "Usar catálogo guardado · Puertas / viviendas",
     });
     await user.click(trigger);
     const dialog = screen.getByRole("dialog", {
@@ -225,5 +254,50 @@ describe("Reference editor dialog", () => {
     fireEvent.click(dialog, { clientX: 10, clientY: 10 });
     expect(dialog).not.toHaveAttribute("open");
     expect(trigger).toHaveFocus();
+  });
+
+  it("reuses a saved catalog without opening the file chooser or uploading a file", async () => {
+    const user = setup([catalog]);
+    const input = screen.getByLabelText(
+      "Archivo Excel · Puertas / viviendas",
+    ) as HTMLInputElement;
+    const picker = vi.spyOn(input, "click");
+    const trigger = screen.getByRole("button", {
+      name: "Usar catálogo guardado · Puertas / viviendas",
+    });
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", {
+      name: "Configurar Puertas / viviendas",
+    });
+    await user.selectOptions(
+      within(dialog).getByLabelText("Catálogo guardado · Puertas / viviendas"),
+      catalog.id,
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Cerrar configuración de Puertas / viviendas",
+      }),
+    );
+    expect(trigger.closest("article")).toHaveTextContent("Puertas QA · v1");
+    expect(picker).not.toHaveBeenCalled();
+    expect(uploadFile).not.toHaveBeenCalled();
+    expect(trigger).toHaveFocus();
+    await user.upload(input, new File(["replacement"], "reemplazo.xlsx"));
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: "Cerrar configuración de Puertas / viviendas",
+      }),
+    );
+    const configure = screen.getByRole("button", {
+      name: "Configurar referencia: Puertas / viviendas",
+    });
+    expect(configure.closest("article")).toHaveTextContent(
+      "Se utilizará: Puertas QA · v1",
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: "Usar catálogo guardado · Puertas / viviendas",
+      }),
+    ).not.toBeInTheDocument();
   });
 });

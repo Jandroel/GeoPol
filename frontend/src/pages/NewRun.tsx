@@ -7,7 +7,13 @@ import {
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Check, FileUp, FileCheck2 } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  FileUp,
+  FileCheck2,
+  FileSpreadsheet,
+} from "lucide-react";
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { clearResume, getResume, uploadFile } from "../lib/upload";
@@ -263,6 +269,14 @@ function NewRunForm({
     setError(null);
     setOffset(0);
   }
+  function selectSourceFile(next?: File) {
+    if (!next) return;
+    if (upload) resetSource();
+    setFile(next);
+    setOffset(0);
+    setCrsConfirmed(false);
+    setCrsEvidence("");
+  }
   async function updateProfile(changes: {
     sheet?: string;
     delimiter?: string;
@@ -404,7 +418,11 @@ function NewRunForm({
                 {upload ? "Archivo cargado" : "Archivo de origen"}
               </span>
             </div>
-            <p>Las filas originales se conservarán con cada resultado.</p>
+            <p>
+              {mode === "overview"
+                ? "Archivo de hechos delictivos de la PNP."
+                : "Las filas originales se conservarán con cada resultado."}
+            </p>
           </div>
           {!upload ? (
             <form onSubmit={submitUpload} className="panel upload-panel">
@@ -415,30 +433,66 @@ function NewRunForm({
                   bloque confirmado.
                 </Notice>
               )}
-              <label className="file-drop" htmlFor="source-file">
-                <span className="source-file-icon">
-                  <FileUp size={28} strokeWidth={1.6} aria-hidden="true" />
-                </span>
-                <strong>{file?.name ?? "Seleccionar archivo de origen"}</strong>
-                <span>
-                  {file
-                    ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
-                    : "Excel (.xlsx) · también compatible con CSV"}
-                </span>
+              {mode === "overview" && (
+                <div className="source-file-summary">
+                  <FileSpreadsheet
+                    size={32}
+                    strokeWidth={1.6}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <strong>{file?.name ?? "Ningún archivo adjunto"}</strong>
+                    <span>
+                      {file
+                        ? `${(file.size / 1024 / 1024).toFixed(2)} MB · Listo para cargar`
+                        : "Selecciona el archivo que quieres validar."}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <label
+                className={
+                  mode === "overview" ? "source-excel-picker" : "file-drop"
+                }
+                htmlFor="source-file"
+              >
+                {mode === "overview" ? (
+                  <>
+                    <FileSpreadsheet size={18} aria-hidden="true" />
+                    <span>{file ? "Cambiar Excel" : "Adjuntar Excel"}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="source-file-icon">
+                      <FileUp size={28} strokeWidth={1.6} aria-hidden="true" />
+                    </span>
+                    <strong>
+                      {file?.name ?? "Seleccionar archivo de origen"}
+                    </strong>
+                    <span>
+                      {file
+                        ? `${(file.size / 1024 / 1024).toFixed(2)} MB`
+                        : "Excel (.xlsx) · también compatible con CSV"}
+                    </span>
+                  </>
+                )}
                 <input
                   id="source-file"
                   type="file"
+                  aria-label="Archivo SIDPOL / DATACRIM"
                   accept=".csv,.xlsx"
                   disabled={busy}
                   required={!file}
                   onChange={(e) => {
-                    setFile(e.target.files?.[0] ?? null);
-                    setOffset(0);
-                    setCrsConfirmed(false);
-                    setCrsEvidence("");
+                    selectSourceFile(e.target.files?.[0]);
                   }}
                 />
               </label>
+              {mode === "overview" && (
+                <p className="source-format">
+                  Excel (.xlsx) · también compatible con CSV
+                </p>
+              )}
               {busy && (
                 <div className="upload-progress">
                   <progress max={file?.size || 1} value={offset} />
@@ -453,7 +507,11 @@ function NewRunForm({
                   className="button primary"
                   disabled={!file || busy || importingReference}
                 >
-                  {busy ? "Cargando archivo…" : "Cargar y verificar columnas"}
+                  {busy
+                    ? "Cargando archivo…"
+                    : mode === "overview"
+                      ? "Continuar validación"
+                      : "Cargar y verificar columnas"}
                   <ArrowRight size={18} aria-hidden="true" />
                 </button>
               </div>
@@ -468,16 +526,22 @@ function NewRunForm({
                   flags.
                 </p>
               </div>
+              <label className="source-excel-picker" htmlFor="source-file">
+                <FileSpreadsheet size={18} aria-hidden="true" /> Cambiar Excel
+                <input
+                  id="source-file"
+                  type="file"
+                  aria-label="Archivo SIDPOL / DATACRIM"
+                  accept=".csv,.xlsx"
+                  disabled={busy}
+                  onChange={(event) =>
+                    selectSourceFile(event.target.files?.[0])
+                  }
+                />
+              </label>
               <Link className="button primary" to="/validation">
                 Continuar validación <ArrowRight size={18} aria-hidden="true" />
               </Link>
-              <button
-                className="text-link plain-button"
-                disabled={busy}
-                onClick={resetSource}
-              >
-                Cambiar Excel
-              </button>
             </section>
           ) : (
             <form onSubmit={create} className="stack">

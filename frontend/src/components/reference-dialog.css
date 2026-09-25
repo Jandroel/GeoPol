@@ -1,3 +1,92 @@
+.reference-direct-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 80px;
+  padding: 10px 16px;
+}
+.reference-direct-icon {
+  color: var(--primary);
+}
+.reference-direct-copy {
+  min-width: 0;
+}
+.reference-direct-copy h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.reference-direct-status,
+.reference-direct-detail {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.reference-direct-detail {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.reference-direct-status.needs-attention {
+  color: var(--amber);
+}
+.reference-direct-status.has-error {
+  color: var(--danger);
+}
+.reference-direct-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 224px;
+  gap: 8px;
+}
+.reference-direct-attach {
+  min-width: 144px;
+}
+.reference-direct-attach,
+.reference-dialog-attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--excel-action);
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.reference-direct-attach:hover,
+.reference-dialog-attach:hover {
+  background: var(--excel-action-hover);
+}
+.reference-direct-attach:disabled,
+.reference-dialog-attach:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.reference-direct-secondary {
+  min-height: 44px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 13px;
+}
+.reference-direct-secondary:hover {
+  text-decoration: underline;
+}
+
 .reference-editor-dialog {
   width: min(760px, calc(100vw - 32px));
   max-width: none;
@@ -61,6 +150,23 @@
   gap: 8px;
 }
 @media (max-width: 600px) {
+  .reference-direct-row {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .reference-direct-actions {
+    grid-column: 2 / -1;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .reference-direct-copy {
+    grid-column: 2 / -1;
+  }
+  .reference-direct-attach {
+    font-size: 13px;
+    padding-inline: 10px;
+  }
   .reference-editor-dialog {
     width: calc(100vw - 16px);
     max-height: calc(100dvh - 24px);

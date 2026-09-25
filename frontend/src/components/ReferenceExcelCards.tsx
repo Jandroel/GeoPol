@@ -269,14 +269,19 @@ function ReferenceCardsContent({
     >
       <div className="reference-upload-heading">
         <div className="intake-section-heading">
-          <h2>Referencias en Excel</h2>
+          <h2>
+            {editorMode === "dialog"
+              ? "Referencias geográficas"
+              : "Referencias en Excel"}
+          </h2>
           <span className="reference-selection-count" role="status">
             {selectedCount} de 5 seleccionadas
           </span>
         </div>
         <p>
-          Abre un tipo de referencia para adjuntar un Excel o reutilizar un
-          catálogo guardado.
+          {editorMode === "dialog"
+            ? "Adjunta un Excel por fuente o reutiliza un catálogo guardado."
+            : "Abre un tipo de referencia para adjuntar un Excel o reutilizar un catálogo guardado."}
         </p>
       </div>
       <div className="panel reference-list">
@@ -288,6 +293,7 @@ function ReferenceCardsContent({
             catalogs={catalogs}
             selected={selected[slot.kind] ?? ""}
             expanded={expanded === slot.kind}
+            onOpen={() => setExpanded(slot.kind)}
             onToggle={() =>
               setExpanded((current) =>
                 current === slot.kind ? null : slot.kind,
@@ -311,6 +317,7 @@ function ReferenceExcelCard({
   selected,
   expanded,
   onToggle,
+  onOpen,
   onSelect,
   onBusy,
   onClose,
@@ -321,11 +328,15 @@ function ReferenceExcelCard({
   selected: string;
   expanded: boolean;
   onToggle: () => void;
+  onOpen: () => void;
   onSelect: (id: string) => void;
   onBusy: (busy: boolean) => void;
   onClose: () => void;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
+  const attachButton = useRef<HTMLButtonElement>(null);
+  const configureButton = useRef<HTMLButtonElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const SourceIcon = referenceIcons[slot.kind];
   const { user } = useAuth();
   const client = useQueryClient();
@@ -375,6 +386,28 @@ function ReferenceExcelCard({
       ...emptyDraft(slot.kind, current.source),
       file: next,
     }));
+  }
+  function chooseFile() {
+    if (!fileInput.current || busy) return;
+    // Retain the File in the draft if the chooser is cancelled, while allowing
+    // the same filename to be selected again and emit a fresh change event.
+    fileInput.current.value = "";
+    fileInput.current.click();
+  }
+  function receiveFile(next: File | undefined) {
+    if (!next || busy) return;
+    if (next !== file) changeFile(next);
+    if (editorMode === "dialog") {
+      if (!trigger.current?.isConnected) trigger.current = attachButton.current;
+      onOpen();
+    }
+  }
+  function closeEditor() {
+    if (!trigger.current?.isConnected || trigger.current.disabled)
+      trigger.current = attachButton.current?.disabled
+        ? configureButton.current
+        : attachButton.current;
+    onClose();
   }
   const scope = `reference.${slot.kind}`;
   const saved = getResume(user!.id, scope);
@@ -521,54 +554,136 @@ function ReferenceExcelCard({
     <article
       className={`reference-slot ${active ? "has-reference" : ""} ${expanded ? "is-expanded" : ""}`}
     >
-      <h3 className="reference-slot-heading">
-        <button
-          ref={trigger}
-          type="button"
-          className="reference-slot-toggle"
-          aria-label={`Configurar referencia: ${slot.title}`}
-          aria-expanded={expanded}
-          aria-haspopup={editorMode === "dialog" ? "dialog" : undefined}
-          aria-controls={`reference-${slot.kind}-editor`}
-          aria-describedby={`reference-${slot.kind}-status`}
-          title={detail}
-          onClick={onToggle}
-        >
-          <SourceIcon size={20} aria-hidden="true" />
-          <span className="reference-slot-copy">
-            <span className="reference-slot-name">{slot.title}</span>
+      {editorMode === "dialog" ? (
+        <div className="reference-direct-row">
+          <SourceIcon
+            className="reference-direct-icon"
+            size={24}
+            aria-hidden="true"
+          />
+          <div className="reference-direct-copy">
+            <h3>{slot.title}</h3>
             <span
-              className={`reference-slot-description ${active && !draft && !busy && !error ? "reference-slot-current" : ""}`}
+              id={`reference-${slot.kind}-status`}
+              className={`reference-direct-status ${error ? "has-error" : stagedRows || draft ? "needs-attention" : ""}`}
             >
-              {detail}
+              {status}
             </span>
+            {(draft || busy || active) && (
+              <span className="reference-direct-detail" title={detail}>
+                {detail}
+              </span>
+            )}
             {active && (draft || busy || !!error) && (
-              <span className="reference-slot-description reference-slot-current">
+              <span
+                className="reference-direct-detail"
+                title={`Se utilizará: ${active.name} · ${active.version}`}
+              >
                 Se utilizará: {active.name} · {active.version}
               </span>
             )}
-          </span>
-          <span
-            id={`reference-${slot.kind}-status`}
-            className={`reference-slot-status ${error ? "has-error" : stagedRows || draft ? "needs-attention" : ""}`}
+          </div>
+          <div className="reference-direct-actions">
+            <button
+              ref={attachButton}
+              type="button"
+              className="reference-direct-attach"
+              aria-label={`${file ? "Cambiar Excel" : "Adjuntar Excel"} · ${slot.title}`}
+              aria-describedby={`reference-${slot.kind}-status`}
+              disabled={busy}
+              onClick={(event) => {
+                trigger.current = event.currentTarget;
+                chooseFile();
+              }}
+            >
+              <FileSpreadsheet size={18} aria-hidden="true" />
+              {file ? "Cambiar Excel" : "Adjuntar Excel"}
+            </button>
+            {(draft || busy || !!error) && (
+              <button
+                ref={configureButton}
+                type="button"
+                className="reference-direct-secondary"
+                aria-label={`Configurar referencia: ${slot.title}`}
+                aria-haspopup="dialog"
+                aria-expanded={expanded}
+                aria-controls={`reference-${slot.kind}-editor`}
+                onClick={(event) => {
+                  trigger.current = event.currentTarget;
+                  onOpen();
+                }}
+              >
+                Configurar
+              </button>
+            )}
+            {choices.length > 0 && !draft && !busy && !error && (
+              <button
+                type="button"
+                className="reference-direct-secondary"
+                aria-label={`Usar catálogo guardado · ${slot.title}`}
+                title={`Usar catálogo guardado · ${slot.title}`}
+                aria-haspopup="dialog"
+                aria-expanded={expanded}
+                aria-controls={`reference-${slot.kind}-editor`}
+                onClick={(event) => {
+                  trigger.current = event.currentTarget;
+                  onOpen();
+                }}
+              >
+                Catálogo
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <h3 className="reference-slot-heading">
+          <button
+            ref={trigger}
+            type="button"
+            className="reference-slot-toggle"
+            aria-label={`Configurar referencia: ${slot.title}`}
+            aria-expanded={expanded}
+            aria-controls={`reference-${slot.kind}-editor`}
+            aria-describedby={`reference-${slot.kind}-status`}
+            title={detail}
+            onClick={onToggle}
           >
-            {active &&
-              !busy &&
-              !draft &&
-              !error &&
-              !stagedRows &&
-              !!active.feature_count && (
-                <CheckCircle2 size={15} aria-hidden="true" />
+            <SourceIcon size={20} aria-hidden="true" />
+            <span className="reference-slot-copy">
+              <span className="reference-slot-name">{slot.title}</span>
+              <span
+                className={`reference-slot-description ${active && !draft && !busy && !error ? "reference-slot-current" : ""}`}
+              >
+                {detail}
+              </span>
+              {active && (draft || busy || !!error) && (
+                <span className="reference-slot-description reference-slot-current">
+                  Se utilizará: {active.name} · {active.version}
+                </span>
               )}
-            {status}
-          </span>
-          <ChevronDown
-            size={18}
-            className="reference-slot-chevron"
-            aria-hidden="true"
-          />
-        </button>
-      </h3>
+            </span>
+            <span
+              id={`reference-${slot.kind}-status`}
+              className={`reference-slot-status ${error ? "has-error" : stagedRows || draft ? "needs-attention" : ""}`}
+            >
+              {active &&
+                !busy &&
+                !draft &&
+                !error &&
+                !stagedRows &&
+                !!active.feature_count && (
+                  <CheckCircle2 size={15} aria-hidden="true" />
+                )}
+              {status}
+            </span>
+            <ChevronDown
+              size={18}
+              className="reference-slot-chevron"
+              aria-hidden="true"
+            />
+          </button>
+        </h3>
+      )}
       <span
         className="sr-only"
         role="status"
@@ -583,10 +698,22 @@ function ReferenceExcelCard({
         mode={editorMode}
         expanded={expanded}
         title={slot.title}
-        onClose={onClose}
+        onClose={closeEditor}
         returnFocus={trigger}
         id={`reference-${slot.kind}-editor`}
       >
+        {editorMode === "dialog" && (
+          <input
+            ref={fileInput}
+            id={`reference-${slot.kind}-file`}
+            type="file"
+            accept=".xlsx"
+            aria-label={`Archivo Excel · ${slot.title}`}
+            hidden
+            disabled={busy}
+            onChange={(event) => receiveFile(event.target.files?.[0])}
+          />
+        )}
         {choices.length > 0 && (
           <label className="reference-catalog-choice">
             Catálogo guardado
@@ -646,33 +773,54 @@ function ReferenceExcelCard({
           {!profile ? (
             <form onSubmit={load} className="reference-file-form">
               <div className="excel-file-field">
-                <label
-                  className="sr-only"
-                  htmlFor={`reference-${slot.kind}-file`}
-                >
-                  Archivo Excel · {slot.title}
-                </label>
+                {editorMode === "inline" && (
+                  <label
+                    className="sr-only"
+                    htmlFor={`reference-${slot.kind}-file`}
+                  >
+                    Archivo Excel · {slot.title}
+                  </label>
+                )}
                 <div className="excel-file-picker">
                   <div
                     className={`excel-file-control ${busy ? "is-disabled" : ""}`}
                   >
-                    <span className="excel-file-button" aria-hidden="true">
-                      <FileSpreadsheet size={21} strokeWidth={1.8} />
-                      {file ? "Cambiar Excel" : "Adjuntar Excel"}
-                    </span>
-                    <input
-                      id={`reference-${slot.kind}-file`}
-                      className="excel-file-input"
-                      type="file"
-                      accept=".xlsx"
-                      aria-describedby={`reference-${slot.kind}-file-hint`}
-                      required={!file}
-                      disabled={busy}
-                      onChange={(e) => {
-                        const next = e.target.files?.[0];
-                        if (next && next !== file) changeFile(next);
-                      }}
-                    />
+                    {editorMode === "dialog" ? (
+                      <button
+                        type="button"
+                        className="excel-file-button reference-dialog-attach"
+                        onClick={chooseFile}
+                        disabled={busy}
+                        aria-label={`${file ? "Cambiar Excel" : "Adjuntar Excel"} · ${slot.title}`}
+                      >
+                        <FileSpreadsheet
+                          size={21}
+                          strokeWidth={1.8}
+                          aria-hidden="true"
+                        />
+                        {file ? "Cambiar Excel" : "Adjuntar Excel"}
+                      </button>
+                    ) : (
+                      <>
+                        <span className="excel-file-button" aria-hidden="true">
+                          <FileSpreadsheet size={21} strokeWidth={1.8} />
+                          {file ? "Cambiar Excel" : "Adjuntar Excel"}
+                        </span>
+                        <input
+                          ref={fileInput}
+                          id={`reference-${slot.kind}-file`}
+                          className="excel-file-input"
+                          type="file"
+                          accept=".xlsx"
+                          aria-describedby={`reference-${slot.kind}-file-hint`}
+                          required={!file}
+                          disabled={busy}
+                          onChange={(e) => {
+                            receiveFile(e.target.files?.[0]);
+                          }}
+                        />
+                      </>
+                    )}
                   </div>
                   <div
                     className="excel-file-summary"

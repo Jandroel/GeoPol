@@ -2,6 +2,44 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Portada abierta y adjunto directo · 25 de septiembre de 2026
+
+Título e ilustración del Perú se presentan sobre el fondo, sin marco exterior.
+SIDPOL y referencias son dos secciones de una sola superficie. Los botones verdes
+abren el selector nativo; al elegir una referencia se abre su configuración.
+La navegación conserva azul INEI en claro y azul profundo en oscuro.
+
+- **49 pruebas de componente verificadas**: navegación/tema (22) y
+  automatización/referencias/diálogo (27). Después de los últimos ajustes se
+  repitieron las cuatro pruebas del diálogo y el recorrido de reemplazo PNP.
+  Se comprueban cancelación del selector, un único input por referencia,
+  conservación de borradores/catálogos activos, reutilización sin subir Excel,
+  foco y carga en curso con el editor cerrado. El recorrido PNP ampliado conserva
+  nombre y mapeo al cancelar, y los renueva al elegir y cargar otro archivo;
+  tiene un límite local de 10 s por sus dos idas y vueltas, sin cambiar los demás.
+- **Tres escenarios Chromium aprobados contra producción**: cinco módulos,
+  actividad/gráficas/navegación y cinco referencias Excel con avance y exportación
+  por etapa. El acceso directo se verifica esperando el selector real, comprobando
+  que aún no hay diálogo y eligiendo el archivo antes de configurar. Tras alinear
+  las acciones se repitió el escenario de módulos completo: aprobado en 27,7 s.
+- Sin scroll vertical en la portada a **1366 × 768, 1440 × 900 y 1920 × 1080**,
+  vacía, con referencias guardadas y archivo cargado. También se comprueban anchos
+  intermedios de 800/1024 px y móvil de 400 px, sin desbordamiento horizontal.
+  Se inspeccionaron ambos temas, las ventanas de configuración y el menú móvil.
+- Revisión independiente sin defectos importantes adicionales. Se corrigieron
+  la altura inicial de la portada, la herencia vertical del botón PNP y la
+  alineación de acciones entre filas con y sin catálogo guardado. El cálculo de
+  contraste del menú arroja texto mínimo 6,52:1 e iconos mínimo 3,58:1, incluyendo
+  selección y hover. Las acciones conservan objetivos de al menos 44 px.
+- TypeScript/Vite y formato correctos; continúa el aviso conocido de tamaño de
+  MapLibre. Sin cambios de backend, dependencias ni datos operativos.
+
+Un intento del escenario legado de calidad mostró «En cola» durante la espera
+de 20 s aunque la API ya devolvía la cuadra resuelta. La repetición completa pasó
+sin cambiar el motor; la causa no quedó confirmada en esta revisión.
+Las pruebas usan 18001/15175 y datos sintéticos temporales, limpiados al finalizar.
+Capturas privadas: `.local/ui-open-overview-20260925/`, excluidas de Git.
+
 ## Portada de importación y último procesamiento · 25 de septiembre de 2026
 
 Vista general reúne el archivo SIDPOL y las cinco referencias dentro del panel

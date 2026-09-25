@@ -147,6 +147,14 @@ test("five modules preserve data, render both themes and expose statistics and r
   await expect(
     page.getByText("Estado de la información", { exact: true }),
   ).toHaveCount(0);
+  await expect(page.locator(".overview-introduction")).toHaveCSS(
+    "border-top-width",
+    "0px",
+  );
+  await expect(page.locator(".overview-introduction")).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
   async function assertHomeFits(state: string) {
     for (const [width, height] of [
       [1366, 768],
@@ -167,13 +175,23 @@ test("five modules preserve data, render both themes and expose statistics and r
     await page.setViewportSize({ width: 1440, height: 1000 });
   }
   await assertHomeFits("empty");
+  for (const width of [800, 1024]) {
+    await page.setViewportSize({ width, height: 900 });
+    await capture(`home-intermediate-${width}`);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(navigation.getByRole("link")).toHaveCount(5);
   for (const name of moduleNames)
     await expect(
       navigation.getByRole("link", { name, exact: true }),
     ).toBeVisible();
   await expect(page.locator("#source-file")).toBeVisible();
-  await expect(page.locator(".reference-slot-toggle")).toHaveCount(5);
+  await expect(page.locator(".reference-direct-row")).toHaveCount(5);
   await expect(
     page.getByRole("link", { name: "Auditoría", exact: true }),
   ).toHaveCount(0);
@@ -189,31 +207,42 @@ test("five modules preserve data, render both themes and expose statistics and r
       [1, "boundaries", "Límites administrativos"],
     ] as const) {
       const card = page.locator("article.reference-slot").filter({
-        has: page.getByRole("button", {
-          name: `Configurar referencia: ${title}`,
+        has: page.getByRole("heading", {
+          name: title,
           exact: true,
           includeHidden: true,
         }),
       });
-      const toggle = card.getByRole("button", {
-        name: `Configurar referencia: ${title}`,
+      const attach = card.getByRole("button", {
+        name: `Adjuntar Excel · ${title}`,
         exact: true,
       });
-      await toggle.click();
       const dialog = page.getByRole("dialog", {
         name: `Configurar ${title}`,
         exact: true,
       });
+      const chooserPromise = page.waitForEvent("filechooser");
+      await attach.click();
+      const chooser = await chooserPromise;
+      await expect(dialog).not.toBeVisible();
+      await chooser.setFiles(resolve(fixtures, `${kind}.xlsx`));
       await expect(dialog).toBeVisible();
       if (index === 0) {
         await page.keyboard.press("Escape");
         await expect(dialog).not.toBeVisible();
-        await expect(toggle).toBeFocused();
-        await toggle.click();
+        await expect(
+          card.getByRole("button", {
+            name: `Cambiar Excel · ${title}`,
+            exact: true,
+          }),
+        ).toBeFocused();
+        await card
+          .getByRole("button", {
+            name: `Configurar referencia: ${title}`,
+            exact: true,
+          })
+          .click();
       }
-      await card
-        .getByLabel(`Archivo Excel · ${title}`, { exact: true })
-        .setInputFiles(resolve(fixtures, `${kind}.xlsx`));
       await card
         .getByRole("button", {
           name: "Leer columnas de referencia",
@@ -281,7 +310,7 @@ test("five modules preserve data, render both themes and expose statistics and r
         })
         .click();
       await expect(dialog).not.toBeVisible();
-      await expect(toggle).toBeFocused();
+      await expect(attach).toBeFocused();
     }
     await expect(
       page.getByText("2 de 5 seleccionadas", { exact: true }),
@@ -302,7 +331,7 @@ test("five modules preserve data, render both themes and expose statistics and r
         ) && response.request().method() === "POST",
     );
     await page
-      .getByRole("button", { name: "Cargar y verificar columnas", exact: true })
+      .getByRole("button", { name: "Continuar validación", exact: true })
       .click();
     await expect(page).toHaveURL(/\/validation$/);
     const reportResponse = await reportPromise;
@@ -351,7 +380,7 @@ test("five modules preserve data, render both themes and expose statistics and r
     ).toBeVisible();
     for (const name of referenceNames)
       await expect(
-        page.locator(".reference-slot-toggle").filter({ hasText: name }),
+        page.locator(".reference-direct-row").filter({ hasText: name }),
       ).toBeVisible();
     await assertHomeFits("loaded");
     await page

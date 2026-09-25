@@ -1,187 +1,214 @@
 .overview-page > .page-heading {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 .overview-introduction {
-  --hero-bg: #eaf4f9;
-  --hero-edge: #cce2ee;
   position: relative;
   isolation: isolate;
-  overflow: hidden;
   min-width: 0;
-  border: 1px solid var(--hero-edge);
-  border-radius: 14px;
-  background: var(--hero-bg);
   color: var(--text);
-  padding: 28px;
-}
-.overview-introduction::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(90deg, var(--hero-bg) 56%, transparent 91%);
 }
 .overview-artwork {
   position: absolute;
-  z-index: -2;
-  right: 0;
-  top: 16px;
-  width: 29%;
-  height: calc(100% - 32px);
+  z-index: -1;
+  right: 16px;
+  top: -30px;
+  width: 118px;
+  height: 144px;
   object-fit: contain;
-  object-position: right center;
-  opacity: 0.9;
+  opacity: 0.85;
   pointer-events: none;
   user-select: none;
 }
 .overview-hero-content {
   position: relative;
-  width: 82%;
-  max-width: 1180px;
+  width: 100%;
 }
 .overview-intro-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 94px;
   margin-bottom: 20px;
+  padding-right: 192px;
 }
 .overview-intro-copy h2 {
-  color: var(--primary-dark);
-  font-size: clamp(23px, 2vw, 30px);
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: -0.6px;
-  text-wrap: balance;
   margin: 0;
+  color: var(--primary-dark);
+  font-size: clamp(22px, 1.8vw, 28px);
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  text-wrap: balance;
 }
 .overview-intro-copy p {
+  margin: 8px 0 0;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.5;
-  margin: 8px 0 0;
   max-width: 72ch;
 }
-.overview-imports {
-  border: 1px solid var(--hero-edge);
-  border-radius: 10px;
-  padding: 20px;
-  background: var(--surface);
-}
 .overview-imports .intake-grid {
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(280px, 0.65fr) minmax(0, 1fr);
   gap: 24px;
+}
+.overview-imports .intake-source,
+.overview-imports .reference-upload-column {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
 }
 .overview-imports .intake-source-heading,
 .overview-imports .reference-upload-heading {
-  margin-bottom: 12px;
+  margin-bottom: 20px;
 }
 .overview-imports .intake-section-heading {
-  gap: 4px 8px;
+  gap: 8px;
   align-items: center;
 }
 .overview-imports .intake-section-heading h2 {
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.4;
+  font-weight: 600;
 }
-.overview-imports .intake-source-heading p,
-.overview-imports .intake-source-label,
+.overview-imports .intake-source-label {
+  display: none;
+}
 .overview-imports .reference-upload-heading > p {
   display: none;
 }
+.overview-imports .intake-source-heading p,
+.overview-imports .reference-upload-heading > p {
+  font-size: 13px;
+  line-height: 1.5;
+}
 .overview-imports .reference-selection-count {
   padding: 2px 6px;
-  font-size: 11px;
-}
-.overview-imports .intake-source .upload-panel {
-  padding: 12px;
-  background: var(--surface-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-.overview-imports .intake-source .file-drop {
-  min-height: 174px;
-  margin-bottom: 12px;
-  padding: 16px 12px;
-  gap: 8px;
-  background: var(--surface);
-}
-.overview-imports .file-drop .source-file-icon {
-  width: auto;
-  height: auto;
-  padding: 0;
-  background: transparent;
-  border-radius: 0;
-  color: var(--excel-action);
-}
-.overview-imports .file-drop .source-file-icon svg {
-  width: 38px;
-  height: 38px;
-}
-.overview-imports .source-upload-actions .button {
-  width: 100%;
-  padding: 10px;
-  gap: 6px;
   font-size: 12px;
+  white-space: nowrap;
 }
+.overview-imports .intake-source .upload-panel,
+.overview-imports .loaded-source,
 .overview-imports .reference-list {
   margin: 0;
-  border-radius: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
-.overview-imports .reference-slot-toggle {
-  min-height: 55px;
-  padding: 8px 10px;
-  grid-template-columns: 24px minmax(0, 1fr) 18px;
-  gap: 2px 10px;
+.overview-imports .intake-source .upload-panel {
+  text-align: left;
 }
-.overview-imports .reference-slot-toggle > svg:first-child {
-  grid-column: 1;
-  grid-row: 1 / 3;
-  width: 24px;
-  height: 24px;
-}
-.overview-imports .reference-slot-copy {
-  grid-column: 2;
-}
-.overview-imports .reference-slot-name {
-  font-size: 13px;
-}
-.overview-imports .reference-slot-description {
-  display: none;
-}
-.overview-imports .reference-slot-current {
-  display: block;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 11px;
-}
-.overview-imports .reference-slot-status {
-  grid-column: 2;
-  max-width: none;
-  font-size: 11px;
-  line-height: 1.4;
-}
-.overview-imports .reference-slot-chevron {
-  grid-column: 3;
-  grid-row: 1 / 3;
-}
-.overview-imports .loaded-source {
-  padding: 18px;
+.source-file-summary {
+  display: flex;
+  align-items: flex-start;
   gap: 12px;
-  border-radius: 8px;
+  margin: 24px 0 20px;
 }
+.source-file-summary > svg,
 .overview-imports .loaded-source > svg {
   color: var(--success);
+  flex-shrink: 0;
 }
-.overview-imports .loaded-source > div {
-  flex-basis: 100%;
+.source-file-summary > div {
+  min-width: 0;
 }
+.source-file-summary strong {
+  display: block;
+  font-weight: 600;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.source-file-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 6px;
+}
+.source-excel-picker {
+  position: relative;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 14px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--excel-action);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.source-excel-picker:hover {
+  background: var(--excel-action-hover);
+}
+.source-excel-picker:focus-within {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+.source-excel-picker:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.source-excel-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: inherit;
+}
+.source-format {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+.overview-imports .source-upload-actions {
+  justify-content: flex-start;
+  padding-top: 20px;
+  margin-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.overview-imports .source-upload-actions .button,
 .overview-imports .loaded-source .button {
   width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+}
+.overview-imports .reference-list {
+  overflow: visible;
+}
+.overview-imports .loaded-source {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 16px 12px;
+  align-items: start;
+}
+.overview-imports .loaded-source > div {
+  min-width: 0;
+}
+.overview-imports .loaded-source strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.overview-imports .loaded-source .source-excel-picker {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.overview-imports .loaded-source .button {
+  grid-column: 1 / -1;
+  margin-top: 8px;
 }
 .overview-readonly {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
+  padding: 24px 0;
 }
 .overview-readonly h3,
 .overview-readonly p {
@@ -191,88 +218,61 @@
 .overview-readonly p {
   color: var(--muted);
 }
-[data-theme="dark"] .overview-introduction {
-  --hero-bg: #102b43;
-  --hero-edge: #27465e;
-}
 [data-theme="dark"] .overview-artwork {
-  opacity: 1;
   filter: saturate(1.1) brightness(1.12);
 }
-@media (max-width: 1400px) {
-  .overview-introduction {
-    padding: 24px;
-  }
-  .overview-hero-content {
-    width: 88%;
-  }
-  .overview-imports {
-    padding: 16px;
-  }
-  .overview-imports .intake-grid {
-    gap: 16px;
+@media (min-width: 1600px) {
+  .overview-artwork {
+    right: 24px;
   }
 }
-@media (max-width: 1100px) {
-  .overview-hero-content {
-    width: 100%;
+@media (max-width: 1200px) {
+  .overview-imports .intake-grid {
+    grid-template-columns: minmax(240px, 0.58fr) minmax(0, 1fr);
+    gap: 16px;
   }
-  .overview-artwork {
-    opacity: 0.25;
-    width: 36%;
-  }
-  [data-theme="dark"] .overview-artwork {
-    opacity: 0.3;
+  .overview-imports .intake-source,
+  .overview-imports .reference-upload-column {
+    padding: 16px;
   }
 }
 @media (max-width: 1000px) {
   .overview-imports .intake-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-}
-@media (max-width: 760px) {
-  .overview-introduction {
-    padding: 18px 14px;
-  }
   .overview-intro-copy {
+    padding-right: 132px;
+  }
+  .overview-artwork {
+    width: 110px;
+    height: 144px;
+    right: 0;
+    top: -18px;
+  }
+}
+@media (max-width: 600px) {
+  .overview-intro-copy {
+    min-height: 100px;
     margin-bottom: 16px;
+    padding-right: 76px;
   }
   .overview-intro-copy h2 {
     font-size: 21px;
-    text-align: left;
   }
   .overview-intro-copy p {
-    display: none;
+    font-size: 13px;
   }
   .overview-artwork {
-    width: 70%;
-    height: 250px;
+    width: 72px;
+    height: 112px;
     top: 0;
+    opacity: 0.6;
   }
-  .overview-imports {
-    padding: 12px;
+  .overview-imports .intake-source,
+  .overview-imports .reference-upload-column {
+    padding: 16px;
   }
-  .overview-imports .intake-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 20px;
-  }
-  .overview-imports .intake-source .upload-panel {
-    padding: 10px;
-  }
-  .overview-imports .intake-source .file-drop {
-    min-height: 104px;
-    padding: 10px;
-  }
-  .overview-imports .file-drop .source-file-icon {
-    display: none;
-  }
-  .overview-imports .reference-slot-toggle {
-    min-height: 52px;
-  }
-  .overview-imports .loaded-source {
-    padding: 12px;
-  }
-  .overview-imports .loaded-source p {
-    display: none;
+  .source-file-summary {
+    margin-top: 16px;
   }
 }
