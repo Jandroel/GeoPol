@@ -39,7 +39,7 @@
   line-height: 1.5;
 }
 .documentation-categories > button:hover {
-  background: white;
+  background: var(--surface);
 }
 .documentation-categories > button[aria-pressed="true"] {
   color: var(--primary);
@@ -102,7 +102,7 @@
   padding: 16px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--surface);
   text-align: left;
   cursor: pointer;
   transition:
@@ -208,15 +208,6 @@
 }
 .documentation-reader-body li + li {
   margin-top: 10px;
-}
-.documentation-reader-body footer {
-  border-top: 1px solid var(--border);
-  margin-top: 28px;
-  padding-top: 16px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.65;
-  overflow-wrap: anywhere;
 }
 @media (max-width: 1350px) {
   .documentation-workspace {

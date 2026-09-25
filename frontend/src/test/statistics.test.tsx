@@ -180,6 +180,26 @@ describe("statistics module", () => {
     expect(screen.getByText(`Exportar ${run.id}`)).toBeVisible();
   });
 
+  it("lets the resolution legend explain a category without filtering the totals", async () => {
+    const user = setup();
+    const automatic = await screen.findByRole("button", {
+      name: /Aceptado automáticamente/,
+    });
+    await user.click(automatic);
+    expect(automatic).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Aceptado automáticamente: 1 ubicaciones",
+    );
+    expect(
+      screen.getByText("Con geometría aceptada").parentElement,
+    ).toHaveTextContent("2");
+    expect(screen.getByTestId("statistics-map")).toHaveTextContent(
+      "2 geometrías visibles",
+    );
+    await user.keyboard("{Escape}");
+    expect(automatic).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("does not generate an export while the selected run is active", async () => {
     vi.mocked(request).mockImplementation(async (path) =>
       path.startsWith("/runs?")

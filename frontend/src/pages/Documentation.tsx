@@ -1,12 +1,6 @@
 import { useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import {
-  BookOpen,
-  ChevronRight,
-  Download,
-  FileText,
-  Search,
-} from "lucide-react";
+import { BookOpen, ChevronRight, FileText, Search } from "lucide-react";
 import { Empty, PageHeader } from "../components/ui";
 import "./documentation.css";
 
@@ -355,9 +349,6 @@ const searchable = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-function markdown(guide: Guide) {
-  return `# ${guide.title}\n\nGuía interna de GeoPol. No sustituye normativa oficial.\n\n${guide.summary}\n\n${guide.sections.map((section) => `## ${section.title}\n\n${section.paragraphs?.join("\n\n") ?? ""}${section.steps ? section.steps.map((step, index) => `${index + 1}. ${step}`).join("\n") : ""}`).join("\n\n")}\n\nFuentes internas: ${guide.source}\n`;
-}
 
 export function Documentation() {
   const [params, setParams] = useSearchParams();
@@ -421,7 +412,6 @@ export function Documentation() {
               </span>
             </button>
           ))}
-          <p>Guías internas adaptadas al funcionamiento de la aplicación.</p>
           <Link className="text-link" to="/rules">
             Consultar reglas vigentes
           </Link>
@@ -456,7 +446,6 @@ export function Documentation() {
                 <span>
                   <strong>{guide.title}</strong>
                   <span>{guide.summary}</span>
-                  <small>Guía interna · Markdown</small>
                 </span>
                 <ChevronRight size={17} aria-hidden="true" />
               </button>
@@ -487,16 +476,8 @@ export function Documentation() {
           >
             <div className="documentation-reader-toolbar">
               <span>
-                <BookOpen size={18} aria-hidden="true" /> Guía interna de GeoPol
+                <BookOpen size={18} aria-hidden="true" /> Guía de uso
               </span>
-              <a
-                className="button secondary"
-                href={`data:text/markdown;charset=utf-8,${encodeURIComponent(markdown(selected))}`}
-                download={`geopol-${selected.id}.md`}
-              >
-                <Download size={16} aria-hidden="true" />
-                Descargar Markdown
-              </a>
             </div>
             <div className="documentation-reader-body">
               <h2 id="documentation-reader-title">{selected.title}</h2>
@@ -516,10 +497,6 @@ export function Documentation() {
                   )}
                 </section>
               ))}
-              <footer>
-                Adaptado de <span>{selected.source}</span>. Contenido de apoyo
-                de la aplicación; no es un PDF oficial del INEI.
-              </footer>
             </div>
           </article>
         )}

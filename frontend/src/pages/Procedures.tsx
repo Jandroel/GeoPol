@@ -10,6 +10,16 @@ import {
   Database,
   FileSpreadsheet,
   ListChecks,
+  AlignLeft,
+  DoorOpen,
+  Route,
+  Signpost,
+  Building2,
+  ShieldCheck,
+  LocateFixed,
+  MapPinned,
+  Clock3,
+  CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
@@ -31,48 +41,56 @@ const procedures = [
   {
     name: "Normalización",
     kind: "normalization",
+    icon: AlignLeft,
     detail:
       "Estandariza los campos, reconoce componentes y conserva el texto original y las transformaciones. Se ejecuta al preparar las ubicaciones del archivo.",
   },
   {
     name: "Puerta",
     kind: "door",
+    icon: DoorOpen,
     detail:
       "Contrasta vía, número de puerta, territorio y punto de referencia. Solo acepta automáticamente coincidencias con evidencia suficiente; los candidatos ambiguos se conservan para revisión.",
   },
   {
     name: "Cuadra",
     kind: "block",
+    icon: Route,
     detail:
       "Busca la cuadra declarada y conserva la geometría real del tramo. No deduce la cuadra a partir del número de puerta ni genera un domicilio exacto.",
   },
   {
     name: "Cruce de vías",
     kind: "intersection",
+    icon: Signpost,
     detail:
       "Contrasta las dos vías y una intersección documentada dentro del territorio. Después, el motor también dispone de una etapa de vías antes de continuar con núcleos.",
   },
   {
     name: "Núcleos urbanos",
     kind: "nucleus",
+    icon: Building2,
     detail:
       "Contrasta núcleos y centros poblados identificados. Un punto de centro poblado representa esa localidad y conserva esa precisión; no acredita una puerta.",
   },
   {
     name: "Jurisdicción",
     kind: "jurisdiction",
+    icon: ShieldCheck,
     detail:
       "Contrasta la jurisdicción explícita y su geometría. El distrito por sí solo no identifica una jurisdicción policial.",
   },
   {
     name: "Coordenadas",
     kind: "coordinates",
+    icon: LocateFixed,
     detail:
       "Las coordenadas intervienen en las comprobaciones de coherencia, CRS y territorio. En el flujo por calidad este control está integrado: no existe una ejecución independiente que permita omitir las comprobaciones de cada etapa.",
   },
   {
     name: "Sitios de interés",
     kind: "sites",
+    icon: MapPinned,
     detail:
       "La cobertura actual incluye puntos de centros poblados en la etapa de núcleos. La búsqueda general de establecimientos o sitios de interés no está disponible como procedimiento independiente.",
   },
@@ -283,6 +301,41 @@ function ProcedureRun({ run }: { run: Run }) {
       </aside>
       <div className="procedure-main">
         <RunActivity run={run} />
+        <ol
+          className="procedure-timeline"
+          aria-label="Tiempos registrados de la operación"
+        >
+          {[
+            { name: "Archivo registrado", value: run.created_at },
+            {
+              name: "Inicio de esta operación",
+              value: run.activity?.started_at,
+            },
+            { name: "Fin de esta operación", value: run.activity?.finished_at },
+          ].map((event, index) => (
+            <li key={event.name} className={event.value ? "is-recorded" : ""}>
+              <span className="procedure-event-icon" aria-hidden="true">
+                {event.value ? (
+                  <CheckCircle2 size={17} />
+                ) : (
+                  <Clock3 size={17} />
+                )}
+              </span>
+              <div>
+                <strong>{event.name}</strong>
+                <span>
+                  {event.value
+                    ? date(event.value)
+                    : index === 2 && active
+                      ? run.activity?.phase === "queued"
+                        ? "Pendiente"
+                        : "En curso"
+                      : "Sin tiempo registrado"}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ol>
         {run.superseded_by && (
           <Notice>
             Ejecución histórica.{" "}
@@ -323,7 +376,10 @@ function ProcedureRun({ run }: { run: Run }) {
         >
           <div className="procedure-section-title">
             <ListChecks size={20} aria-hidden="true" />
-            <h2 id="procedure-methods-title">Procedimientos y alcance</h2>
+            <div>
+              <h2 id="procedure-methods-title">Procedimientos y alcance</h2>
+              <p>Ocho criterios para interpretar la ubicación</p>
+            </div>
           </div>
           <p className="procedure-methods-hint">
             Abre un procedimiento para consultar qué comprueba. El avance
@@ -334,26 +390,70 @@ function ProcedureRun({ run }: { run: Run }) {
               const stage = summary.data?.stages.find(
                 (item) => item.key === procedure.kind,
               );
-              const state =
-                procedure.kind === "normalization"
-                  ? "Integrado en la carga"
-                  : procedure.kind === "coordinates"
-                    ? "Control integrado"
+              const running = active && run.activity?.stage === procedure.kind;
+              const next =
+                !active && summary.data?.next_stage === procedure.kind;
+              const tone = running
+                ? "running"
+                : next
+                  ? "next"
+                  : stage?.units
+                    ? stage.resolved === stage.units
+                      ? "resolved"
+                      : "evaluated"
                     : procedure.kind === "sites"
-                      ? "Cobertura limitada"
-                      : stage?.units
-                        ? `${number(stage.units)} evaluadas`
-                        : "Sin evaluación registrada";
+                      ? "limited"
+                      : "neutral";
+              const state = running
+                ? "Evaluando ahora"
+                : next
+                  ? "Siguiente etapa"
+                  : procedure.kind === "normalization"
+                    ? "Integrado en la carga"
+                    : procedure.kind === "coordinates"
+                      ? "Control integrado"
+                      : procedure.kind === "sites"
+                        ? "Cobertura limitada"
+                        : stage?.units
+                          ? `${number(stage.units)} evaluadas`
+                          : "Sin evaluación registrada";
               return (
-                <details key={procedure.kind} className="procedure-method">
+                <details
+                  key={procedure.kind}
+                  className={`procedure-method procedure-state-${tone}`}
+                >
                   <summary>
-                    <span className="procedure-number">{index + 1}</span>
-                    <span>
+                    <span className="procedure-icon" aria-hidden="true">
+                      <procedure.icon size={23} />
+                    </span>
+                    <span className="procedure-method-label">
+                      <span className="procedure-number">
+                        Procedimiento {String(index + 1).padStart(2, "0")}
+                      </span>
                       <strong>{procedure.name}</strong>
                       <small>{state}</small>
                     </span>
                   </summary>
                   <p>{procedure.detail}</p>
+                  {!!stage?.units && (
+                    <div
+                      className="procedure-stage-results"
+                      aria-label={`Resultados de ${procedure.name}`}
+                    >
+                      <span>
+                        <strong>{number(stage.resolved)}</strong> resueltas
+                      </span>
+                      <span>
+                        <strong>{number(stage.review)}</strong> por revisar
+                      </span>
+                      <span>
+                        <strong>
+                          {number(stage.unmatched + stage.blocked)}
+                        </strong>{" "}
+                        sin resolver
+                      </span>
+                    </div>
+                  )}
                 </details>
               );
             })}

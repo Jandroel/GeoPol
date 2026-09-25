@@ -10,7 +10,6 @@ import { Review } from "./pages/Review";
 import { ResultDetail } from "./pages/ResultDetail";
 import { References } from "./pages/References";
 import { Rules } from "./pages/Rules";
-import { Audit } from "./pages/Audit";
 import { Quality } from "./pages/Quality";
 import { Procedures } from "./pages/Procedures";
 import { Documentation } from "./pages/Documentation";
@@ -59,13 +58,7 @@ export function App() {
               <Route path="rules" element={<Rules />} />
               <Route
                 path="audit"
-                element={
-                  user.role === "admin" ? (
-                    <Audit />
-                  ) : (
-                    <Navigate to="/" replace />
-                  )
-                }
+                element={<Navigate to="/documentation" replace />}
               />
               <Route
                 path="*"

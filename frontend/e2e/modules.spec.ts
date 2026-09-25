@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-test("five modules preserve upload context, separate flag10 exclusions and expose real statistics and guides", async ({
+test("five modules preserve data, render both themes and expose statistics and readable guides", async ({
   page,
 }) => {
   const username = process.env.GEOPOL_E2E_USER;
@@ -46,6 +46,54 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
       animations: "disabled",
     });
   }
+  async function setTheme(theme: "light" | "dark") {
+    const changed =
+      (await page.locator("html").getAttribute("data-theme")) !== theme;
+    if (changed)
+      await page
+        .getByRole("button", {
+          name: theme === "dark" ? "Activar tema oscuro" : "Activar tema claro",
+          exact: true,
+        })
+        .click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    if (changed)
+      await expect
+        .poll(() => page.evaluate(() => localStorage.getItem("geopol.theme")))
+        .toBe(theme);
+  }
+  async function captureThemes(name: string, map = false) {
+    const artwork = page.locator('img[src="/images/peru-geospatial.png"]');
+    if (name === "home") {
+      await expect(artwork).toHaveCount(1);
+      await expect(artwork).toHaveClass(/overview-artwork/);
+      await expect(artwork).toHaveAttribute("alt", "");
+      await expect(artwork).toHaveAttribute("aria-hidden", "true");
+      await expect
+        .poll(() =>
+          artwork.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+        )
+        .toBeGreaterThan(0);
+    } else {
+      await expect(artwork).toHaveCount(0);
+    }
+    for (const theme of ["light", "dark"] as const) {
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await setTheme(theme);
+      if (map) await assertRenderedReferencePoint(page);
+      await capture(`${name}-${theme}`);
+      await page.setViewportSize({ width: 400, height: 900 });
+      if (map) await assertRenderedReferencePoint(page);
+      await capture(`mobile-${name}-${theme}`);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await setTheme("light");
+  }
   const navigation = page.getByRole("navigation", {
     name: "Navegación principal",
     exact: true,
@@ -58,7 +106,25 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
     "Documentación",
   ];
 
+  await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Bienvenido a GeoPol", exact: true }),
+  ).toBeVisible();
+  await test.step("Switch login theme and preserve the explicit choice after reload", async () => {
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.emulateMedia({ colorScheme: "light" });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await captureThemes("login");
+    await setTheme("dark");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(
+      page.getByRole("button", { name: "Activar tema claro", exact: true }),
+    ).toBeVisible();
+  });
   await page.getByLabel("Usuario", { exact: true }).fill(username!);
   await page.getByLabel("Contraseña", { exact: true }).fill(password!);
   await page
@@ -67,6 +133,7 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
   await expect(
     page.getByRole("heading", { name: "Vista general", exact: true }),
   ).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(navigation.getByRole("link")).toHaveCount(5);
   for (const name of moduleNames)
     await expect(
@@ -74,6 +141,9 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
     ).toBeVisible();
   await expect(page.locator("#source-file")).toBeVisible();
   await expect(page.locator(".reference-slot-toggle")).toHaveCount(5);
+  await expect(
+    page.getByRole("link", { name: "Auditoría", exact: true }),
+  ).toHaveCount(0);
 
   const marker = Date.now();
   const referenceNames = [
@@ -85,14 +155,12 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
       [0, "doors", "Puertas / viviendas"],
       [1, "boundaries", "Límites administrativos"],
     ] as const) {
-      const card = page
-        .locator("article.reference-slot")
-        .filter({
-          has: page.getByRole("button", {
-            name: `Configurar referencia: ${title}`,
-            exact: true,
-          }),
-        });
+      const card = page.locator("article.reference-slot").filter({
+        has: page.getByRole("button", {
+          name: `Configurar referencia: ${title}`,
+          exact: true,
+        }),
+      });
       const toggle = card.getByRole("button", {
         name: `Configurar referencia: ${title}`,
         exact: true,
@@ -136,7 +204,7 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
     await expect(
       page.getByText("2 de 5 seleccionadas", { exact: true }),
     ).toBeVisible();
-    await capture("home", false);
+    await captureThemes("home");
   });
 
   const runName = `QA cinco módulos ${marker}`;
@@ -185,7 +253,7 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
       await expect(page.locator(".validation-reference-summary")).toContainText(
         name,
       );
-    await capture("validation");
+    await captureThemes("validation");
     await navigation
       .getByRole("link", { name: "Vista general", exact: true })
       .click();
@@ -281,7 +349,7 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
     await expect(page.locator(".procedure-method[open]")).toContainText(
       "Estandariza los campos",
     );
-    await capture("procedures");
+    await captureThemes("procedures");
   });
 
   await test.step("Inspect complete statistics and download an Excel snapshot", async () => {
@@ -316,7 +384,7 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
         exact: true,
       }),
     ).toBeVisible();
-    await capture("statistics");
+    await captureThemes("statistics", true);
     await page
       .getByRole("checkbox", { name: /Referencia geográfica/ })
       .uncheck();
@@ -343,6 +411,23 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
     await expect(
       page.getByRole("row").filter({ hasText: "QA-MOD-AUTO10" }),
     ).toBeVisible();
+    await page
+      .getByRole("row")
+      .filter({ hasText: "QA-MOD-ORIGEN10" })
+      .getByRole("link", { name: "Examinar", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/results\//);
+    await expect(
+      page.getByText(/Esta fila se conserva con FLAG 10/),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Tomar revisión", exact: true }),
+    ).toHaveCount(0);
+    await captureThemes("result-flag10");
+    await page.locator(".back-link").click();
+    await expect(
+      page.getByRole("tab", { name: "Detalle de registros", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
     await page.getByRole("tab", { name: "Descargas", exact: true }).click();
     await page.getByLabel("Perfil de exportación").selectOption("source_rows");
     await page
@@ -362,10 +447,18 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
     expect(bytes.subarray(0, 4).toString("hex")).toBe("504b0304");
   });
 
-  await test.step("Search and download an actual documentation guide", async () => {
+  await test.step("Read the guide without Markdown downloads, source footers or audit navigation", async () => {
     await navigation
       .getByRole("link", { name: "Documentación", exact: true })
       .click();
+    await expect(
+      page.getByRole("heading", { name: "Documentación", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "Auditoría", exact: true }),
+    ).toHaveCount(0);
+    await page.goto("/audit");
+    await expect(page).toHaveURL(/\/documentation$/);
     await expect(
       page.getByRole("heading", { name: "Documentación", exact: true }),
     ).toBeVisible();
@@ -380,16 +473,14 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
       exact: true,
     });
     await expect(guide).toContainText("Preparar la descarga");
-    const guideEvent = page.waitForEvent("download");
-    await guide
-      .getByRole("link", { name: "Descargar Markdown", exact: true })
-      .click();
-    const download = await guideEvent;
-    expect(download.suggestedFilename()).toBe("geopol-exports.md");
-    const body = await readFile((await download.path())!, "utf8");
-    expect(body).toContain("# Exportar resultados a Excel");
-    expect(body).toContain("Preparar exportación");
-    await capture("documentation");
+    await expect(guide).toContainText("Preparar exportación");
+    await expect(page.getByText(/Markdown/)).toHaveCount(0);
+    await expect(guide.locator("a[download], footer")).toHaveCount(0);
+    await expect(
+      page.getByText(/Adaptado de|no es un PDF oficial|Fuentes internas/),
+    ).toHaveCount(0);
+    await expect(guide.getByText(/docs\//)).toHaveCount(0);
+    await captureThemes("documentation");
   });
 
   await test.step("Verify five-module navigation and statistics on a narrow screen", async () => {
@@ -429,6 +520,21 @@ test("five modules preserve upload context, separate flag10 exclusions and expos
     });
     await page.keyboard.press("Escape");
     await expect(drawer).toHaveCount(0);
+    await setTheme("dark");
+    await assertRenderedReferencePoint(page);
+    await page
+      .getByRole("button", { name: "Abrir navegación", exact: true })
+      .click();
+    await expect(drawer).toBeVisible();
+    await expect(
+      drawer.getByRole("link", { name: "Auditoría", exact: true }),
+    ).toHaveCount(0);
+    await page.screenshot({
+      path: resolve(artifacts, "ui-modules-mobile-menu-dark.png"),
+      animations: "disabled",
+    });
+    await page.keyboard.press("Escape");
+    await expect(drawer).toHaveCount(0);
   });
   expect(errors).toEqual([]);
   expect(externalRequests).toEqual([]);
@@ -441,42 +547,57 @@ async function assertRenderedReferencePoint(page: Page) {
       exact: true,
     }),
   ).toHaveAttribute("aria-busy", "false");
-  // Inspect the actual WebGL image: the blank background and controls cannot
-  // satisfy the reference point's blue color, even when a canvas already exists.
+  // Inspect the actual WebGL image, using the same theme color as the legend.
+  // Canvas existence or an idle frame alone cannot prove the point was painted.
   await expect
     .poll(
       async () => {
+        const color = await page
+          .locator(".statistics-content")
+          .evaluate((element) =>
+            getComputedStyle(element)
+              .getPropertyValue("--statistics-reference")
+              .trim(),
+          );
+        if (!color) return 0;
         const buffer = await page
           .locator(".statistics-map-canvas canvas")
           .screenshot();
-        return page.evaluate(async (bytes) => {
-          const bitmap = await createImageBitmap(
-            new Blob([new Uint8Array(bytes)], { type: "image/png" }),
-          );
-          const canvas = document.createElement("canvas");
-          canvas.width = bitmap.width;
-          canvas.height = bitmap.height;
-          const context = canvas.getContext("2d")!;
-          context.drawImage(bitmap, 0, 0);
-          const { data } = context.getImageData(
-            0,
-            0,
-            canvas.width,
-            canvas.height,
-          );
-          let pixels = 0;
-          for (let i = 0; i < data.length; i += 4)
-            if (
-              data[i] < 35 &&
-              data[i + 1] > 105 &&
-              data[i + 1] < 145 &&
-              data[i + 2] > 170 &&
-              data[i + 2] < 215
-            )
-              pixels++;
-          bitmap.close();
-          return pixels;
-        }, Array.from(buffer));
+        return page.evaluate(
+          async ({ bytes, color }) => {
+            const swatch = document.createElement("canvas");
+            swatch.width = swatch.height = 1;
+            const sample = swatch.getContext("2d")!;
+            sample.fillStyle = color;
+            sample.fillRect(0, 0, 1, 1);
+            const expected = sample.getImageData(0, 0, 1, 1).data;
+            const bitmap = await createImageBitmap(
+              new Blob([new Uint8Array(bytes)], { type: "image/png" }),
+            );
+            const canvas = document.createElement("canvas");
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const context = canvas.getContext("2d")!;
+            context.drawImage(bitmap, 0, 0);
+            const { data } = context.getImageData(
+              0,
+              0,
+              canvas.width,
+              canvas.height,
+            );
+            let pixels = 0;
+            for (let i = 0; i < data.length; i += 4)
+              if (
+                Math.abs(data[i] - expected[0]) <= 5 &&
+                Math.abs(data[i + 1] - expected[1]) <= 5 &&
+                Math.abs(data[i + 2] - expected[2]) <= 5
+              )
+                pixels++;
+            bitmap.close();
+            return pixels;
+          },
+          { bytes: Array.from(buffer), color },
+        );
       },
       { timeout: 15000, intervals: [200, 500, 1000] },
     )

@@ -1,0 +1,210 @@
+:root {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --primary: #8bd0fb;
+  --primary-dark: #d5ecfc;
+  --primary-light: #1c3a51;
+  --secondary: #8ed3ef;
+  --accent: #51bdea;
+  --navy: var(--primary);
+  --navy-dark: var(--primary-dark);
+  --text: #e4edf4;
+  --muted: #adc0d0;
+  --background: #0c1927;
+  --surface: #142536;
+  --surface-raised: #1b3043;
+  --control-background: #102131;
+  --hover-surface: #203b50;
+  --border: #344c61;
+  --border-strong: #638198;
+  --action-bg: #0d658f;
+  --action-hover: #0875a4;
+  --nav-background: #102f49;
+  --nav-active-background: #254d68;
+  --nav-active-hover: #315d78;
+  --nav-active-text: #edf7ff;
+  --tooltip-background: #203b51;
+  --tooltip-text: #e4edf4;
+  --info-background: #16334a;
+  --info-text: #c0e5fc;
+  --info-border: #3b6583;
+  --success: #8addb0;
+  --success-light: #153c30;
+  --success-border: #3d765a;
+  --amber: #ffd085;
+  --warning-light: #44331b;
+  --warning-border: #876b39;
+  --danger: #ffafb5;
+  --danger-light: #4a2630;
+  --danger-border: #915460;
+  --slate: #a6b9cb;
+  --excel-surface: #16392b;
+  --excel-border: #3a7053;
+  --map-background: #102131;
+  --map-context: #8baac3;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--primary);
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+.theme-toggle:hover {
+  background: var(--hover-surface);
+  border-color: var(--border-strong);
+}
+.theme-toggle:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.login-theme-toggle {
+  position: absolute;
+  right: 24px;
+  top: 24px;
+  z-index: 2;
+}
+.login-page {
+  position: relative;
+}
+
+/* Shared surfaces and native controls use semantic tokens in both themes. */
+input,
+select,
+textarea {
+  background: var(--control-background);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--action-bg);
+}
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: var(--muted);
+  background: var(--surface-raised);
+}
+select option {
+  background: var(--control-background);
+  color: var(--text);
+}
+.primary {
+  background: var(--action-bg);
+  color: var(--on-action);
+}
+.primary:hover:not(:disabled) {
+  background: var(--action-hover);
+}
+.steps .current > span {
+  background: var(--action-bg);
+  border-color: var(--action-bg);
+  color: var(--on-action);
+}
+.login-story,
+.review-callout {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+.grid-pin {
+  background: var(--brand);
+}
+.brand {
+  color: var(--on-brand);
+}
+.login-story-copy > p,
+.login-story-copy .eyebrow,
+.login-points,
+.login-footer {
+  color: var(--brand-muted);
+}
+.navigation-shell .nav-item.active svg {
+  color: var(--nav-active-text);
+}
+.documentation-card,
+.documentation-categories > button:hover {
+  background: var(--surface);
+}
+
+/* Components with fixed status fills retain meaning and contrast in dark mode. */
+:root[data-theme] .run-activity--running {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+:root[data-theme] .run-activity--failed {
+  background: var(--danger-light);
+  border-color: var(--danger-border);
+  border-left-color: var(--danger);
+}
+:root[data-theme] .run-activity--failed .run-activity__status {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+:root[data-theme] .run-activity--queued .run-activity__status,
+:root[data-theme] .run-activity--issues .run-activity__status,
+:root[data-theme] .run-activity--queued .run-activity__message--warning {
+  color: var(--amber);
+}
+
+/* Review maps include MapLibre's own control and popup surfaces. */
+:root[data-theme="dark"] .maplibregl-ctrl-group,
+:root[data-theme="dark"] .maplibregl-popup-content,
+:root[data-theme="dark"] .maplibregl-ctrl-attrib {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+:root[data-theme="dark"] .maplibregl-ctrl-group button {
+  border-color: var(--border);
+}
+:root[data-theme="dark"] .maplibregl-ctrl-group button:hover {
+  background-color: var(--hover-surface);
+}
+:root[data-theme="dark"] .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+  filter: brightness(0) invert(1);
+}
+:root[data-theme="dark"] .maplibregl-ctrl-attrib a {
+  color: var(--primary);
+}
+:root[data-theme="dark"] .maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: var(--surface-raised);
+}
+:root[data-theme="dark"] .maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: var(--surface-raised);
+}
+:root[data-theme="dark"] .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--surface-raised);
+}
+:root[data-theme="dark"] .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--surface-raised);
+}
+
+@media (max-width: 760px) {
+  .login-theme-toggle {
+    right: 16px;
+    top: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle {
+    transition: none;
+  }
+}

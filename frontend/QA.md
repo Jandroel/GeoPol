@@ -2,6 +2,36 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Temas y refinamiento visual · 25 de septiembre de 2026
+
+- **106 pruebas de componente aprobadas** en una ejecución serial completa.
+  Incluyen preferencia del sistema, elección persistente del tema, sincronización
+  entre pestañas y almacenamiento no disponible.
+- TypeScript/Vite, formato y comprobación del diff correctos. Permanece únicamente
+  el aviso conocido de tamaño del paquete MapLibre.
+- El escenario Chromium de los cinco módulos pasó contra producción en **24,9 s**:
+  temas claro/oscuro, recarga y persistencia, importación, FLAG 10, exportación Excel,
+  mapas reales y navegación móvil. Comprueba la ausencia de auditoría y descarga
+  Markdown, la redirección de enlaces antiguos y la imagen solo en Vista general.
+- **Tres escenarios adicionales aprobados en 45,5 s**: geometrías y reutilización,
+  actividad/gráficas/menú, y cinco referencias Excel con avance y exportación por
+  etapa. Las pruebas mantienen las comprobaciones de datos y resultados existentes.
+- Se inspeccionaron capturas de acceso, Vista general, Validación, Procedimientos,
+  Estadística, Documentación y ficha de resultado, con variantes claras/oscuras en
+  escritorio y móvil. Las comprobaciones cubren 1440 × 1000 y 400 × 900 px, sin
+  errores de página, solicitudes externas ni desbordamiento global. Los mapas
+  actualizan sus colores al cambiar el tema conservando geometría y encuadre.
+- Estadística usa más colores para distinguir métricas y categorías, conservando
+  etiquetas y cantidades. Procedimientos muestra pasos, estados y tiempos reales.
+  La ilustración decorativa del Perú mantiene su canal transparente y se sirve
+  localmente; su procedencia está en [visual-assets.md](../docs/visual-assets.md).
+
+Las pruebas que escriben datos usaron servicios aislados en 18001/15175 y una base
+temporal sintética; los procesos y datos temporales se limpiaron al finalizar.
+Las capturas están en `.local/ui-themes-20260925/`, excluidas de Git. No hubo cambios
+de backend ni de datos operativos. La web en 5174 sirve el build actualizado y el
+PNG; tanto su proxy como la API en 8002 responden con estado saludable y esquema 6.
+
 ## Cinco módulos y validación de origen · 25 de septiembre de 2026
 
 Se revisaron visualmente las siete láminas de Propuesta 2 y se reorganizó la

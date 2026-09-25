@@ -14,6 +14,9 @@
   flex-basis: 100%;
 }
 .procedure-workspace {
+  --procedure-blue: #076b99;
+  --procedure-green: #168264;
+  --procedure-amber: #a66c08;
   display: grid;
   grid-template-columns: minmax(230px, 0.85fr) minmax(0, 2.2fr);
   gap: 24px;
@@ -35,6 +38,13 @@
 .procedure-methods {
   padding: 20px;
 }
+.procedure-file {
+  border-top: 4px solid var(--procedure-blue);
+  background: color-mix(in srgb, var(--procedure-blue) 4%, var(--surface));
+}
+.procedure-references {
+  border-top: 4px solid var(--procedure-green);
+}
 .procedure-section-title {
   display: flex;
   align-items: center;
@@ -48,6 +58,11 @@
 .procedure-section-title h2 {
   font-size: 16px;
   margin: 0;
+}
+.procedure-section-title p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 .procedure-file-name {
   display: block;
@@ -85,6 +100,13 @@
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
+.procedure-references li {
+  border-left: 3px solid var(--procedure-green);
+  padding-left: 12px;
+}
+.procedure-references li + li {
+  padding-left: 12px;
+}
 .procedure-references li strong,
 .procedure-references li span,
 .procedure-references li small {
@@ -114,65 +136,153 @@
 .procedure-method-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 16px;
   align-items: start;
 }
 .procedure-method {
+  --stage-color: var(--muted);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-top: 3px solid var(--stage-color);
+  border-radius: 10px;
   background: var(--surface);
+  overflow: hidden;
+}
+.procedure-state-running,
+.procedure-state-next {
+  --stage-color: var(--procedure-blue);
+  background: color-mix(in srgb, var(--stage-color) 5%, var(--surface));
+}
+.procedure-state-evaluated {
+  --stage-color: var(--procedure-blue);
+}
+.procedure-state-resolved {
+  --stage-color: var(--procedure-green);
+}
+.procedure-state-limited {
+  --stage-color: var(--procedure-amber);
 }
 .procedure-method summary {
   display: flex;
   gap: 12px;
   align-items: center;
-  min-height: 74px;
-  padding: 12px;
+  min-height: 118px;
+  padding: 16px;
   cursor: pointer;
   border-radius: inherit;
+  transition: background-color 160ms ease;
 }
 .procedure-method summary::after {
   content: "+";
   margin-left: auto;
-  color: var(--primary);
+  color: var(--stage-color);
   font-size: 19px;
 }
 .procedure-method[open] summary::after {
   content: "−";
 }
 .procedure-method summary:hover {
-  background: var(--primary-light);
+  background: color-mix(in srgb, var(--stage-color) 8%, var(--surface));
 }
 .procedure-method summary strong,
 .procedure-method summary small {
   display: block;
 }
 .procedure-method summary strong {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--primary);
 }
 .procedure-method summary small {
   font-size: 12px;
-  margin-top: 4px;
-  color: var(--muted);
+  margin-top: 7px;
+  color: var(--stage-color);
 }
-.procedure-number {
+.procedure-method-label {
+  min-width: 0;
+}
+.procedure-icon {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  flex: 0 0 30px;
-  border-radius: 50%;
-  background: var(--primary-light);
-  color: var(--primary);
-  font-size: 13px;
-  font-weight: 600;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--stage-color) 10%, var(--surface));
+  color: var(--stage-color);
+}
+.procedure-number {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 5px;
 }
 .procedure-method p {
-  padding: 0 14px 14px;
+  padding: 0 16px 16px;
   margin: 0;
   font-size: 13px;
   line-height: 1.65;
+}
+.procedure-stage-results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised, var(--background));
+}
+.procedure-stage-results span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.procedure-stage-results strong {
+  display: block;
+  color: var(--primary);
+  font-size: 17px;
+  margin-bottom: 3px;
+}
+.procedure-stage-results span:first-child strong {
+  color: var(--procedure-green);
+}
+.procedure-stage-results span:nth-child(2) strong {
+  color: var(--procedure-amber);
+}
+.procedure-timeline {
+  list-style: none;
+  padding: 16px 20px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.procedure-timeline li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+}
+.procedure-event-icon {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.procedure-timeline .is-recorded .procedure-event-icon {
+  color: var(--procedure-green);
+}
+.procedure-timeline strong {
+  display: block;
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 600;
+}
+.procedure-timeline div > span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 5px;
+  line-height: 1.5;
 }
 .procedure-actions {
   display: flex;
@@ -211,6 +321,10 @@
   .procedure-method-grid {
     grid-template-columns: 1fr;
   }
+  .procedure-timeline {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
   .procedure-selector,
   .procedure-file,
   .procedure-references,
@@ -219,5 +333,15 @@
   }
   .procedure-actions .button {
     width: 100%;
+  }
+}
+[data-theme="dark"] .procedure-workspace {
+  --procedure-blue: #63b9ef;
+  --procedure-green: #5ad0aa;
+  --procedure-amber: #e6b657;
+}
+@media (prefers-reduced-motion: reduce) {
+  .procedure-method summary {
+    transition: none;
   }
 }

@@ -3,7 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#123a43" />
+    <meta name="theme-color" content="#f4f7fa" />
+    <script>
+      (function () {
+        var theme = "light";
+        try {
+          if (
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+          )
+            theme = "dark";
+          var saved = localStorage.getItem("geopol.theme");
+          if (saved === "light" || saved === "dark") theme = saved;
+        } catch (_) {}
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document.documentElement.style.backgroundColor =
+          theme === "dark" ? "#0c1927" : "#f4f7fa";
+      })();
+    </script>
     <meta
       name="description"
       content="GeoPol · Espacio de trabajo para normalización, geocodificación y revisión trazable."

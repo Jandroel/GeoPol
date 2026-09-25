@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { ArrowRight, LocateFixed, LockKeyhole } from "lucide-react";
 import { useAuth } from "../auth";
 import { ErrorNotice } from "../components/ui";
+import { ThemeToggle } from "../theme";
 
 export function Login() {
   const { login } = useAuth();
@@ -23,6 +24,7 @@ export function Login() {
   }
   return (
     <main className="login-page">
+      <ThemeToggle className="login-theme-toggle" />
       <section className="login-story">
         <a className="brand" href="/">
           <span className="brand-mark">

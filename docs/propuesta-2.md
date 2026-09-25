@@ -5,12 +5,12 @@ Referencia revisada: las siete diapositivas de la propuesta entregada el 25 de s
 | Diapositiva | Interpretación e implementación |
 | --- | --- |
 | 1 · Vista 1A | Identidad institucional, presentación de la herramienta y resumen operativo. Los indicadores proceden del API de GeoPol. |
-| 2 · Vista 1B | Variante de mayor contraste. Se adopta un panel azul institucional con texto claro, conservando formularios blancos. |
-| 3 · Vista 1C | La indicación sustituye el mapa decorativo por carga SIDPOL y Censos. Vista general permite adjuntar el archivo principal y las cinco referencias reutilizables. |
+| 2 · Vista 1B | Temas claro y oscuro para todo el sistema, con elección persistente. Vista general incorpora una ilustración limpia del Perú adaptada a ambos temas. |
+| 3 · Vista 1C | Vista general permite adjuntar el archivo principal SIDPOL y las cinco referencias de Censos. La ilustración se limita a su presentación; los formularios mantienen superficies legibles. |
 | 4 · Validación | Comprobación del nombre con fecha, cabeceras, correspondencia de columnas y FLAG. Los avisos sobre nombre o ausencia de FLAG permiten mantener compatibilidad con archivos anteriores. La falta de datos/columnas necesarios bloquea el inicio. |
 | 5 · Procedimientos | Expediente del procesamiento, progreso real y ocho procedimientos documentados. Se conserva la secuencia de ejecución disponible y se identifica qué controles están integrados en el motor. |
 | 6 · Estadística | Resumen por procesamiento, mapa de geometrías aceptadas, distribución por UBIGEO, estados, detalle y exportación. Los totales incluyen todos los registros; el mapa identifica su muestra limitada. |
-| 7 · Documentación | Biblioteca navegable con categorías, búsqueda, guías internas y lectura/descarga. No se simulan archivos PDF institucionales que no han sido entregados. |
+| 7 · Documentación | Biblioteca navegable con categorías, búsqueda y lectura de guías. Se retiraron la descarga Markdown y los pies técnicos de procedencia por indicación del usuario. |
 
 ## Cinco módulos
 
@@ -18,9 +18,9 @@ Referencia revisada: las siete diapositivas de la propuesta entregada el 25 de s
 - **Validación:** comprobaciones del archivo y configuración del mapeo y sistema de coordenadas.
 - **Procedimientos:** ejecución, seguimiento, historial y revisión de excepciones.
 - **Estadística:** resultados, distribución territorial, flags y exportaciones.
-- **Documentación:** guías, metodología y acceso administrativo a auditoría.
+- **Documentación:** guías y metodología. Auditoría ya no aparece en la interfaz; sus registros internos se conservan.
 
-Las rutas existentes se conservan. Cambiar entre Vista general y Validación dentro de la sesión mantiene el archivo y su configuración. Después de recargar la página se puede reanudar la carga seleccionando el mismo archivo, con la comprobación de identidad ya existente.
+Las rutas existentes se conservan; el antiguo enlace de auditoría redirige a Documentación. Cambiar entre Vista general y Validación dentro de la sesión mantiene el archivo y su configuración. Después de recargar la página se puede reanudar la carga seleccionando el mismo archivo, con la comprobación de identidad ya existente.
 
 ## Reglas de información
 

@@ -5,7 +5,7 @@
 .navigation-shell .sidebar {
   width: var(--navigation-width);
   padding: 24px 14px 16px;
-  background: var(--primary);
+  background: var(--nav-background);
   border-right: 1px solid rgb(255 255 255 / 10%);
   scrollbar-width: thin;
   scrollbar-color: rgb(255 255 255 / 30%) transparent;
@@ -82,27 +82,28 @@
   line-height: 1.45;
   border: 1px solid transparent;
   border-radius: 10px;
-  color: var(--primary-light);
+  color: var(--nav-text);
   position: relative;
 }
 .navigation-shell .nav-item > svg {
   flex-shrink: 0;
+  color: currentColor;
 }
 .navigation-shell .nav-item:hover {
   background: rgb(255 255 255 / 9%);
   border-color: rgb(255 255 255 / 14%);
 }
 .navigation-shell .nav-item.active {
-  color: var(--primary-dark);
-  background: var(--primary-light);
-  border-color: var(--primary-light);
+  color: var(--nav-active-text);
+  background: var(--nav-active-background);
+  border-color: var(--nav-active-background);
   box-shadow:
     inset 3px 0 var(--accent),
     0 3px 10px rgb(0 0 0 / 10%);
   font-weight: 600;
 }
 .navigation-shell .nav-item.active:hover {
-  background: white;
+  background: var(--nav-active-hover);
 }
 .navigation-link-label {
   flex: 1;
@@ -129,7 +130,7 @@
   min-height: 46px;
   padding: 10px 13px;
   border: 1px solid rgb(255 255 255 / 18%);
-  color: var(--primary-light);
+  color: var(--nav-text);
   border-radius: 10px;
   background: rgb(255 255 255 / 4%);
   font-size: 12px;
@@ -228,8 +229,8 @@
   max-width: 240px;
   padding: 8px 12px;
   border-radius: 7px;
-  color: white;
-  background: var(--primary-dark);
+  color: var(--tooltip-text);
+  background: var(--tooltip-background);
   box-shadow: 0 4px 16px rgb(13 51 84 / 18%);
   pointer-events: none;
   opacity: 0;
@@ -291,7 +292,7 @@
     min-width: 44px;
     min-height: 44px;
     border: 1px solid rgb(255 255 255 / 20%);
-    color: var(--primary-light);
+    color: var(--nav-text);
     border-radius: 10px;
   }
   .navigation-shell .mobile-close:hover {

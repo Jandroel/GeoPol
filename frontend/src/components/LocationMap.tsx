@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
+import type { ExpressionSpecification } from "maplibre-gl";
 import type { Candidate, MapContext, SpatialGeometry } from "../types";
 import { request } from "../lib/api";
 import {
@@ -119,22 +120,33 @@ export default function LocationMap({
           if (disposed || !container.current) return;
           // Vite must bundle the ESM worker and its shared dependencies locally.
           setWorkerUrl(workerUrl);
-          const theme = getComputedStyle(document.documentElement);
-          const resultColor = theme.getPropertyValue("--map-result").trim();
-          const candidateColor = theme
-            .getPropertyValue("--map-candidate")
-            .trim();
-          const backgroundColor = theme
-            .getPropertyValue("--map-background")
-            .trim();
-          const contextColor = theme.getPropertyValue("--map-context").trim();
+          const palette = () => {
+            const theme = getComputedStyle(document.documentElement);
+            const color = (token: string, fallback: string) =>
+              theme.getPropertyValue(token).trim() || fallback;
+            return {
+              backgroundColor: color("--map-background", "#eaf1f5"),
+              contextColor: color("--map-context", "#7892a5"),
+              resultColor: color("--map-result", "#12426b"),
+              candidateColor: color("--map-candidate", "#9a6709"),
+            };
+          };
+          const geometryColor = (): ExpressionSpecification => {
+            const { resultColor, candidateColor } = palette();
+            return [
+              "match",
+              ["get", "role"],
+              "result",
+              resultColor,
+              candidateColor,
+            ];
+          };
           const items = [
             ...candidates
               .filter((candidate) => !hiddenCandidates.includes(candidate))
               .map((c) => ({
                 ...c,
-                color:
-                  c.id === selectedCandidateId ? resultColor : candidateColor,
+                isResult: c.id === selectedCandidateId,
               })),
             {
               latitude: omitResult ? null : latitude,
@@ -142,7 +154,7 @@ export default function LocationMap({
               precision,
               geometry: omitResult ? null : geometry,
               label: "Ubicación resultante",
-              color: resultColor,
+              isResult: true,
             },
           ];
           const points = items.flatMap((item) => {
@@ -158,7 +170,10 @@ export default function LocationMap({
             .map((item) => ({
               type: "Feature" as const,
               geometry: item.geometry!,
-              properties: { label: item.label, color: item.color },
+              properties: {
+                label: item.label,
+                role: item.isResult ? "result" : "candidate",
+              },
             }));
           const positions = [
             ...points.map((point) => point.position),
@@ -182,7 +197,7 @@ export default function LocationMap({
                   {
                     id: "background",
                     type: "background",
-                    paint: { "background-color": backgroundColor },
+                    paint: { "background-color": palette().backgroundColor },
                   },
                 ],
               },
@@ -205,8 +220,16 @@ export default function LocationMap({
             );
             const bounds = new LngLatBounds();
             framePositions.forEach((position) => bounds.extend(position));
+            let styleReady = false;
             map.on("load", () => {
               if (disposed) return;
+              styleReady = true;
+              const { backgroundColor, contextColor } = palette();
+              map.setPaintProperty(
+                "background",
+                "background-color",
+                backgroundColor,
+              );
               if (contextFeatures.length) {
                 map.addSource("local-context", {
                   type: "geojson",
@@ -243,19 +266,23 @@ export default function LocationMap({
                 type: "fill",
                 source: "reference-geometries",
                 filter: ["==", ["geometry-type"], "Polygon"],
-                paint: { "fill-color": ["get", "color"], "fill-opacity": 0.2 },
+                paint: { "fill-color": geometryColor(), "fill-opacity": 0.2 },
               });
               map.addLayer({
                 id: "reference-outlines",
                 type: "line",
                 source: "reference-geometries",
-                paint: { "line-color": ["get", "color"], "line-width": 3 },
+                paint: { "line-color": geometryColor(), "line-width": 3 },
               });
             });
             for (const point of points) {
               const popupText = document.createElement("span");
               popupText.textContent = point.label;
-              const marker = new Marker({ color: point.color })
+              const marker = new Marker({
+                color: point.isResult
+                  ? "var(--map-result)"
+                  : "var(--map-candidate)",
+              })
                 .setLngLat(point.position)
                 .setPopup(new Popup().setDOMContent(popupText))
                 .addTo(map);
@@ -264,7 +291,47 @@ export default function LocationMap({
             if (framePositions.length > 1)
               map.fitBounds(bounds, { padding: 65, maxZoom: 16, duration: 0 });
             map.on("error", () => setFailed(true));
-            cleanup = () => map.remove();
+            const observer = new MutationObserver(() => {
+              if (disposed || !styleReady) return;
+              const { backgroundColor, contextColor } = palette();
+              map.setPaintProperty(
+                "background",
+                "background-color",
+                backgroundColor,
+              );
+              if (contextFeatures.length) {
+                map.setPaintProperty(
+                  "local-context-areas",
+                  "fill-color",
+                  contextColor,
+                );
+                map.setPaintProperty(
+                  "local-context-lines",
+                  "line-color",
+                  contextColor,
+                );
+              }
+              if (features.length) {
+                map.setPaintProperty(
+                  "reference-areas",
+                  "fill-color",
+                  geometryColor(),
+                );
+                map.setPaintProperty(
+                  "reference-outlines",
+                  "line-color",
+                  geometryColor(),
+                );
+              }
+            });
+            observer.observe(document.documentElement, {
+              attributes: true,
+              attributeFilter: ["data-theme"],
+            });
+            cleanup = () => {
+              observer.disconnect();
+              map.remove();
+            };
           } catch {
             setFailed(true);
           }

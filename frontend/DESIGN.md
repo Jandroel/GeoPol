@@ -11,7 +11,8 @@ GeoPol es una herramienta de operación institucional para cargar Excel de la
 PNP/SIDPOL, contrastarlos con referencias geográficas, resolver ubicaciones con
 evidencia y revisar las excepciones. Sus usuarios trabajan con miles de registros;
 la interfaz debe facilitar la siguiente decisión y hacer visible el trabajo real.
-La dirección es sobria, clara y orientada a datos, con identidad INEI.
+La dirección es clara y orientada a datos, con identidad INEI y acentos de color
+que distinguen estados y distribuciones. Incluye temas claro y oscuro.
 
 La prioridad de una pantalla de procesamiento es: archivo y etapa activos,
 avance de la operación, resolución geográfica y siguiente acción, distribuciones
@@ -138,10 +139,10 @@ sobre azul principal alcanza 6,11:1.
   Las tareas auxiliares se agrupan en navegación local; las rutas anteriores
   permanecen disponibles. El análisis de las siete láminas se registra en
   [propuesta-2.md](../docs/propuesta-2.md).
-- Vista general combina identidad institucional y datos operativos a la izquierda
-  con la carga SIDPOL/Censos a la derecha. El mapa decorativo de la referencia se
-  sustituye por formularios funcionales, como indica la lámina 1C. El archivo y
-  su configuración se mantienen en un contexto de sesión al pasar a Validación.
+- Vista general combina identidad institucional y datos operativos con la carga
+  SIDPOL/Censos. La revisión visual posterior recupera la ilustración del Perú
+  en la cabecera y mantiene los formularios debajo. El archivo y su configuración
+  se mantienen en un contexto de sesión al pasar a Validación.
 - Validación presenta primero comprobaciones y conteos reales, luego mapeo y
   evidencia de coordenadas. Los campos complementarios se abren a petición.
   La ausencia de FLAG o un nombre fuera de convención se explica sin atribuir
@@ -149,7 +150,9 @@ sobre azul principal alcanza 6,11:1.
 - Estadística conserva la relación entre mapa, resumen y distribución territorial
   de la propuesta. El número de geometrías visibles y el total se muestran por
   separado. Documentación emplea categorías, búsqueda, lista y lector con contenido
-  real y descarga de guías internas; no incluye documentos ficticios.
+  real. Por indicación del usuario, el lector no muestra fuentes de código,
+  advertencias editoriales ni descarga Markdown. Auditoría se retira de la
+  interfaz; el registro técnico del servidor se conserva.
 - La carga inicial agrupa el archivo PNP y las cinco fuentes en el espacio de
   trabajo de Vista general. Las fuentes usan filas compactas con estado y un
   único editor desplegado; un contexto de sesión conserva borradores, mapeos e
@@ -182,5 +185,24 @@ sobre azul principal alcanza 6,11:1.
 Se mantienen el recorrido por teclado, el foco visible, las etiquetas accesibles,
 los estados textuales y las tablas con desplazamiento local en pantallas estrechas.
 No se añaden fuentes remotas, recursos de marca externos ni cartografía base.
+
+## Temas y dirección visual · 25 de septiembre de 2026
+
+- `data-theme` define el tema de toda la aplicación. La preferencia elegida se
+  conserva en el navegador; sin elección explícita se sigue la del sistema.
+  El control de sol/luna está disponible en el acceso y la cabecera, con nombre
+  accesible, foco y un área de interacción de al menos 44 px.
+- Los colores de texto, superficies, bordes, acciones y estados usan tokens
+  semánticos. Los fondos de marca se separan de los colores de enlace para
+  mantener contraste en ambos temas. Los mapas actualizan también su lienzo.
+- Vista general usa una cabecera panorámica: texto y cifras reales a la
+  izquierda, ilustración del Perú a la derecha, carga debajo en dos columnas
+  cuando hay espacio. La imagen se limita a esta página. Es un recurso
+  decorativo, no una capa de resultados; su generación se registra en
+  [visual-assets.md](../docs/visual-assets.md).
+- Estadística incorpora colores consistentes por estado, leyendas y controles
+  que funcionan con teclado. Los números y nombres acompañan siempre al color.
+  Procedimientos distingue etapas mediante iconos, números y estados reales;
+  el diseño no altera el orden del motor ni habilita ejecuciones ficticias.
 
 Las verificaciones de funcionamiento y sus límites se registran en [QA.md](QA.md).

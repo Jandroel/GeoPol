@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import {
@@ -6,7 +6,7 @@ import {
   Download,
   MapPin,
   Layers3,
-  CheckCheck,
+  CircleOff,
   ListFilter,
 } from "lucide-react";
 import { request } from "../lib/api";
@@ -68,6 +68,118 @@ const tabs = [
   ["records", "Detalle de registros"],
   ["exports", "Descargas"],
 ];
+
+const resolutionTone = (resolution: string) =>
+  (
+    ({
+      ACEPTADO_AUTOMATICO: "green",
+      ACEPTADO_MANUAL: "blue",
+      REVISION_REQUERIDA: "amber",
+      SIN_COINCIDENCIA: "rose",
+      INFORMACION_INSUFICIENTE: "orange",
+      NO_EVALUABLE_REFERENCIA: "purple",
+      ERROR_TECNICO: "red",
+      EXCLUIDO_FLAG_10: "slate",
+    }) as Record<string, string>
+  )[resolution] ?? "slate";
+
+function ResolutionDistribution({ data }: { data: StatisticsData }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [focused, setFocused] = useState<string | null>(null);
+  const active = focused ?? selected;
+  const detail = data.resolutions.find((item) => item.resolution === active);
+  let offset = 0;
+  return (
+    <div
+      className="statistics-distribution"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          setSelected(null);
+          setFocused(null);
+        }
+      }}
+    >
+      <div className="statistics-resolution-body">
+        <div className="statistics-donut" aria-hidden="true">
+          <svg viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="55" className="statistics-ring-track" />
+            {data.resolutions.map((item) => {
+              const share = data.totals.units
+                ? (item.units / data.totals.units) * 100
+                : 0;
+              const start = offset;
+              offset += share;
+              return (
+                <circle
+                  key={item.resolution}
+                  cx="70"
+                  cy="70"
+                  r="55"
+                  pathLength="100"
+                  strokeDasharray={`${share} ${100 - share}`}
+                  strokeDashoffset={-start}
+                  transform="rotate(-90 70 70)"
+                  className={`statistics-ring-segment${active && active !== item.resolution ? " is-muted" : ""}`}
+                  style={{
+                    stroke: `var(--statistics-${resolutionTone(item.resolution)})`,
+                  }}
+                  onMouseEnter={() => setFocused(item.resolution)}
+                  onMouseLeave={() => setFocused(null)}
+                />
+              );
+            })}
+          </svg>
+          <div className="statistics-donut-center">
+            <strong>
+              {percentage(
+                detail?.units ?? data.totals.mapped,
+                data.totals.units,
+              )}
+            </strong>
+            <span>{detail ? "seleccionado" : "con geometría"}</span>
+          </div>
+        </div>
+        <div
+          className="statistics-resolution-list"
+          aria-label="Distribución por resolución"
+        >
+          {data.resolutions.map((item) => (
+            <button
+              key={item.resolution}
+              type="button"
+              aria-pressed={selected === item.resolution}
+              className={active === item.resolution ? "is-active" : ""}
+              onMouseEnter={() => setFocused(item.resolution)}
+              onMouseLeave={() => setFocused(null)}
+              onFocus={() => setFocused(item.resolution)}
+              onBlur={() => setFocused(null)}
+              onClick={() =>
+                setSelected(
+                  selected === item.resolution ? null : item.resolution,
+                )
+              }
+            >
+              <i
+                aria-hidden="true"
+                style={{
+                  background: `var(--statistics-${resolutionTone(item.resolution)})`,
+                }}
+              />
+              <span>{label(item.resolution)}</span>
+              <strong>{number(item.units)}</strong>
+              <small>{percentage(item.units, data.totals.units)}</small>
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="statistics-chart-detail" role="status">
+        {detail
+          ? `${label(detail.resolution)}: ${number(detail.units)} ubicaciones (${percentage(detail.units, data.totals.units)}).`
+          : "Selecciona una categoría para explorar su proporción."}
+      </p>
+    </div>
+  );
+}
 
 export function Statistics() {
   const [params, setParams] = useSearchParams();
@@ -239,9 +351,6 @@ function StatisticsSummary({ run }: { run: Run }) {
     return <Loading text="Calculando estadísticas del procesamiento…" />;
   if (query.isError) return <ErrorNotice error={query.error} />;
   const data = query.data;
-  const resolvedPercent = data.totals.units
-    ? (data.totals.mapped / data.totals.units) * 100
-    : 0;
   const attention = data.resolutions.filter(
     (item) =>
       !["ACEPTADO_AUTOMATICO", "ACEPTADO_MANUAL", "EXCLUIDO_FLAG_10"].includes(
@@ -271,27 +380,34 @@ function StatisticsSummary({ run }: { run: Run }) {
             value: data.totals.source_rows,
             detail: "Se conserva el archivo de origen",
             icon: Layers3,
+            tone: "blue",
           },
           {
             label: "Unidades de ubicación",
             value: data.totals.units,
             detail: "Denuncias y lugares agrupados",
             icon: ListFilter,
+            tone: "purple",
           },
           {
             label: "Con geometría aceptada",
             value: data.totals.mapped,
             detail: `${percentage(data.totals.mapped, data.totals.units)} del total de ubicaciones`,
             icon: MapPin,
+            tone: "green",
           },
           {
             label: "Excluidas · flag 10",
             value: data.totals.excluded,
             detail: "Fuera de geocodificación",
-            icon: CheckCheck,
+            icon: CircleOff,
+            tone: "slate",
           },
         ].map((metric) => (
-          <article className="statistics-kpi" key={metric.label}>
+          <article
+            className={`statistics-kpi statistics-tone-${metric.tone}`}
+            key={metric.label}
+          >
             <metric.icon size={20} aria-hidden="true" />
             <span>{metric.label}</span>
             <strong>{number(metric.value)}</strong>
@@ -317,7 +433,14 @@ function StatisticsSummary({ run }: { run: Run }) {
           </div>
           <div className="statistics-layers" aria-label="Capas del mapa">
             {Object.entries(statisticLayers).map(([key, layer]) => (
-              <label key={key}>
+              <label
+                key={key}
+                style={
+                  {
+                    "--layer-color": `var(--statistics-${key}, ${layer.color})`,
+                  } as CSSProperties
+                }
+              >
                 <input
                   type="checkbox"
                   checked={layers.includes(key as StatisticLayer)}
@@ -329,11 +452,8 @@ function StatisticsSummary({ run }: { run: Run }) {
                     )
                   }
                 />
-                <i
-                  style={{ backgroundColor: layer.color }}
-                  aria-hidden="true"
-                />
-                {layer.label}
+                <i aria-hidden="true" />
+                <span>{layer.label}</span>
                 <strong>
                   {number(data.map.layers[key as StatisticLayer])}
                 </strong>
@@ -371,32 +491,7 @@ function StatisticsSummary({ run }: { run: Run }) {
               <h2>Resumen de resolución</h2>
               <ChartNoAxesCombined size={21} aria-hidden="true" />
             </div>
-            <div className="statistics-resolution-body">
-              <div
-                className="statistics-donut"
-                style={{
-                  background: `conic-gradient(var(--accent) ${resolvedPercent}%, var(--border) 0)`,
-                }}
-                role="img"
-                aria-label={`${percentage(data.totals.mapped, data.totals.units)} de las ubicaciones tienen geometría aceptada`}
-              >
-                <div>
-                  <strong>
-                    {percentage(data.totals.mapped, data.totals.units)}
-                  </strong>
-                  <span>con geometría</span>
-                </div>
-              </div>
-              <div className="statistics-resolution-list">
-                {data.resolutions.map((item) => (
-                  <div key={item.resolution}>
-                    <span>{label(item.resolution)}</span>
-                    <strong>{number(item.units)}</strong>
-                    <small>{percentage(item.units, data.totals.units)}</small>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ResolutionDistribution data={data} />
             <p className="field-hint">
               Una aceptación puede conservar una dirección sin geometría. El
               mapa incluye únicamente puntos, líneas o áreas válidas y
@@ -486,7 +581,7 @@ function StatisticsSummary({ run }: { run: Run }) {
         </div>
       </div>
       <div className="statistics-bottom">
-        <section className="panel statistics-breakdown">
+        <section className="panel statistics-breakdown statistics-tone-amber">
           <h2>Estados pendientes</h2>
           <p>
             Clasificación actual del resultado; no equivale a una causa
@@ -494,32 +589,58 @@ function StatisticsSummary({ run }: { run: Run }) {
           </p>
           {attention.length ? (
             attention.map((item) => (
-              <div key={item.resolution}>
+              <div
+                key={item.resolution}
+                className="statistics-breakdown-row"
+                style={
+                  {
+                    "--row-color": `var(--statistics-${resolutionTone(item.resolution)})`,
+                  } as CSSProperties
+                }
+              >
                 <span>{label(item.resolution)}</span>
                 <strong>{number(item.units)}</strong>
+                <progress
+                  max={Math.max(data.totals.units, 1)}
+                  value={item.units}
+                  aria-label={`${label(item.resolution)}: ${percentage(item.units, data.totals.units)}`}
+                />
               </div>
             ))
           ) : (
             <p>No hay ubicaciones pendientes en este procesamiento.</p>
           )}
         </section>
-        <section className="panel statistics-breakdown">
+        <section className="panel statistics-breakdown statistics-tone-purple">
           <h2>Flags de calidad</h2>
           <p>
             Describen la ubicación y su exclusión; se separan de la revisión.
           </p>
           {data.flags.map((item) => (
-            <div key={item.flag ?? "none"}>
+            <div
+              key={item.flag ?? "none"}
+              className="statistics-breakdown-row"
+              style={
+                {
+                  "--row-color": `var(--statistics-${item.flag === 1 ? "blue" : item.flag === 2 ? "purple" : "slate"})`,
+                } as CSSProperties
+              }
+            >
               <span>
                 {item.flag === null
                   ? "Sin flag evaluado"
                   : qualityFlagLabel(item.flag)}
               </span>
               <strong>{number(item.units)}</strong>
+              <progress
+                max={Math.max(data.totals.units, 1)}
+                value={item.units}
+                aria-label={`${item.flag === null ? "Sin flag evaluado" : qualityFlagLabel(item.flag)}: ${percentage(item.units, data.totals.units)}`}
+              />
             </div>
           ))}
         </section>
-        <section className="panel statistics-breakdown">
+        <section className="panel statistics-breakdown statistics-tone-blue">
           <h2>Estado de revisión</h2>
           <p>Situación vigente de cada ubicación.</p>
           {data.review_states.map((item) => (

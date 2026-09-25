@@ -24,6 +24,7 @@ vi.mock("maplibre-gl", () => ({
     }
     addSource = mapCalls.source;
     addLayer = mapCalls.layer;
+    setPaintProperty() {}
     fitBounds() {}
     remove = mapCalls.remove;
   },

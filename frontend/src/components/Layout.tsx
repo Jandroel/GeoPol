@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../auth";
 import { label } from "../lib/format";
+import { ThemeToggle } from "../theme";
 import "./navigation.css";
 
 const navigation = [
@@ -41,7 +42,6 @@ const sections: Record<
   "/documentation": [
     { to: "/documentation", label: "Biblioteca" },
     { to: "/rules", label: "Reglas y metodología" },
-    { to: "/audit", label: "Auditoría", admin: true },
   ],
 };
 function modulePath(path: string) {
@@ -54,8 +54,7 @@ function modulePath(path: string) {
   )
     return "/procedures";
   if (["/statistics", "/quality"].includes(path)) return "/statistics";
-  if (["/documentation", "/rules", "/audit"].includes(path))
-    return "/documentation";
+  if (["/documentation", "/rules"].includes(path)) return "/documentation";
   return path;
 }
 const mobileQuery = "(max-width: 760px)";
@@ -338,6 +337,7 @@ export function Layout() {
             </nav>
           </div>
           <div className="account">
+            <ThemeToggle />
             <div className="avatar" aria-hidden="true">
               {user?.username.slice(0, 2).toUpperCase()}
             </div>

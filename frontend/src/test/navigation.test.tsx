@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Layout } from "../components/Layout";
+import { ThemeProvider } from "../theme";
 
 const auth = vi.hoisted(() => ({
   user: { username: "operador", role: "admin" },
@@ -29,13 +30,15 @@ function viewport(mobile: boolean) {
 }
 function show(path = "/runs/new") {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="*" element={<button>Acción del contenido</button>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="*" element={<button>Acción del contenido</button>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 
@@ -273,7 +276,6 @@ describe("Navegación del espacio de trabajo", () => {
     ["/results/location?back=%2Freview", "Procedimientos"],
     ["/quality?run_id=history", "Estadística"],
     ["/rules", "Documentación"],
-    ["/audit", "Documentación"],
   ])(
     "conserva el módulo correcto al abrir el enlace anterior %s",
     (path, module) => {
@@ -293,20 +295,33 @@ describe("Navegación del espacio de trabajo", () => {
     },
   );
 
-  it("permite abrir auditoría desde las secciones de Documentación para administradores", async () => {
-    const user = userEvent.setup();
+  it("omite auditoría en la navegación también para administradores", () => {
     show("/documentation");
     const local = screen.getByRole("navigation", {
       name: "Secciones de Documentación",
     });
-    await user.click(within(local).getByRole("link", { name: "Auditoría" }));
     expect(
-      within(local).getByRole("link", { name: "Auditoría" }),
-    ).toHaveAttribute("aria-current", "page");
+      within(local).queryByRole("link", { name: "Auditoría" }),
+    ).not.toBeInTheDocument();
     expect(
       within(
         screen.getByRole("navigation", { name: "Navegación principal" }),
       ).getByRole("link", { name: "Documentación" }),
     ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("mantiene el control de tema disponible en la cabecera móvil sin abrir el menú", async () => {
+    localStorage.setItem("geopol.theme", "light");
+    viewport(true);
+    const user = userEvent.setup();
+    show("/documentation");
+    await user.click(
+      screen.getByRole("button", { name: "Activar tema oscuro" }),
+    );
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(
+      screen.getByRole("button", { name: "Activar tema claro" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

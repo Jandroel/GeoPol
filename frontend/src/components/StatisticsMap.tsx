@@ -46,6 +46,29 @@ export function StatisticsMap({ features }: { features: StatisticsFeature[] }) {
         if (disposed || !container.current) return;
         setWorkerUrl(workerUrl);
         try {
+          const palette = () => {
+            const style = getComputedStyle(container.current!);
+            const token = (name: string, fallback: string) =>
+              style.getPropertyValue(name).trim() || fallback;
+            return {
+              background: token("--map-background", "#eaf1f5"),
+              stroke: token("--surface", "#ffffff"),
+              color: [
+                "match",
+                ["get", "layer"],
+                "original",
+                token("--statistics-original", statisticLayers.original.color),
+                "reference",
+                token(
+                  "--statistics-reference",
+                  statisticLayers.reference.color,
+                ),
+                "manual",
+                token("--statistics-manual", statisticLayers.manual.color),
+                token("--statistics-other", statisticLayers.other.color),
+              ] as ExpressionSpecification,
+            };
+          };
           const map = new Map({
             container: container.current,
             style: {
@@ -55,7 +78,7 @@ export function StatisticsMap({ features }: { features: StatisticsFeature[] }) {
                 {
                   id: "background",
                   type: "background",
-                  paint: { "background-color": "#eaf1f5" },
+                  paint: { "background-color": palette().background },
                 },
               ],
             },
@@ -86,17 +109,8 @@ export function StatisticsMap({ features }: { features: StatisticsFeature[] }) {
               type: "geojson",
               data: { type: "FeatureCollection", features },
             });
-            const color: ExpressionSpecification = [
-              "match",
-              ["get", "layer"],
-              "original",
-              statisticLayers.original.color,
-              "reference",
-              statisticLayers.reference.color,
-              "manual",
-              statisticLayers.manual.color,
-              statisticLayers.other.color,
-            ];
+            const { color, stroke, background } = palette();
+            map.setPaintProperty("background", "background-color", background);
             map.addLayer({
               id: "areas",
               type: "fill",
@@ -119,7 +133,7 @@ export function StatisticsMap({ features }: { features: StatisticsFeature[] }) {
               paint: {
                 "circle-color": color,
                 "circle-radius": 5,
-                "circle-stroke-color": "#ffffff",
+                "circle-stroke-color": stroke,
                 "circle-stroke-width": 1.2,
               },
             });
@@ -159,7 +173,32 @@ export function StatisticsMap({ features }: { features: StatisticsFeature[] }) {
           map.on("error", () => {
             if (!disposed) setFailed(true);
           });
-          cleanup = () => map.remove();
+          // Theme changes repaint the existing map; its viewport and source survive.
+          const observer = new MutationObserver(() => {
+            if (disposed || !map.getLayer("points")) return;
+            const colors = palette();
+            map.setPaintProperty(
+              "background",
+              "background-color",
+              colors.background,
+            );
+            map.setPaintProperty("areas", "fill-color", colors.color);
+            map.setPaintProperty("lines", "line-color", colors.color);
+            map.setPaintProperty("points", "circle-color", colors.color);
+            map.setPaintProperty(
+              "points",
+              "circle-stroke-color",
+              colors.stroke,
+            );
+          });
+          observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ["data-theme"],
+          });
+          cleanup = () => {
+            observer.disconnect();
+            map.remove();
+          };
         } catch {
           if (!disposed) setFailed(true);
         }
