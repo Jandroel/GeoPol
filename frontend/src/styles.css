@@ -133,11 +133,6 @@
   justify-content: center;
   gap: 8px 16px;
 }
-.source-upload-actions .demo-link {
-  margin-top: 0;
-  padding: 12px 0;
-  min-height: 44px;
-}
 .intake-source .mapping-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1592,12 +1587,6 @@ tbody tr:hover {
   font-size: 12px;
   color: var(--muted);
   font-weight: 400;
-}
-.demo-link {
-  display: flex;
-  justify-content: center;
-  margin-top: 15px;
-  font-size: 12px;
 }
 .upload-progress {
   margin: 15px 0 24px;

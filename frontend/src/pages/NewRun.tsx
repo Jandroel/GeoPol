@@ -456,9 +456,6 @@ function NewRunForm({
                   {busy ? "Cargando archivo…" : "Cargar y verificar columnas"}
                   <ArrowRight size={18} aria-hidden="true" />
                 </button>
-                <a className="text-link demo-link" href="/demo.csv" download>
-                  Descargar un ejemplo sintético
-                </a>
               </div>
             </form>
           ) : mode === "overview" ? (

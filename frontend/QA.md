@@ -2,6 +2,36 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Refactoring UI, navegación y biblioteca · 25 de septiembre de 2026
+
+Se retiraron la ruta superior repetida y el enlace de ejemplo sintético. La barra
+lateral adopta la superficie del tema y cinco acentos de módulo. Documentación
+usa categorías horizontales, catálogo compacto y un lector con mayor prioridad;
+en móvil, seleccionar una guía pliega el catálogo y lleva el foco al artículo.
+
+- **17 pruebas de navegación aprobadas**, conservando rutas activas, enlaces
+  locales, preferencia del menú, foco, Escape y cambios de breakpoint.
+- **Dos escenarios Chromium aprobados en 24,7 s**, contra el build de producción.
+  Se comprueban ausencia del breadcrumb y del ejemplo, búsqueda y limpieza,
+  filtro de ocho procedimientos, selección de guías en ambos temas, cierre y
+  reapertura del catálogo móvil y foco del lector. También pasan importación,
+  procesamiento, estadísticas, mapas, exportación Excel y gráficas existentes.
+- Capturas inspeccionadas de Documentación en claro y oscuro, catálogo y lector
+  móvil, además de barra lateral expandida, compacta y móvil. La comprobación
+  incluye escritorio 1440 px, 1280/1024/768 px y móvil 400/375 px, sin errores de
+  página ni desbordamiento global. El escenario de módulos no solicita recursos
+  externos.
+- Se corrigió la herencia antigua que aclaraba demasiado los iconos inactivos.
+  Los diez pares de icono/fondo de módulo tienen contraste entre 4,62:1 y 7,06:1.
+  La selección conserva texto, fondo y un indicador lateral.
+- Build TypeScript/Vite, formato y diff correctos. Permanece el aviso conocido
+  del tamaño de MapLibre. No se cambiaron backend ni datos operativos.
+
+Los servicios y archivos de prueba son sintéticos, aislados en 18001/15175 y
+eliminados al finalizar. Las capturas privadas se conservan en
+`.local/ui-library-20260925/`, excluidas de Git. La web operativa en 5174 sirve la
+versión nueva y su API continúa saludable.
+
 ## Identidad y cabecera lateral · 25 de septiembre de 2026
 
 La marca con icono de ubicación y subtítulo INEI se trasladó desde Vista general

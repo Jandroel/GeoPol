@@ -134,6 +134,10 @@ test("five modules preserve data, render both themes and expose statistics and r
     page.getByRole("heading", { name: "Vista general", exact: true }),
   ).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(
+    page.getByRole("navigation", { name: "Ubicación actual", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator('a[href="/demo.csv"]')).toHaveCount(0);
   await expect(navigation.getByRole("link")).toHaveCount(5);
   for (const name of moduleNames)
     await expect(
@@ -481,6 +485,79 @@ test("five modules preserve data, render both themes and expose statistics and r
     ).toHaveCount(0);
     await expect(guide.getByText(/docs\//)).toHaveCount(0);
     await captureThemes("documentation");
+
+    await page
+      .getByRole("button", { name: "Limpiar búsqueda", exact: true })
+      .click();
+    await expect(
+      page.getByRole("textbox", { name: "Buscar documentos", exact: true }),
+    ).toHaveValue("");
+    const categories = page.getByRole("navigation", {
+      name: "Categorías de documentación",
+      exact: true,
+    });
+    const proceduresCategory = categories.getByRole("button", {
+      name: "Procedimientos",
+      exact: true,
+    });
+    await proceduresCategory.click();
+    await expect(proceduresCategory).toHaveAttribute("aria-pressed", "true");
+    const catalog = page.locator(".documentation-catalog");
+    await expect(catalog.locator(".documentation-card")).toHaveCount(8);
+    await expect(catalog).toHaveAttribute("data-open", "true");
+    await captureThemes("documentation-catalog");
+
+    await page.setViewportSize({ width: 400, height: 900 });
+    for (const theme of ["light", "dark"] as const) {
+      await setTheme(theme);
+      if ((await catalog.getAttribute("data-open")) !== "true")
+        await catalog.getByRole("button", { name: /Explorar guías/ }).click();
+      await catalog
+        .getByRole("button", { name: "1. Normalización", exact: true })
+        .click();
+      const normalizationGuide = page.getByRole("article", {
+        name: "1. Normalización",
+        exact: true,
+      });
+      await expect(normalizationGuide).toBeFocused();
+      await expect(catalog).toHaveAttribute("data-open", "false");
+      await expect(
+        catalog.locator(".documentation-catalog-content"),
+      ).toBeHidden();
+      const exploreGuides = catalog.getByRole("button", {
+        name: /Explorar guías/,
+      });
+      await expect(exploreGuides).toHaveAttribute("aria-expanded", "false");
+      await exploreGuides.click();
+      await expect(catalog).toHaveAttribute("data-open", "true");
+      await expect(
+        catalog.locator(".documentation-catalog-content"),
+      ).toBeVisible();
+      await catalog
+        .getByRole("button", {
+          name: "2. Procedimiento de puerta",
+          exact: true,
+        })
+        .click();
+      await expect(
+        page.getByRole("article", {
+          name: "2. Procedimiento de puerta",
+          exact: true,
+        }),
+      ).toBeFocused();
+      await expect(catalog).toHaveAttribute("data-open", "false");
+      await expect(
+        catalog.locator(".documentation-catalog-content"),
+      ).toBeHidden();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+      await capture(`mobile-documentation-reader-${theme}`);
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await setTheme("light");
   });
 
   await test.step("Verify five-module navigation and statistics on a narrow screen", async () => {

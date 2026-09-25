@@ -85,10 +85,8 @@ describe("Navegación del espacio de trabajo", () => {
       within(nav).getByRole("link", { name: "Estadística" }),
     ).toHaveAttribute("aria-current", "page");
     expect(
-      within(
-        screen.getByRole("navigation", { name: "Ubicación actual" }),
-      ).getByText("Estadística"),
-    ).toBeVisible();
+      screen.queryByRole("navigation", { name: "Ubicación actual" }),
+    ).not.toBeInTheDocument();
     view.unmount();
     show();
     expect(screen.getByRole("button", { name: "Expandir menú" })).toBeVisible();
@@ -110,18 +108,18 @@ describe("Navegación del espacio de trabajo", () => {
     expect(
       within(nav).getByRole("link", { name: "Validación" }),
     ).not.toHaveAttribute("aria-current");
-    const breadcrumb = screen.getByRole("navigation", {
-      name: "Ubicación actual",
+    const local = screen.getByRole("navigation", {
+      name: "Secciones de Procedimientos",
     });
     expect(
-      within(breadcrumb).getByText("Detalle del procesamiento"),
+      within(local).getByRole("link", { name: "Procesamientos" }),
     ).toHaveAttribute("aria-current", "page");
     await user.click(
-      within(breadcrumb).getByRole("link", { name: "Procedimientos" }),
+      within(local).getByRole("link", { name: "Procedimientos" }),
     );
     expect(
-      within(breadcrumb).queryByText("Detalle del procesamiento"),
-    ).not.toBeInTheDocument();
+      within(local).getByRole("link", { name: "Procedimientos" }),
+    ).toHaveAttribute("aria-current", "page");
   });
 
   it("mantiene los cinco módulos y omite las acciones locales no autorizadas para un revisor", () => {

@@ -176,7 +176,9 @@ sobre azul principal alcanza 6,11:1.
   el total general del total filtrado; el rango indica las ubicaciones visibles
   de esa página, sin confundirlas con las filas originales del Excel.
 - Una cabecera identifica cada pantalla. La barra superior conserva la cuenta y
-  el control del menú móvil; la barra lateral concentra la navegación.
+  el control del menú móvil; la barra lateral concentra la navegación. Se retira
+  la ruta superior «GeoPol > módulo» para no repetir el título de la página. Los
+  detalles conservan sus enlaces locales de regreso.
 - El resumen muestra indicadores distintos, su distribución y los procesamientos
   recientes. Se evita repetir el total en el centro del gráfico y duplicar llamadas
   a la bandeja en paneles adicionales.
@@ -209,5 +211,23 @@ No se añaden fuentes remotas, recursos de marca externos ni cartografía base.
   que funcionan con teclado. Los números y nombres acompañan siempre al color.
   Procedimientos distingue etapas mediante iconos, números y estados reales;
   el diseño no altera el orden del motor ni habilita ejecuciones ficticias.
+
+## Refactoring UI y biblioteca · 25 de septiembre de 2026
+
+Se volvió a consultar el repositorio de Refactoring UI solicitado por el usuario
+y su skill local. Se aplican jerarquía por proximidad y contraste, lectura de
+ancho controlado y color funcional sobre una base neutra.
+
+- La barra lateral utiliza una superficie clara u oscura según el tema. Cinco
+  acentos identifican los módulos: celeste, verde azulado, ámbar, violeta y rosa.
+  El módulo activo se distingue también por fondo, indicador lateral y texto;
+  el color no sustituye las etiquetas ni los nombres accesibles.
+- La cabecera superior se limita a controles de sesión, tema y menú móvil.
+  La carga del archivo concentra su acción principal; se retira el enlace para
+  descargar un ejemplo sintético.
+- Documentación dedica el espacio principal al lector y usa categorías con
+  iconos y color, búsqueda directa y catálogo compacto. En móvil se puede abrir
+  el catálogo a petición; seleccionar una guía lleva al lector, evitando bajar
+  por todas las guías. No se duplican los enlaces de reglas del módulo.
 
 Las verificaciones de funcionamiento y sus límites se registran en [QA.md](QA.md).

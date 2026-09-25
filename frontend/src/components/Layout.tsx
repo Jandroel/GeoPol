@@ -20,11 +20,31 @@ import { ThemeToggle } from "../theme";
 import "./navigation.css";
 
 const navigation = [
-  { to: "/", label: "Vista general", icon: LayoutDashboard },
-  { to: "/validation", label: "Validación", icon: ClipboardCheck },
-  { to: "/procedures", label: "Procedimientos", icon: Workflow },
-  { to: "/statistics", label: "Estadística", icon: ChartNoAxesCombined },
-  { to: "/documentation", label: "Documentación", icon: BookOpen },
+  { to: "/", label: "Vista general", icon: LayoutDashboard, accent: "sky" },
+  {
+    to: "/validation",
+    label: "Validación",
+    icon: ClipboardCheck,
+    accent: "teal",
+  },
+  {
+    to: "/procedures",
+    label: "Procedimientos",
+    icon: Workflow,
+    accent: "amber",
+  },
+  {
+    to: "/statistics",
+    label: "Estadística",
+    icon: ChartNoAxesCombined,
+    accent: "violet",
+  },
+  {
+    to: "/documentation",
+    label: "Documentación",
+    icon: BookOpen,
+    accent: "rose",
+  },
 ];
 const sections: Record<
   string,
@@ -98,14 +118,6 @@ export function Layout() {
       : location.pathname === "/runs/new"
         ? "/validation"
         : location.pathname;
-  const detailTitle = runDetail
-    ? "Detalle del procesamiento"
-    : resultDetail
-      ? "Detalle de ubicación"
-      : location.pathname !== activePath
-        ? (localItems.find((item) => item.to === localPath)?.label ??
-          (location.pathname === "/quality" ? "Seguimiento por calidad" : null))
-        : null;
 
   useEffect(() => {
     const query = window.matchMedia?.(mobileQuery);
@@ -281,8 +293,11 @@ export function Layout() {
                 aria-current={item.to === activePath ? "page" : undefined}
                 title={compact ? item.label : undefined}
                 className={`nav-item ${item.to === activePath ? "active" : ""}`}
+                data-accent={item.accent}
               >
-                <item.icon size={20} aria-hidden="true" />
+                <span className="navigation-module-icon" aria-hidden="true">
+                  <item.icon size={20} />
+                </span>
                 <span className="navigation-link-label">{item.label}</span>
                 <ChevronRight
                   className="navigation-active-arrow"
@@ -309,34 +324,6 @@ export function Layout() {
                 <Menu size={22} aria-hidden="true" />
               </button>
             )}
-            <nav
-              className="navigation-breadcrumb"
-              aria-label="Ubicación actual"
-            >
-              <Link className="navigation-home" to="/">
-                GeoPol
-              </Link>
-              <ChevronRight
-                className="navigation-home-divider"
-                size={14}
-                aria-hidden="true"
-              />
-              {detailTitle && current ? (
-                <>
-                  <Link to={current.to} className="navigation-parent">
-                    {current.label}
-                  </Link>
-                  <ChevronRight
-                    className="navigation-parent-divider"
-                    size={14}
-                    aria-hidden="true"
-                  />
-                </>
-              ) : null}
-              <span aria-current="page">
-                {detailTitle ?? current?.label ?? "Página no encontrada"}
-              </span>
-            </nav>
           </div>
           <div className="account">
             <ThemeToggle />

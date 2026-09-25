@@ -1,6 +1,17 @@
-import { useRef } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { BookOpen, ChevronRight, FileText, Search } from "lucide-react";
+import { useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  FileSpreadsheet,
+  Library,
+  ListChecks,
+  Search,
+  SlidersHorizontal,
+  Upload,
+  X,
+} from "lucide-react";
 import { Empty, PageHeader } from "../components/ui";
 import "./documentation.css";
 
@@ -13,12 +24,27 @@ interface Guide {
   sections: { title: string; paragraphs?: string[]; steps?: string[] }[];
 }
 const categories = [
-  { id: "all", label: "Todos los documentos" },
-  { id: "general", label: "General" },
-  { id: "procedures", label: "Procedimientos" },
-  { id: "usage", label: "Guías de uso" },
-  { id: "review", label: "Correcciones manuales" },
-  { id: "formats", label: "Formatos y exportaciones" },
+  { id: "all", label: "Todos los documentos", icon: Library, tone: "cyan" },
+  { id: "general", label: "General", icon: BookOpen, tone: "cyan" },
+  {
+    id: "procedures",
+    label: "Procedimientos",
+    icon: ListChecks,
+    tone: "indigo",
+  },
+  { id: "usage", label: "Guías de uso", icon: Upload, tone: "teal" },
+  {
+    id: "review",
+    label: "Correcciones manuales",
+    icon: SlidersHorizontal,
+    tone: "amber",
+  },
+  {
+    id: "formats",
+    label: "Formatos y exportaciones",
+    icon: FileSpreadsheet,
+    tone: "rose",
+  },
 ];
 const guides: Guide[] = [
   {
@@ -367,16 +393,23 @@ export function Documentation() {
   const selected =
     filtered.find((guide) => guide.id === selectedId) ?? filtered[0];
   const reader = useRef<HTMLElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const [catalogOpen, setCatalogOpen] = useState(() => !!query);
+  const selectedCategory = categories.find(
+    (item) => item.id === selected?.category,
+  );
   function filter(key: "category" | "q", value: string) {
     const next = new URLSearchParams(params);
     if (value && value !== "all") next.set(key, value);
     else next.delete(key);
     next.delete("doc");
+    setCatalogOpen(true);
     setParams(next, { replace: key === "q" });
   }
   function choose(id: string) {
     const next = new URLSearchParams(params);
     next.set("doc", id);
+    setCatalogOpen(false);
     setParams(next);
     if (window.matchMedia?.("(max-width: 1000px)").matches) {
       requestAnimationFrame(() => {
@@ -389,117 +422,168 @@ export function Documentation() {
     <>
       <PageHeader
         title="Documentación"
-        description="Guías de uso, procedimientos y criterios de esta versión de GeoPol."
+        description="Consulta cómo cargar archivos, resolver ubicaciones y revisar resultados."
       />
       <div className="documentation-workspace">
-        <aside
+        <div className="documentation-tools">
+          <label className="documentation-search">
+            <span className="sr-only">Buscar documentos</span>
+            <Search size={20} aria-hidden="true" />
+            <input
+              ref={searchInput}
+              inputMode="search"
+              value={query}
+              placeholder="Buscar por tema o procedimiento…"
+              onChange={(event) => filter("q", event.target.value)}
+            />
+          </label>
+          {query && (
+            <button
+              className="documentation-clear"
+              type="button"
+              aria-label="Limpiar búsqueda"
+              onClick={() => {
+                filter("q", "");
+                searchInput.current?.focus();
+              }}
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <nav
           className="documentation-categories"
           aria-label="Categorías de documentación"
         >
-          <h2>Contenido</h2>
           {categories.map((item) => (
             <button
               key={item.id}
               type="button"
+              className={`documentation-tone-${item.tone}`}
               aria-pressed={category === item.id}
               onClick={() => filter("category", item.id)}
             >
+              <item.icon size={18} aria-hidden="true" />
               <span>{item.label}</span>
-              <span className="documentation-category-count">
-                {item.id === "all"
-                  ? guides.length
-                  : guides.filter((guide) => guide.category === item.id).length}
-              </span>
             </button>
           ))}
-          <Link className="text-link" to="/rules">
-            Consultar reglas vigentes
-          </Link>
-        </aside>
-        <section
-          className="documentation-catalog"
-          aria-labelledby="documentation-list-title"
+        </nav>
+        <div
+          className={`documentation-reading-layout${selected ? "" : " is-empty"}`}
         >
-          <div className="documentation-catalog-heading">
-            <h2 id="documentation-list-title">Documentos</h2>
-            <span role="status">{filtered.length} disponibles</span>
-          </div>
-          <label className="documentation-search">
-            <span className="sr-only">Buscar documentos</span>
-            <Search size={18} aria-hidden="true" />
-            <input
-              value={query}
-              placeholder="Buscar documentos…"
-              onChange={(event) => filter("q", event.target.value)}
-            />
-          </label>
-          <div className="documentation-list">
-            {filtered.map((guide) => (
-              <button
-                key={guide.id}
-                type="button"
-                className="documentation-card"
-                aria-pressed={selected?.id === guide.id}
-                onClick={() => choose(guide.id)}
-              >
-                <FileText size={23} aria-hidden="true" />
-                <span>
-                  <strong>{guide.title}</strong>
-                  <span>{guide.summary}</span>
-                </span>
-                <ChevronRight size={17} aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-          {!filtered.length && (
-            <Empty
-              title="No se encontraron documentos"
-              text="Prueba otro término o consulta todas las categorías."
-              action={
-                <button
-                  className="button secondary"
-                  onClick={() => setParams({})}
-                >
-                  Mostrar todos
-                </button>
-              }
-            />
-          )}
-        </section>
-        {selected && (
-          <article
-            ref={reader}
-            id="documentation-reader"
-            className="panel documentation-reader"
-            tabIndex={-1}
-            aria-labelledby="documentation-reader-title"
+          <section
+            className="documentation-catalog"
+            aria-labelledby="documentation-list-title"
+            data-open={catalogOpen}
           >
-            <div className="documentation-reader-toolbar">
-              <span>
-                <BookOpen size={18} aria-hidden="true" /> Guía de uso
+            <div className="documentation-catalog-heading">
+              <h2 id="documentation-list-title">Guías disponibles</h2>
+              <span role="status" aria-label="Cantidad de guías disponibles">
+                {filtered.length}
               </span>
             </div>
-            <div className="documentation-reader-body">
-              <h2 id="documentation-reader-title">{selected.title}</h2>
-              <p className="documentation-lead">{selected.summary}</p>
-              {selected.sections.map((section) => (
-                <section key={section.title}>
-                  <h3>{section.title}</h3>
-                  {section.paragraphs?.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
-                  ))}
-                  {section.steps && (
-                    <ol>
-                      {section.steps.map((step) => (
-                        <li key={step}>{step}</li>
-                      ))}
-                    </ol>
-                  )}
-                </section>
-              ))}
+            {filtered.length > 0 && (
+              <button
+                className="documentation-catalog-toggle"
+                type="button"
+                aria-expanded={catalogOpen}
+                aria-controls="documentation-catalog-content"
+                onClick={() => setCatalogOpen(!catalogOpen)}
+              >
+                <Library size={20} aria-hidden="true" />
+                <span>
+                  {catalogOpen ? "Ocultar catálogo" : "Explorar guías"}
+                  <small>{filtered.length} disponibles</small>
+                </span>
+                <ChevronDown size={18} aria-hidden="true" />
+              </button>
+            )}
+            <div
+              id="documentation-catalog-content"
+              className="documentation-catalog-content"
+            >
+              <div className="documentation-list">
+                {filtered.map((guide) => {
+                  const group = categories.find(
+                    (item) => item.id === guide.category,
+                  )!;
+                  return (
+                    <button
+                      key={guide.id}
+                      type="button"
+                      className={`documentation-card documentation-tone-${group.tone}`}
+                      aria-pressed={selected?.id === guide.id}
+                      onClick={() => choose(guide.id)}
+                    >
+                      <span className="documentation-guide-icon">
+                        <group.icon size={19} aria-hidden="true" />
+                      </span>
+                      <span className="documentation-guide-copy">
+                        <strong>{guide.title}</strong>
+                        {category === "all" && <small>{group.label}</small>}
+                      </span>
+                      <ChevronRight size={17} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+              </div>
+              {!filtered.length && (
+                <Empty
+                  title="No se encontraron documentos"
+                  text="Prueba otro término o consulta todas las categorías."
+                  action={
+                    <button
+                      className="button secondary"
+                      onClick={() => {
+                        setParams({});
+                        setCatalogOpen(true);
+                      }}
+                    >
+                      Mostrar todos
+                    </button>
+                  }
+                />
+              )}
             </div>
-          </article>
-        )}
+          </section>
+          {selected && (
+            <article
+              ref={reader}
+              id="documentation-reader"
+              className={`panel documentation-reader documentation-tone-${selectedCategory?.tone ?? "cyan"}`}
+              tabIndex={-1}
+              aria-labelledby="documentation-reader-title"
+            >
+              <header className="documentation-reader-heading">
+                <span>
+                  {selectedCategory && (
+                    <selectedCategory.icon size={19} aria-hidden="true" />
+                  )}
+                  {selectedCategory?.label}
+                </span>
+                <h2 id="documentation-reader-title">{selected.title}</h2>
+                <p className="documentation-lead">{selected.summary}</p>
+              </header>
+              <div className="documentation-reader-body">
+                {selected.sections.map((section) => (
+                  <section key={section.title}>
+                    <h3>{section.title}</h3>
+                    {section.paragraphs?.map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                    {section.steps && (
+                      <ol>
+                        {section.steps.map((step) => (
+                          <li key={step}>{step}</li>
+                        ))}
+                      </ol>
+                    )}
+                  </section>
+                ))}
+              </div>
+            </article>
+          )}
+        </div>
       </div>
     </>
   );
