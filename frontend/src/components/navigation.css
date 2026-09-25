@@ -17,6 +17,9 @@
 .navigation-shell .workspace {
   margin-left: var(--navigation-width);
 }
+.navigation-shell .main-content {
+  padding-top: 12px;
+}
 .navigation-brand-row {
   display: flex;
   align-items: flex-start;
@@ -75,7 +78,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 20px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
 .module-sections a {
@@ -140,12 +143,10 @@
 .navigation-module-icon {
   display: grid;
   place-items: center;
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
   color: var(--module-accent);
-  background: var(--module-tint);
 }
 .navigation-shell .navigation-module-icon svg,
 .navigation-shell .nav-item.active .navigation-module-icon svg {
@@ -207,10 +208,10 @@
   border-color: var(--border);
 }
 .navigation-shell .topbar {
-  min-height: 64px;
+  min-height: 56px;
   height: auto;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: 6px;
+  padding-bottom: 6px;
   background: var(--background);
   border-bottom: 0;
 }
@@ -355,8 +356,8 @@
     border-radius: 10px;
   }
   .navigation-shell .topbar {
-    min-height: 72px;
-    padding: 12px 16px;
+    min-height: 56px;
+    padding: 6px 16px;
     gap: 10px;
   }
   .navigation-context {

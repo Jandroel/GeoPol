@@ -10,6 +10,7 @@ import {
   ListFilter,
 } from "lucide-react";
 import { request } from "../lib/api";
+import { useLatestRun } from "../lib/useLatestRun";
 import { date, isActiveRun, label, number } from "../lib/format";
 import { percentage, qualityFlagLabel, reviewStateLabel } from "../lib/quality";
 import type { Page, Run } from "../types";
@@ -190,6 +191,7 @@ export function Statistics() {
   const runs = useInfiniteQuery({
     queryKey: ["statistics-runs"],
     initialPageParam: 1,
+    refetchOnMount: "always",
     queryFn: ({ pageParam }) =>
       request<Page<Run>>(`/runs?page=${pageParam}&page_size=100`),
     getNextPageParam: (last) =>
@@ -203,6 +205,12 @@ export function Statistics() {
       isActiveRun(query.state.data?.status) ? 3000 : false,
   });
   const items = runs.data?.pages.flatMap((page) => page.items) ?? [];
+  useLatestRun(
+    params,
+    setParams,
+    items[0]?.id,
+    runs.isSuccess && runs.isFetchedAfterMount && !runs.isFetching,
+  );
   return (
     <>
       <PageHeader
@@ -214,11 +222,7 @@ export function Statistics() {
           Procesamiento a consultar
           <select
             value={runId}
-            onChange={(event) =>
-              setParams(
-                event.target.value ? { run_id: event.target.value } : {},
-              )
-            }
+            onChange={(event) => setParams({ run_id: event.target.value })}
           >
             <option value="">Selecciona un procesamiento</option>
             {runId && !items.some((item) => item.id === runId) && (
@@ -254,11 +258,29 @@ export function Statistics() {
           </button>
         )}
         <ErrorNotice error={runs.error} />
+        {runs.isError && (
+          <button
+            className="button secondary"
+            onClick={() => void runs.refetch()}
+          >
+            Volver a intentar
+          </button>
+        )}
       </section>
-      {!runId ? (
+      {!runId && (runs.isPending || runs.isFetching) ? (
+        <Loading text="Consultando procesamientos…" />
+      ) : !runId && runs.isError ? null : !runId ? (
         <Empty
-          title="Elige un procesamiento para ver sus resultados"
-          text="Los indicadores se calculan sobre todas sus ubicaciones. El mapa utiliza los resultados geográficos aceptados."
+          title={
+            items.length
+              ? "Elige un procesamiento para ver sus resultados"
+              : "Aún no hay procesamientos"
+          }
+          text={
+            items.length
+              ? "Los indicadores se calculan sobre todas sus ubicaciones. El mapa utiliza los resultados geográficos aceptados."
+              : "Los resultados estarán disponibles después de cargar y procesar el primer archivo."
+          }
           action={
             <Link className="button secondary" to="/runs">
               Ver historial de procesamientos

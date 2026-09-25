@@ -2,6 +2,41 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Portada de importación y último procesamiento · 25 de septiembre de 2026
+
+Vista general reúne el archivo SIDPOL y las cinco referencias dentro del panel
+del Perú. Se retiran sus métricas y procesamientos recientes. Cada referencia
+abre una ventana con desplazamiento interno y conserva su archivo y borrador al
+cerrarse. La cabecera es más compacta y los iconos identifican módulos y fuentes
+sin recuadros decorativos.
+
+- **65 pruebas de componente aprobadas** en ejecuciones acotadas: selección del
+  último procesamiento y estadísticas (17), automatización/referencias/diálogo
+  (26), navegación y temas (22). Cubren selección explícita de un histórico,
+  lista en caché, ausencia de procesamientos, error y reintento, Escape, retorno
+  de foco, borradores y conservación del archivo entre portada y validación.
+- **Dos escenarios Chromium aprobados en 48,3 s**, con el build de producción.
+  Comprueban la selección del último procesamiento al entrar en Procedimientos
+  y Estadística, además de importación, validación, procesamiento, exportación,
+  mapas, actividad, gráficas y navegación.
+- La portada se comprueba **sin desplazamiento vertical** a 1366 × 768,
+  1440 × 900 y 1920 × 1080, vacía, con referencias guardadas y con archivo cargado.
+  Se inspeccionaron capturas claras/oscuras de escritorio y móvil (400 × 900),
+  junto con la configuración de una referencia en una ventana de altura limitada.
+  Las pantallas pequeñas pueden desplazarse para mantener accesibles las acciones.
+- La revisión visual adicional confirmó títulos próximos a la cabecera e iconos
+  legibles. Se conservó visible el catálogo activo durante un reemplazo pendiente
+  y se mantuvo el apilado de la carga a partir de 1000 px. Los escenarios no
+  detectaron errores de página, desbordamiento horizontal ni solicitudes externas.
+- TypeScript/Vite y comprobación del diff correctos; permanece el aviso conocido
+  del tamaño de MapLibre. No se modificaron backend ni datos operativos. La web
+  en 5174 sirve el build actualizado y su API responde saludable, con esquema 6.
+
+Las pruebas usaron servicios aislados en 18001/15175 y datos sintéticos temporales,
+limpiados al finalizar. Evidencias privadas: `.local/ui-intake-20260925/`, fuera de
+Git. JSDOM usa un adaptador mínimo del ciclo de vida de `dialog`; la interacción
+nativa, Escape y restauración del foco también se verifican en Chromium.
+
 ## Refactoring UI, navegación y biblioteca · 25 de septiembre de 2026
 
 Se retiraron la ruta superior repetida y el enlace de ejemplo sintético. La barra

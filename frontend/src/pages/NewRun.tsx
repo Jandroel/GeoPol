@@ -727,6 +727,7 @@ function NewRunForm({
           </aside>
         ) : (
           <ReferenceExcelCards
+            editorMode={mode === "overview" ? "dialog" : "inline"}
             catalogs={refs.data?.items ?? []}
             selected={referenceSlots}
             onSelect={(kind, id) =>

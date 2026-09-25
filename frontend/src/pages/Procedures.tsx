@@ -24,6 +24,7 @@ import {
 import { useAuth } from "../auth";
 import { post, request } from "../lib/api";
 import { date, isActiveRun, number } from "../lib/format";
+import { useLatestRun } from "../lib/useLatestRun";
 import type { Page, QualityOverview, Reference, Run } from "../types";
 import {
   Badge,
@@ -113,6 +114,7 @@ export function Procedures() {
   const runs = useInfiniteQuery({
     queryKey: ["procedure-runs"],
     initialPageParam: 1,
+    refetchOnMount: "always",
     queryFn: ({ pageParam }) =>
       request<Page<Run>>(`/runs?page=${pageParam}&page_size=50`),
     getNextPageParam: (last) =>
@@ -126,6 +128,12 @@ export function Procedures() {
       isActiveRun(query.state.data?.status) ? 2000 : false,
   });
   const items = runs.data?.pages.flatMap((page) => page.items) ?? [];
+  useLatestRun(
+    params,
+    setParams,
+    items[0]?.id,
+    runs.isSuccess && runs.isFetchedAfterMount && !runs.isFetching,
+  );
   return (
     <>
       <PageHeader
@@ -139,8 +147,7 @@ export function Procedures() {
             value={runId}
             onChange={(event) => {
               const next = new URLSearchParams(params);
-              if (event.target.value) next.set("run_id", event.target.value);
-              else next.delete("run_id");
+              next.set("run_id", event.target.value);
               setParams(next);
             }}
           >
@@ -169,13 +176,30 @@ export function Procedures() {
               : "Cargar más procesamientos"}
           </button>
         )}
-        {runs.isPending && <span role="status">Cargando procesamientos…</span>}
         <ErrorNotice error={runs.error} />
+        {runs.isError && (
+          <button
+            className="button secondary"
+            onClick={() => void runs.refetch()}
+          >
+            Volver a intentar
+          </button>
+        )}
       </section>
-      {!runId ? (
+      {!runId && (runs.isPending || runs.isFetching) ? (
+        <Loading text="Consultando procesamientos…" />
+      ) : !runId && runs.isError ? null : !runId ? (
         <Empty
-          title="Selecciona el archivo que quieres procesar"
-          text="El selector incluye las ejecuciones existentes. Para iniciar una nueva, carga el archivo y revisa sus columnas en Validación."
+          title={
+            items.length
+              ? "Selecciona el archivo que quieres procesar"
+              : "Aún no hay procesamientos"
+          }
+          text={
+            items.length
+              ? "El selector incluye las ejecuciones existentes. Para iniciar una nueva, carga el archivo y revisa sus columnas en Validación."
+              : "Carga un archivo en Vista general y revisa sus columnas para iniciar el primer procesamiento."
+          }
           action={
             <Link className="button primary" to="/">
               Ir a carga de archivos <ArrowRight size={16} aria-hidden="true" />

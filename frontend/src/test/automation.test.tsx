@@ -153,6 +153,11 @@ describe("safe processing defaults", () => {
       await screen.findByLabelText("Catálogo guardado · Puertas / viviendas"),
       catalog.id,
     );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Cerrar configuración de Puertas / viviendas",
+      }),
+    );
     await user.upload(
       document.querySelector("#source-file")!,
       new File(["synthetic"], "synthetic.csv", { type: "text/csv" }),

@@ -138,6 +138,35 @@ test("five modules preserve data, render both themes and expose statistics and r
     page.getByRole("navigation", { name: "Ubicación actual", exact: true }),
   ).toHaveCount(0);
   await expect(page.locator('a[href="/demo.csv"]')).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", {
+      name: "Procesamientos recientes",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("Estado de la información", { exact: true }),
+  ).toHaveCount(0);
+  async function assertHomeFits(state: string) {
+    for (const [width, height] of [
+      [1366, 768],
+      [1440, 900],
+      [1920, 1080],
+    ]) {
+      await page.setViewportSize({ width, height });
+      await capture(`home-${state}-${width}x${height}`);
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              document.documentElement.scrollHeight <= window.innerHeight + 1,
+          ),
+        )
+        .toBe(true);
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+  }
+  await assertHomeFits("empty");
   await expect(navigation.getByRole("link")).toHaveCount(5);
   for (const name of moduleNames)
     await expect(
@@ -163,6 +192,7 @@ test("five modules preserve data, render both themes and expose statistics and r
         has: page.getByRole("button", {
           name: `Configurar referencia: ${title}`,
           exact: true,
+          includeHidden: true,
         }),
       });
       const toggle = card.getByRole("button", {
@@ -170,6 +200,17 @@ test("five modules preserve data, render both themes and expose statistics and r
         exact: true,
       });
       await toggle.click();
+      const dialog = page.getByRole("dialog", {
+        name: `Configurar ${title}`,
+        exact: true,
+      });
+      await expect(dialog).toBeVisible();
+      if (index === 0) {
+        await page.keyboard.press("Escape");
+        await expect(dialog).not.toBeVisible();
+        await expect(toggle).toBeFocused();
+        await toggle.click();
+      }
       await card
         .getByLabel(`Archivo Excel · ${title}`, { exact: true })
         .setInputFiles(resolve(fixtures, `${kind}.xlsx`));
@@ -194,6 +235,36 @@ test("five modules preserve data, render both themes and expose statistics and r
       await card
         .getByLabel(`Documento que confirma WGS84 · ${title}`, { exact: true })
         .fill("Fixture artificial WGS84 EPSG:4326 para verificación aislada");
+      if (index === 0) {
+        for (const theme of ["light", "dark"] as const) {
+          // Native dialogs make background controls inert; set the existing
+          // theme through the DOM only for this visual fixture.
+          await page.locator("html").evaluate((html, value) => {
+            html.setAttribute("data-theme", value);
+          }, theme);
+          for (const [width, height] of [
+            [1366, 768],
+            [400, 900],
+          ]) {
+            await page.setViewportSize({ width, height });
+            await dialog
+              .locator(".reference-dialog-content")
+              .evaluate((node) => {
+                node.scrollTop = 0;
+              });
+            await capture(`reference-dialog-${theme}-${width}`, false);
+            expect(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth,
+              ),
+            ).toBe(true);
+            const box = await dialog.boundingBox();
+            expect(box!.height).toBeLessThan(height);
+            expect(box!.width).toBeLessThan(width);
+          }
+        }
+        await page.setViewportSize({ width: 1440, height: 1000 });
+      }
       await card
         .getByRole("button", {
           name: "Guardar y utilizar referencia",
@@ -203,11 +274,19 @@ test("five modules preserve data, render both themes and expose statistics and r
       await expect(
         card.getByRole("status", { name: "Disponibilidad de la referencia" }),
       ).toContainText("1 elementos disponibles");
-      await toggle.click();
+      await dialog
+        .getByRole("button", {
+          name: `Cerrar configuración de ${title}`,
+          exact: true,
+        })
+        .click();
+      await expect(dialog).not.toBeVisible();
+      await expect(toggle).toBeFocused();
     }
     await expect(
       page.getByText("2 de 5 seleccionadas", { exact: true }),
     ).toBeVisible();
+    await assertHomeFits("references");
     await captureThemes("home");
   });
 
@@ -274,6 +353,7 @@ test("five modules preserve data, render both themes and expose statistics and r
       await expect(
         page.locator(".reference-slot-toggle").filter({ hasText: name }),
       ).toBeVisible();
+    await assertHomeFits("loaded");
     await page
       .getByRole("link", { name: "Continuar validación", exact: true })
       .click();
@@ -301,6 +381,16 @@ test("five modules preserve data, render both themes and expose statistics and r
     "Completado",
     { timeout: 120000 },
   );
+  await test.step("Open the latest processing by default in both modules", async () => {
+    await page.goto("/procedures");
+    await expect(page).toHaveURL(new RegExp(`/procedures\\?run_id=${runId}`));
+    await expect(page.getByLabel("Procesamiento a consultar")).toHaveValue(
+      runId,
+    );
+    await page.goto("/statistics");
+    await expect(page).toHaveURL(new RegExp(`/statistics\\?run_id=${runId}`));
+    await page.goto(`/procedures?run_id=${runId}`);
+  });
   await test.step("Keep declared and inferred exclusions distinct from accepted and reviewable locations", async () => {
     const response = await page.request.get(
       `/api/runs/${runId}/results?page_size=100`,

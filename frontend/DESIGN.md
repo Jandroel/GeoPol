@@ -144,10 +144,11 @@ sobre azul principal alcanza 6,11:1.
   Las tareas auxiliares se agrupan en navegación local; las rutas anteriores
   permanecen disponibles. El análisis de las siete láminas se registra en
   [propuesta-2.md](../docs/propuesta-2.md).
-- Vista general combina identidad institucional y datos operativos con la carga
-  SIDPOL/Censos. La revisión visual posterior recupera la ilustración del Perú
-  en la cabecera y mantiene los formularios debajo. El archivo y su configuración
-  se mantienen en un contexto de sesión al pasar a Validación.
+- Vista general concentra la carga de SIDPOL y las cinco referencias dentro
+  del panel con la ilustración del Perú. El archivo principal y las referencias
+  comparten el mismo espacio de trabajo; no se añaden métricas ni una lista de
+  procesamientos recientes. El archivo y su configuración se mantienen en un
+  contexto de sesión al pasar a Validación.
 - Validación presenta primero comprobaciones y conteos reales, luego mapeo y
   evidencia de coordenadas. Los campos complementarios se abren a petición.
   La ausencia de FLAG o un nombre fuera de convención se explica sin atribuir
@@ -158,13 +159,24 @@ sobre azul principal alcanza 6,11:1.
   real. Por indicación del usuario, el lector no muestra fuentes de código,
   advertencias editoriales ni descarga Markdown. Auditoría se retira de la
   interfaz; el registro técnico del servidor se conserva.
+- Procedimientos y Estadística seleccionan el procesamiento más reciente del
+  servidor solo cuando falta el parámetro `run_id`. Esperan la consulta actual,
+  sin elegir a partir de una lista almacenada, y actualizan la URL mediante
+  reemplazo, conservando los demás parámetros. Un identificador explícito, una
+  elección histórica o una selección vacía manual se respetan al refrescar los
+  datos. Se distinguen carga, error y lista vacía. Abrir un módulo consulta datos;
+  no inicia ni continúa un procesamiento automáticamente.
 - La carga inicial agrupa el archivo PNP y las cinco fuentes en el espacio de
-  trabajo de Vista general. Las fuentes usan filas compactas con estado y un
-  único editor desplegado; un contexto de sesión conserva borradores, mapeos e
-  importaciones al cambiar de módulo. Una selección no equivale a disponibilidad geográfica.
+  trabajo de Vista general. Las fuentes usan filas compactas con estado; cada
+  configuración se abre en un diálogo nativo con título, cierre mediante Escape
+  y retorno del foco a su control. Cerrar el diálogo conserva el borrador; el
+  contexto de sesión mantiene archivos, mapeos e importaciones al cambiar de
+  módulo. Una selección no equivale a disponibilidad geográfica.
   Si se prepara un reemplazo, se conserva visible la fuente que se utilizará.
-  En móvil, los bloques se apilan y el estado pasa debajo del nombre.
-- Abrir un tipo de referencia muestra directamente el botón de Excel, sin un
+  La composición inicial cabe sin desplazamiento vertical en un escritorio
+  estándar. En móvil, los bloques se apilan y siguen el flujo natural de la
+  página; no se recorta contenido para forzar una altura de pantalla.
+- El diálogo de una referencia muestra directamente el botón de Excel, sin un
   segundo desplegable. «Catálogo guardado» ocupa una fila compacta y solo
   aparece cuando existen opciones. El adjunto conserva una única ayuda breve;
   se eliminan títulos y explicaciones repetidos. «Leer columnas» aparece al
@@ -178,10 +190,12 @@ sobre azul principal alcanza 6,11:1.
 - Una cabecera identifica cada pantalla. La barra superior conserva la cuenta y
   el control del menú móvil; la barra lateral concentra la navegación. Se retira
   la ruta superior «GeoPol > módulo» para no repetir el título de la página. Los
-  detalles conservan sus enlaces locales de regreso.
-- El resumen muestra indicadores distintos, su distribución y los procesamientos
-  recientes. Se evita repetir el total en el centro del gráfico y duplicar llamadas
-  a la bandeja en paneles adicionales.
+  detalles conservan sus enlaces locales de regreso. La barra superior tiene
+  una altura mínima de 56 px y el contenido comienza con 12 px de separación
+  superior, reduciendo el espacio vacío antes de la tarea principal.
+- Los indicadores y las distribuciones pertenecen a Estadística; los selectores
+  de Procedimientos y Estadística permiten consultar procesamientos anteriores.
+  Vista general mantiene la prioridad en preparar los archivos para Validación.
 - Las reglas generales se consultan en Reglas y metodología. Los requisitos que
   afectan una decisión, como CRS, ausencia de referencias o precisión de área,
   permanecen junto a la acción correspondiente.
@@ -202,9 +216,10 @@ No se añaden fuentes remotas, recursos de marca externos ni cartografía base.
 - Los colores de texto, superficies, bordes, acciones y estados usan tokens
   semánticos. Los fondos de marca se separan de los colores de enlace para
   mantener contraste en ambos temas. Los mapas actualizan también su lienzo.
-- Vista general usa una cabecera panorámica: texto y cifras reales a la
-  izquierda, ilustración del Perú a la derecha, carga debajo en dos columnas
-  cuando hay espacio. La imagen se limita a esta página. Es un recurso
+- Vista general integra el texto introductorio y la carga en un panel panorámico,
+  con el archivo SIDPOL y las cinco referencias en dos columnas cuando hay espacio.
+  La ilustración del Perú acompaña el contenido a la derecha y pierde protagonismo
+  en pantallas estrechas. La imagen se limita a esta página. Es un recurso
   decorativo, no una capa de resultados; su generación se registra en
   [visual-assets.md](../docs/visual-assets.md).
 - Estadística incorpora colores consistentes por estado, leyendas y controles
@@ -222,6 +237,9 @@ ancho controlado y color funcional sobre una base neutra.
   acentos identifican los módulos: celeste, verde azulado, ámbar, violeta y rosa.
   El módulo activo se distingue también por fondo, indicador lateral y texto;
   el color no sustituye las etiquetas ni los nombres accesibles.
+- La navegación y las filas de referencias usan iconos Lucide de 24 px elegidos
+  por su función, sin cápsulas o recuadros decorativos. Las áreas de interacción
+  conservan su tamaño accesible; el tamaño del icono no reduce el control.
 - La cabecera superior se limita a controles de sesión, tema y menú móvil.
   La carga del archivo concentra su acción principal; se retira el enlace para
   descargar un ejemplo sintético.

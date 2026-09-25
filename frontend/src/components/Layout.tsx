@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  BookOpen,
+  BookOpenText,
   ChartNoAxesCombined,
   ChevronRight,
-  ClipboardCheck,
+  FileCheck,
   LayoutDashboard,
   MapPinned,
   LogOut,
@@ -24,7 +24,7 @@ const navigation = [
   {
     to: "/validation",
     label: "Validación",
-    icon: ClipboardCheck,
+    icon: FileCheck,
     accent: "teal",
   },
   {
@@ -42,7 +42,7 @@ const navigation = [
   {
     to: "/documentation",
     label: "Documentación",
-    icon: BookOpen,
+    icon: BookOpenText,
     accent: "rose",
   },
 ];
@@ -296,7 +296,7 @@ export function Layout() {
                 data-accent={item.accent}
               >
                 <span className="navigation-module-icon" aria-hidden="true">
-                  <item.icon size={20} />
+                  <item.icon size={24} strokeWidth={2} />
                 </span>
                 <span className="navigation-link-label">{item.label}</span>
                 <ChevronRight

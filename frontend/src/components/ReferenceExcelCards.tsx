@@ -2,20 +2,42 @@ import {
   createContext,
   useCallback,
   useContext,
+  useLayoutEffect,
+  useRef,
   useState,
   type Dispatch,
   type FormEvent,
   type ReactNode,
+  type RefObject,
   type SetStateAction,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, ChevronDown, FileSpreadsheet } from "lucide-react";
+import {
+  Building2,
+  CheckCircle2,
+  ChevronDown,
+  DoorOpen,
+  FileSpreadsheet,
+  Map,
+  Route,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import { useAuth } from "../auth";
 import { post } from "../lib/api";
 import { clearResume, getResume, uploadFile } from "../lib/upload";
 import { number } from "../lib/format";
 import type { Profile, Reference, ReferenceExcelKind, Upload } from "../types";
 import { ErrorNotice, Notice } from "./ui";
+import "./reference-dialog.css";
+
+const referenceIcons = {
+  doors: DoorOpen,
+  roads: Route,
+  centers: Building2,
+  boundaries: Map,
+  jurisdictions: ShieldCheck,
+};
 
 export const referenceSlots: {
   kind: ReferenceExcelKind;
@@ -213,6 +235,7 @@ function useReferenceDraft(kind: ReferenceExcelKind) {
 }
 
 interface ReferenceExcelCardsProps {
+  editorMode?: "inline" | "dialog";
   catalogs: Reference[];
   selected: Partial<Record<ReferenceExcelKind, string>>;
   onSelect: (kind: ReferenceExcelKind, id: string) => void;
@@ -229,6 +252,7 @@ export function ReferenceExcelCards(props: ReferenceExcelCardsProps) {
   );
 }
 function ReferenceCardsContent({
+  editorMode = "inline",
   catalogs,
   selected,
   onSelect,
@@ -260,6 +284,7 @@ function ReferenceCardsContent({
           <ReferenceExcelCard
             key={slot.kind}
             slot={slot}
+            editorMode={editorMode}
             catalogs={catalogs}
             selected={selected[slot.kind] ?? ""}
             expanded={expanded === slot.kind}
@@ -270,6 +295,9 @@ function ReferenceCardsContent({
             }
             onSelect={(id) => onSelect(slot.kind, id)}
             onBusy={(busy) => onBusy(slot.kind, busy)}
+            onClose={() =>
+              setExpanded((current) => (current === slot.kind ? null : current))
+            }
           />
         ))}
       </div>
@@ -278,21 +306,27 @@ function ReferenceCardsContent({
 }
 function ReferenceExcelCard({
   slot,
+  editorMode,
   catalogs,
   selected,
   expanded,
   onToggle,
   onSelect,
   onBusy,
+  onClose,
 }: {
   slot: (typeof referenceSlots)[number];
+  editorMode: "inline" | "dialog";
   catalogs: Reference[];
   selected: string;
   expanded: boolean;
   onToggle: () => void;
   onSelect: (id: string) => void;
   onBusy: (busy: boolean) => void;
+  onClose: () => void;
 }) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const SourceIcon = referenceIcons[slot.kind];
   const { user } = useAuth();
   const client = useQueryClient();
   const [draftState, setDraft] = useReferenceDraft(slot.kind);
@@ -489,20 +523,27 @@ function ReferenceExcelCard({
     >
       <h3 className="reference-slot-heading">
         <button
+          ref={trigger}
           type="button"
           className="reference-slot-toggle"
           aria-label={`Configurar referencia: ${slot.title}`}
           aria-expanded={expanded}
+          aria-haspopup={editorMode === "dialog" ? "dialog" : undefined}
           aria-controls={`reference-${slot.kind}-editor`}
           aria-describedby={`reference-${slot.kind}-status`}
+          title={detail}
           onClick={onToggle}
         >
-          <FileSpreadsheet size={20} aria-hidden="true" />
+          <SourceIcon size={20} aria-hidden="true" />
           <span className="reference-slot-copy">
             <span className="reference-slot-name">{slot.title}</span>
-            <span className="reference-slot-description">{detail}</span>
+            <span
+              className={`reference-slot-description ${active && !draft && !busy && !error ? "reference-slot-current" : ""}`}
+            >
+              {detail}
+            </span>
             {active && (draft || busy || !!error) && (
-              <span className="reference-slot-description">
+              <span className="reference-slot-description reference-slot-current">
                 Se utilizará: {active.name} · {active.version}
               </span>
             )}
@@ -538,10 +579,13 @@ function ReferenceExcelCard({
           ? `${slot.title}: ${status}. Abre la fuente para ver el detalle.`
           : ""}
       </span>
-      <div
-        className="reference-slot-editor"
+      <ReferenceEditor
+        mode={editorMode}
+        expanded={expanded}
+        title={slot.title}
+        onClose={onClose}
+        returnFocus={trigger}
         id={`reference-${slot.kind}-editor`}
-        hidden={!expanded}
       >
         {choices.length > 0 && (
           <label className="reference-catalog-choice">
@@ -867,7 +911,115 @@ function ReferenceExcelCard({
             </form>
           )}
         </section>
-      </div>
+      </ReferenceEditor>
     </article>
+  );
+}
+
+function ReferenceEditor({
+  mode,
+  expanded,
+  title,
+  id,
+  onClose,
+  returnFocus,
+  children,
+}: {
+  mode: "inline" | "dialog";
+  expanded: boolean;
+  title: string;
+  id: string;
+  onClose: () => void;
+  returnFocus: RefObject<HTMLButtonElement | null>;
+  children: ReactNode;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const startedOnBackdrop = useRef(false);
+  const wasOpen = useRef(false);
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    if (mode !== "dialog" || !expanded || !element) {
+      if (wasOpen.current) {
+        // Restore after the closed state commits, not only during cleanup.
+        returnFocus.current?.focus({ preventScroll: true });
+        wasOpen.current = false;
+      }
+      return;
+    }
+    wasOpen.current = true;
+    const trigger = returnFocus.current;
+    const previousOverflow = document.body.style.overflow;
+    element.showModal();
+    closeButton.current?.focus();
+    document.body.style.overflow = "hidden";
+    return () => {
+      element.close();
+      document.body.style.overflow = previousOverflow;
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    };
+  }, [expanded, mode, returnFocus]);
+
+  if (mode === "inline")
+    return (
+      <div className="reference-slot-editor" id={id} hidden={!expanded}>
+        {children}
+      </div>
+    );
+
+  const outside = (x: number, y: number) => {
+    const bounds = dialog.current?.getBoundingClientRect();
+    return (
+      !!bounds &&
+      (x < bounds.left ||
+        x > bounds.right ||
+        y < bounds.top ||
+        y > bounds.bottom)
+    );
+  };
+  return (
+    <dialog
+      ref={dialog}
+      id={id}
+      className="reference-editor-dialog"
+      aria-labelledby={`${id}-title`}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClose={() => {
+        if (!dialog.current?.open) onClose();
+      }}
+      onPointerDown={(event) => {
+        startedOnBackdrop.current =
+          event.target === event.currentTarget &&
+          outside(event.clientX, event.clientY);
+      }}
+      onClick={(event) => {
+        if (
+          startedOnBackdrop.current &&
+          event.target === event.currentTarget &&
+          outside(event.clientX, event.clientY)
+        )
+          onClose();
+        startedOnBackdrop.current = false;
+      }}
+    >
+      <header className="reference-dialog-heading">
+        <h2 id={`${id}-title`}>Configurar {title}</h2>
+        <button
+          ref={closeButton}
+          type="button"
+          className="reference-dialog-close"
+          aria-label={`Cerrar configuración de ${title}`}
+          onClick={onClose}
+        >
+          <X size={20} aria-hidden="true" />
+        </button>
+      </header>
+      <div className="reference-slot-editor reference-dialog-content">
+        {children}
+      </div>
+    </dialog>
   );
 }
