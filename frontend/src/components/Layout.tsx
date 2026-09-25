@@ -6,7 +6,7 @@ import {
   ChevronRight,
   ClipboardCheck,
   LayoutDashboard,
-  LocateFixed,
+  MapPinned,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -235,9 +235,14 @@ export function Layout() {
             onClick={() => setOpen(false)}
           >
             <span className="brand-mark">
-              <LocateFixed aria-hidden="true" />
+              <MapPinned strokeWidth={1.6} aria-hidden="true" />
             </span>
-            <span className="navigation-brand-copy">GeoPol</span>
+            <span className="navigation-brand-copy">
+              <strong>GeoPol</strong>
+              <span className="navigation-brand-subtitle">
+                INEI · Información geoespacial
+              </span>
+            </span>
           </Link>
           {mobile && (
             <button
@@ -246,6 +251,22 @@ export function Layout() {
               aria-label="Cerrar navegación"
             >
               <X aria-hidden="true" size={20} />
+            </button>
+          )}
+          {!mobile && (
+            <button
+              className="navigation-collapse"
+              onClick={() => setCollapsed((value) => !value)}
+              aria-label={compact ? "Expandir menú" : "Contraer menú"}
+              aria-expanded={!compact}
+              aria-controls="workspace-navigation"
+              title={compact ? "Expandir menú" : "Contraer menú"}
+            >
+              {compact ? (
+                <PanelLeftOpen size={19} aria-hidden="true" />
+              ) : (
+                <PanelLeftClose size={19} aria-hidden="true" />
+              )}
             </button>
           )}
         </div>
@@ -272,25 +293,6 @@ export function Layout() {
             ))}
           </div>
         </nav>
-        {!mobile && (
-          <div className="navigation-footer">
-            <button
-              className="navigation-collapse"
-              onClick={() => setCollapsed((value) => !value)}
-              aria-label={compact ? "Expandir menú" : "Contraer menú"}
-              aria-expanded={!compact}
-              aria-controls="workspace-navigation"
-              title={compact ? "Expandir menú" : undefined}
-            >
-              {compact ? (
-                <PanelLeftOpen size={20} aria-hidden="true" />
-              ) : (
-                <PanelLeftClose size={20} aria-hidden="true" />
-              )}
-              <span>Contraer menú</span>
-            </button>
-          </div>
-        )}
       </aside>
       <div className="workspace" inert={drawerOpen}>
         <header className="topbar">

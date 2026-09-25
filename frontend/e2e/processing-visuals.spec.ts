@@ -184,6 +184,9 @@ test("live operation, interactive charts and collapsible navigation remain disti
   expect((await page.locator(".sidebar").boundingBox())!.width).toBeLessThan(
     110,
   );
+  await page.screenshot({
+    path: resolve(artifacts, "ui-navigation-compact.png"),
+  });
   await page
     .getByRole("button", { name: "Expandir menú", exact: true })
     .click();

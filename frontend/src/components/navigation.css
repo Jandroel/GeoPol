@@ -4,7 +4,7 @@
 }
 .navigation-shell .sidebar {
   width: var(--navigation-width);
-  padding: 24px 14px 16px;
+  padding: 24px 14px;
   background: var(--nav-background);
   border-right: 1px solid rgb(255 255 255 / 10%);
   scrollbar-width: thin;
@@ -16,25 +16,55 @@
 }
 .navigation-brand-row {
   display: flex;
-  align-items: center;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 8px;
   flex-shrink: 0;
+  padding: 0 2px 24px;
+  border-bottom: 1px solid rgb(255 255 255 / 16%);
 }
 .navigation-shell .brand {
-  padding: 0 10px;
-  gap: 12px;
-  min-height: 52px;
-  font-size: 27px;
+  padding: 0;
+  gap: 10px;
+  min-height: 44px;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+  letter-spacing: 0;
 }
 .navigation-shell .brand-mark {
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 40px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--focus-on-dark);
 }
+.navigation-shell .brand-mark svg {
+  width: 32px;
+  height: 32px;
+}
+.navigation-brand-copy {
+  min-width: 0;
+}
+.navigation-brand-copy strong {
+  display: block;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.5px;
+}
+.navigation-brand-subtitle {
+  display: block;
+  margin-top: 4px;
+  color: var(--brand-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-wrap: balance;
+}
 .navigation-shell .sidebar nav {
-  margin-top: 26px;
+  margin-top: 24px;
   gap: 24px;
 }
 .module-sections {
@@ -64,7 +94,7 @@
 }
 .navigation-group {
   display: grid;
-  gap: 5px;
+  gap: 8px;
 }
 .navigation-group-title {
   margin: 0 0 6px;
@@ -75,8 +105,8 @@
   letter-spacing: 0.2px;
 }
 .navigation-shell .nav-item {
-  min-height: 48px;
-  padding: 11px 12px;
+  min-height: 52px;
+  padding: 13px 12px;
   gap: 11px;
   font-size: 14px;
   line-height: 1.45;
@@ -97,9 +127,7 @@
   color: var(--nav-active-text);
   background: var(--nav-active-background);
   border-color: var(--nav-active-background);
-  box-shadow:
-    inset 3px 0 var(--accent),
-    0 3px 10px rgb(0 0 0 / 10%);
+  box-shadow: inset 3px 0 var(--accent);
   font-weight: 600;
 }
 .navigation-shell .nav-item.active:hover {
@@ -117,27 +145,26 @@
   width: 15px;
   opacity: 1;
 }
-.navigation-footer {
-  margin-top: auto;
-  padding-top: 24px;
-}
 .navigation-collapse {
   display: flex;
-  width: 100%;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
   align-items: center;
-  justify-content: flex-start;
-  gap: 12px;
-  min-height: 46px;
-  padding: 10px 13px;
-  border: 1px solid rgb(255 255 255 / 18%);
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
   color: var(--nav-text);
-  border-radius: 10px;
-  background: rgb(255 255 255 / 4%);
-  font-size: 12px;
+  border-radius: 8px;
+  background: transparent;
   cursor: pointer;
+  transition:
+    background 150ms,
+    border-color 150ms;
 }
 .navigation-collapse:hover {
-  background: rgb(255 255 255 / 12%);
+  background: rgb(255 255 255 / 10%);
+  border-color: rgb(255 255 255 / 18%);
 }
 .navigation-shell .topbar {
   min-height: 76px;
@@ -198,9 +225,14 @@
   justify-content: center;
   width: 100%;
 }
+.navigation-compact .navigation-brand-row {
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 16px;
+}
 .navigation-compact .navigation-brand-copy,
-.navigation-compact .navigation-group-title,
-.navigation-compact .navigation-collapse span {
+.navigation-compact .navigation-group-title {
   display: none;
 }
 .navigation-compact .sidebar nav {
@@ -276,14 +308,13 @@
     margin-left: 0;
   }
   .navigation-shell .brand {
-    font-size: 25px;
-    padding-inline: 4px;
+    padding: 0;
     gap: 10px;
   }
   .navigation-shell .brand-mark {
-    width: 40px;
+    width: 32px;
     height: 40px;
-    flex-basis: 40px;
+    flex-basis: 32px;
   }
   .navigation-shell .mobile-close {
     position: static;
@@ -291,7 +322,7 @@
     margin-left: auto;
     min-width: 44px;
     min-height: 44px;
-    border: 1px solid rgb(255 255 255 / 20%);
+    border: 1px solid transparent;
     color: var(--nav-text);
     border-radius: 10px;
   }
@@ -354,6 +385,7 @@
 @media (prefers-reduced-motion: reduce) {
   .navigation-shell .sidebar,
   .navigation-shell .nav-item,
+  .navigation-collapse,
   .navigation-shell .navigation-active-arrow {
     transition: none;
   }

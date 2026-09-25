@@ -27,9 +27,9 @@
   position: absolute;
   z-index: -2;
   right: 2%;
-  top: -4%;
+  top: 12px;
   width: 40%;
-  height: 108%;
+  height: calc(100% - 24px);
   object-fit: contain;
   object-position: center;
   opacity: 0.84;
@@ -40,26 +40,8 @@
   position: relative;
   width: min(65%, 760px);
 }
-.overview-identity {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--primary);
-}
-.overview-identity > span {
-  font-size: 21px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-.overview-identity small {
-  display: block;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--muted);
-  margin-top: 4px;
-}
 .overview-intro-copy {
-  padding: 24px 0;
+  padding: 0 0 24px;
 }
 .overview-eyebrow {
   font-size: 12px;
@@ -235,9 +217,6 @@
   }
   .overview-introduction::after {
     background: linear-gradient(90deg, var(--hero-bg) 10%, transparent 100%);
-  }
-  .overview-identity {
-    width: 75%;
   }
   .overview-intro-copy h2 {
     max-width: 16ch;

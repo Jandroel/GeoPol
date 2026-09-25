@@ -2,6 +2,26 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Identidad y cabecera lateral · 25 de septiembre de 2026
+
+La marca con icono de ubicación y subtítulo INEI se trasladó desde Vista general
+a la barra lateral. El control de contraer/expandir está junto a la marca, con
+nombre accesible y área de 44 px; se retiró el botón del pie. Se ajustó el
+encuadre del Perú al reducir la altura de la cabecera de Vista general.
+
+- **17 pruebas de navegación aprobadas**, incluidas preferencia persistente,
+  foco, Escape, cambio de breakpoint y acceso a los cinco módulos.
+- **Dos escenarios Chromium aprobados contra producción en 21,7 s**: módulos en
+  ambos temas y actividad/gráficas/navegación. Incluyen escritorio de 1440 px,
+  anchos intermedios 1280/1024/768 px y móvil de 400/375 px, sin desbordamientos
+  globales ni errores de página.
+- Capturas inspeccionadas de la barra expandida en claro y oscuro, contraída y
+  abierta en móvil. La marca ya no se repite dentro de Vista general. Las
+  evidencias sintéticas están en `.local/ui-sidebar-20260925/`, fuera de Git.
+- TypeScript/Vite, formato y diff correctos. La web 5174 sirve el build nuevo y
+  su API responde saludable. Las pruebas usaron servicios y datos aislados que
+  se cerraron y limpiaron al finalizar; no se modificó el backend ni la base real.
+
 ## Temas y refinamiento visual · 25 de septiembre de 2026
 
 - **106 pruebas de componente aprobadas** en una ejecución serial completa.

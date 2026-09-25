@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, MapPinned, BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import { request } from "../lib/api";
 import { number } from "../lib/format";
@@ -41,12 +41,6 @@ export function Dashboard() {
             decoding="async"
           />
           <div className="overview-hero-content">
-            <div className="overview-identity">
-              <MapPinned size={36} strokeWidth={1.5} aria-hidden="true" />
-              <span>
-                GeoPol <small>INEI · Información geoespacial</small>
-              </span>
-            </div>
             <div className="overview-intro-copy">
               <p className="overview-eyebrow">SIDPOL / DATACRIM + CENSOS</p>
               <h2>Geocodificación de hechos delictivos</h2>

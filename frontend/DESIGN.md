@@ -83,6 +83,11 @@ ejecutables al funcionamiento de la aplicación.
 - El menú lateral se puede contraer; las etiquetas siguen disponibles. En móvil
   se abre como panel con foco contenido, cierre mediante Escape, retorno del foco
   y fondo fuera del recorrido del teclado. Los controles conservan al menos 44 px.
+- La identidad GeoPol con icono de ubicación y subtítulo INEI se concentra en la
+  cabecera lateral; Vista general comienza directamente con su contenido. El
+  control de contraer/expandir es un icono de 44 px junto a la marca, sin botón
+  al pie. En modo compacto se apila bajo el icono de marca, conserva foco y nombre
+  accesible; en móvil se sustituye por el cierre del panel.
 - Diseñar reposo, foco, hover, carga, error y finalización. Los mensajes indican
   qué ocurre y cuál es el siguiente paso; no repetir instrucciones en varias zonas.
 - Animar cambios de estado y respuestas a acciones con transiciones breves de
