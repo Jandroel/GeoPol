@@ -1,23 +1,62 @@
+.workspace-overview {
+  --overview-background: url("/images/overview-peru-light.png");
+  --overview-base: #edf6fd;
+  --overview-sidebar-width: var(--navigation-width);
+  --overview-image-height: calc(
+    (100vw - var(--overview-sidebar-width)) * 941 / 1672
+  );
+  background-color: var(--overview-base);
+  background-image:
+    linear-gradient(
+      to bottom,
+      var(--overview-base),
+      transparent 40px,
+      transparent calc(100% - 40px),
+      var(--overview-base)
+    ),
+    var(--overview-background);
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size:
+    100% var(--overview-image-height),
+    100% auto;
+  min-height: 100dvh;
+}
+[data-theme="dark"] .workspace-overview {
+  --overview-background: url("/images/overview-peru-dark.png");
+  --overview-base: #020e28;
+}
+.navigation-compact .workspace-overview {
+  --overview-sidebar-width: var(--navigation-compact-width);
+}
+.navigation-shell .workspace-overview > .topbar {
+  background: transparent;
+}
+.workspace-overview .account {
+  padding-inline: 8px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+.navigation-shell .workspace-overview > .main-content {
+  max-width: none;
+  margin: 0;
+  padding: 12px 32px 24px;
+}
+.overview-page {
+  /* The supplied image places Peru beyond 58% of its width. */
+  width: min(820px, calc(58% - 16px));
+}
 .overview-page > .page-heading {
   margin-bottom: 12px;
+}
+.overview-page > .page-heading h1 {
+  margin-bottom: 0;
 }
 .overview-introduction {
   position: relative;
   isolation: isolate;
   min-width: 0;
   color: var(--text);
-}
-.overview-artwork {
-  position: absolute;
-  z-index: -1;
-  right: 16px;
-  top: -30px;
-  width: 118px;
-  height: 144px;
-  object-fit: contain;
-  opacity: 0.85;
-  pointer-events: none;
-  user-select: none;
 }
 .overview-hero-content {
   position: relative;
@@ -27,9 +66,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 94px;
   margin-bottom: 20px;
-  padding-right: 192px;
 }
 .overview-intro-copy h2 {
   margin: 0;
@@ -48,19 +85,34 @@
   max-width: 72ch;
 }
 .overview-imports .intake-grid {
-  grid-template-columns: minmax(280px, 0.65fr) minmax(0, 1fr);
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
 }
 .overview-imports .intake-source,
 .overview-imports .reference-upload-column {
-  padding: 20px;
+  padding: 16px 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
 }
 .overview-imports .intake-source-heading,
 .overview-imports .reference-upload-heading {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+}
+.overview-imports .intake-source {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 208px;
+  align-items: center;
+  gap: 12px 20px;
+}
+.overview-imports .intake-source-heading {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+}
+.overview-imports .intake-source-heading p {
+  margin-top: 4px;
+  margin-bottom: 0;
 }
 .overview-imports .intake-section-heading {
   gap: 8px;
@@ -98,13 +150,31 @@
   box-shadow: none;
 }
 .overview-imports .intake-source .upload-panel {
+  display: contents;
+}
+.overview-imports .upload-panel > .notice,
+.overview-imports .upload-panel > .upload-progress {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  margin: 0;
   text-align: left;
+}
+.overview-imports .upload-panel > .upload-progress {
+  grid-row: 4;
+}
+.overview-imports .intake-source .source-excel-picker {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: stretch;
 }
 .source-file-summary {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin: 24px 0 20px;
+  margin: 0;
+  grid-column: 1;
+  grid-row: 2;
+  text-align: left;
 }
 .source-file-summary > svg,
 .overview-imports .loaded-source > svg {
@@ -124,7 +194,10 @@
   display: block;
   color: var(--muted);
   font-size: 13px;
-  margin-top: 6px;
+  margin-top: 4px;
+}
+.source-file-summary .source-pending {
+  color: var(--amber);
 }
 .source-excel-picker {
   position: relative;
@@ -163,16 +236,13 @@
   opacity: 0;
   cursor: inherit;
 }
-.source-format {
-  color: var(--muted);
-  font-size: 12px;
-  margin: 10px 0 0;
-}
 .overview-imports .source-upload-actions {
   justify-content: flex-start;
-  padding-top: 20px;
-  margin-top: 24px;
-  border-top: 1px solid var(--border);
+  grid-column: 2;
+  grid-row: 2;
+  padding: 0;
+  margin: 0;
+  border: 0;
 }
 .overview-imports .source-upload-actions .button,
 .overview-imports .loaded-source .button {
@@ -184,25 +254,44 @@
   overflow: visible;
 }
 .overview-imports .loaded-source {
-  display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 16px 12px;
-  align-items: start;
+  display: contents;
+}
+.overview-imports .loaded-source > svg {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: center;
 }
 .overview-imports .loaded-source > div {
+  grid-column: 1;
+  grid-row: 2;
   min-width: 0;
+  padding-left: 40px;
 }
 .overview-imports .loaded-source strong {
   font-size: 15px;
   font-weight: 600;
 }
-.overview-imports .loaded-source .source-excel-picker {
-  grid-column: 1 / -1;
-  justify-self: start;
-}
 .overview-imports .loaded-source .button {
-  grid-column: 1 / -1;
-  margin-top: 8px;
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+}
+.overview-imports .reference-direct-row {
+  min-height: 60px;
+  padding: 6px 0;
+}
+.overview-imports .reference-direct-metadata {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.overview-imports .reference-direct-status {
+  flex-shrink: 0;
+}
+.overview-imports .reference-direct-metadata .reference-direct-detail {
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 8px;
 }
 .overview-readonly {
   display: flex;
@@ -218,43 +307,37 @@
 .overview-readonly p {
   color: var(--muted);
 }
-[data-theme="dark"] .overview-artwork {
-  filter: saturate(1.1) brightness(1.12);
-}
-@media (min-width: 1600px) {
-  .overview-artwork {
-    right: 24px;
-  }
-}
-@media (max-width: 1200px) {
-  .overview-imports .intake-grid {
-    grid-template-columns: minmax(240px, 0.58fr) minmax(0, 1fr);
-    gap: 16px;
-  }
+@media (max-width: 1500px) {
   .overview-imports .intake-source,
   .overview-imports .reference-upload-column {
     padding: 16px;
   }
 }
-@media (max-width: 1000px) {
-  .overview-imports .intake-grid {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 1199px) {
+  .workspace-overview {
+    background-image:
+      linear-gradient(
+        to bottom,
+        var(--overview-base),
+        color-mix(in srgb, var(--overview-base) 90%, transparent) 240px,
+        var(--overview-base) 760px
+      ),
+      var(--overview-background);
+    background-position: right top;
+    background-size:
+      100% 760px,
+      auto 760px;
   }
-  .overview-intro-copy {
-    padding-right: 132px;
-  }
-  .overview-artwork {
-    width: 110px;
-    height: 144px;
-    right: 0;
-    top: -18px;
+  .overview-page {
+    width: min(720px, 100%);
   }
 }
 @media (max-width: 600px) {
+  .navigation-shell .workspace-overview > .main-content {
+    padding: 12px 16px 24px;
+  }
   .overview-intro-copy {
-    min-height: 100px;
     margin-bottom: 16px;
-    padding-right: 76px;
   }
   .overview-intro-copy h2 {
     font-size: 21px;
@@ -262,17 +345,29 @@
   .overview-intro-copy p {
     font-size: 13px;
   }
-  .overview-artwork {
-    width: 72px;
-    height: 112px;
-    top: 0;
-    opacity: 0.6;
+  .overview-imports .intake-source {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
   }
-  .overview-imports .intake-source,
-  .overview-imports .reference-upload-column {
-    padding: 16px;
+  .overview-imports .intake-source > *,
+  .overview-imports .upload-panel > *,
+  .overview-imports .loaded-source > *,
+  .overview-imports .loaded-source > div,
+  .overview-imports .loaded-source .button,
+  .overview-imports .intake-source .source-excel-picker {
+    grid-column: 1;
+    grid-row: auto;
   }
-  .source-file-summary {
-    margin-top: 16px;
+  .overview-imports .loaded-source > svg {
+    display: none;
+  }
+  .overview-imports .loaded-source > div {
+    padding-left: 0;
+  }
+  .overview-imports .reference-direct-row {
+    padding-block: 12px;
+  }
+  .overview-imports .reference-direct-actions {
+    flex-wrap: wrap;
   }
 }

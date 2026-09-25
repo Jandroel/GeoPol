@@ -309,7 +309,10 @@ export function Layout() {
           </div>
         </nav>
       </aside>
-      <div className="workspace" inert={drawerOpen}>
+      <div
+        className={`workspace${location.pathname === "/" ? " workspace-overview" : ""}`}
+        inert={drawerOpen}
+      >
         <header className="topbar">
           <div className="navigation-context">
             {mobile && (

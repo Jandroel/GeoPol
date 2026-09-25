@@ -16,15 +16,6 @@ export function Dashboard() {
         className="overview-introduction"
         aria-label="Carga de archivos de GeoPol"
       >
-        <img
-          className="overview-artwork"
-          src="/images/peru-geospatial.png"
-          alt=""
-          aria-hidden="true"
-          width="1086"
-          height="1448"
-          decoding="async"
-        />
         <div className="overview-hero-content">
           <div className="overview-intro-copy">
             <h2>Geocodificación de hechos delictivos</h2>

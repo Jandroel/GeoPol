@@ -563,17 +563,19 @@ function ReferenceExcelCard({
           />
           <div className="reference-direct-copy">
             <h3>{slot.title}</h3>
-            <span
-              id={`reference-${slot.kind}-status`}
-              className={`reference-direct-status ${error ? "has-error" : stagedRows || draft ? "needs-attention" : ""}`}
-            >
-              {status}
-            </span>
-            {(draft || busy || active) && (
-              <span className="reference-direct-detail" title={detail}>
-                {detail}
+            <div className="reference-direct-metadata">
+              <span
+                id={`reference-${slot.kind}-status`}
+                className={`reference-direct-status ${error ? "has-error" : stagedRows || draft ? "needs-attention" : ""}`}
+              >
+                {status}
               </span>
-            )}
+              {(draft || busy || active) && (
+                <span className="reference-direct-detail" title={detail}>
+                  {detail}
+                </span>
+              )}
+            </div>
             {active && (draft || busy || !!error) && (
               <span
                 className="reference-direct-detail"

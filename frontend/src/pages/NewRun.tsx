@@ -426,7 +426,7 @@ function NewRunForm({
           </div>
           {!upload ? (
             <form onSubmit={submitUpload} className="panel upload-panel">
-              {saved && (
+              {saved && mode !== "overview" && (
                 <Notice>
                   Hay una carga pendiente: <strong>{saved.filename}</strong>.
                   Selecciona el mismo archivo para reanudar desde el último
@@ -441,11 +441,19 @@ function NewRunForm({
                     aria-hidden="true"
                   />
                   <div>
-                    <strong>{file?.name ?? "Ningún archivo adjunto"}</strong>
-                    <span>
+                    <strong>
+                      {file?.name ??
+                        saved?.filename ??
+                        "Ningún archivo adjunto"}
+                    </strong>
+                    <span
+                      className={saved && !file ? "source-pending" : undefined}
+                    >
                       {file
                         ? `${(file.size / 1024 / 1024).toFixed(2)} MB · Listo para cargar`
-                        : "Selecciona el archivo que quieres validar."}
+                        : saved
+                          ? "Carga pendiente · Adjunta el mismo archivo para reanudar."
+                          : "Excel (.xlsx) o CSV"}
                     </span>
                   </div>
                 </div>
@@ -488,11 +496,6 @@ function NewRunForm({
                   }}
                 />
               </label>
-              {mode === "overview" && (
-                <p className="source-format">
-                  Excel (.xlsx) · también compatible con CSV
-                </p>
-              )}
               {busy && (
                 <div className="upload-progress">
                   <progress max={file?.size || 1} value={offset} />
@@ -521,10 +524,7 @@ function NewRunForm({
               <FileCheck2 size={28} aria-hidden="true" />
               <div>
                 <strong>{upload.filename}</strong>
-                <p>
-                  Archivo cargado. Continúa con la comprobación de columnas y
-                  flags.
-                </p>
+                <p>Archivo cargado · Listo para validar.</p>
               </div>
               <label className="source-excel-picker" htmlFor="source-file">
                 <FileSpreadsheet size={18} aria-hidden="true" /> Cambiar Excel

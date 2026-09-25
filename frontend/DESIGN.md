@@ -25,12 +25,12 @@ siguen siendo conceptos independientes.
 Revisión de repositorios: 23 de septiembre de 2026. Se consultan como guías de
 diseño; sus ejemplos no sustituyen la identidad ni las reglas de GeoPol.
 
-| Referencia | Aplicación en este proyecto |
-| ---------- | -------------------------- |
-| [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill/blob/main/.claude/skills/ui-ux-pro-max/SKILL.md) | UX, accesibilidad, estados, selección de patrones adecuados y revisión responsive. |
-| [Refactoring UI](https://github.com/jaywilburn/refactoring-ui-skill/blob/main/skills/refactoring-ui/SKILL.md) | Jerarquía mediante tamaño, peso, contraste y proximidad; densidad apropiada para trabajo operativo. Es una adaptación comunitaria. |
-| [Frontend Design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md) | Dirección visual basada en el uso real, lenguaje específico, una prioridad visual clara y eliminación de adornos repetitivos. |
-| [Impeccable](https://github.com/pbakaus/impeccable/blob/e0881d2de397d5e9761d7b35ff5017d8f5ebf69b/skill/SKILL.src.md) | Revisión de consistencia, tipografía, interacción, adaptación y pulido; su modo operativo prioriza completar tareas. |
+| Referencia                                                                                                               | Aplicación en este proyecto                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [UI UX Pro Max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill/blob/main/.claude/skills/ui-ux-pro-max/SKILL.md) | UX, accesibilidad, estados, selección de patrones adecuados y revisión responsive.                                                 |
+| [Refactoring UI](https://github.com/jaywilburn/refactoring-ui-skill/blob/main/skills/refactoring-ui/SKILL.md)            | Jerarquía mediante tamaño, peso, contraste y proximidad; densidad apropiada para trabajo operativo. Es una adaptación comunitaria. |
+| [Frontend Design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md)                        | Dirección visual basada en el uso real, lenguaje específico, una prioridad visual clara y eliminación de adornos repetitivos.      |
+| [Impeccable](https://github.com/pbakaus/impeccable/blob/e0881d2de397d5e9761d7b35ff5017d8f5ebf69b/skill/SKILL.src.md)     | Revisión de consistencia, tipografía, interacción, adaptación y pulido; su modo operativo prioriza completar tareas.               |
 
 Impeccable reorganizó su antigua skill `frontend-design`. También se revisaron sus
 referencias de [tipografía](https://github.com/pbakaus/impeccable/blob/209444a9d552c18bcaa74e26bf66a25fc568a767/source/skills/frontend-design/reference/typography.md),
@@ -220,12 +220,17 @@ No se añaden fuentes remotas, recursos de marca externos ni cartografía base.
 - Los colores de texto, superficies, bordes, acciones y estados usan tokens
   semánticos. Los fondos de marca se separan de los colores de enlace para
   mantener contraste en ambos temas. Los mapas actualizan también su lienzo.
-- Vista general utiliza el fondo de la página como soporte de la introducción y
-  del Perú decorativo, sin encuadrarlos en una tarjeta. Las dos superficies de
-  carga se colocan en columnas cuando hay espacio y se apilan en móvil, sin
-  añadir contenedores concéntricos. La ilustración acompaña el contenido y pierde
-  protagonismo en pantallas estrechas. La imagen se limita a esta página. Es un
-  recurso decorativo, no una capa de resultados; su generación se registra en
+- Vista general utiliza las dos imágenes de Perú aportadas por el usuario como
+  fondo, una por tema. Se conservan completas y sin deformar, con una transición
+  suave en los bordes. El fondo se limita a esta página y no encierra el título.
+  Las superficies de SIDPOL y referencias se apilan en una columna izquierda
+  de hasta 820 px; en escritorio terminan antes de la región ocupada por Perú.
+  SIDPOL muestra archivo y estado junto a sus dos acciones; las referencias
+  reúnen estado y nombre del catálogo en la misma línea, con el nombre completo
+  disponible en su configuración. Las acciones mantienen un mínimo de 44 px.
+  En pantallas menores de 1200 px se prioriza el ancho de los formularios y se
+  atenúa el fondo para asegurar la lectura. Móvil conserva desplazamiento natural.
+  Las imágenes son decorativas, no capas de resultados; su procedencia se registra en
   [visual-assets.md](../docs/visual-assets.md).
 - Estadística incorpora colores consistentes por estado, leyendas y controles
   que funcionan con teclado. Los números y nombres acompañan siempre al color.

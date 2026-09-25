@@ -2,6 +2,34 @@
 
 La interfaz se verificó con Chromium real mediante Playwright, una API FastAPI local y su trabajador activos, sobre una base SQLite temporal aislada y exclusivamente datos sintéticos.
 
+## Fondos por tema y carga compacta · 25 de septiembre de 2026
+
+Se incorporaron los PNG originales proporcionados por el usuario para claro y
+oscuro. Vista general reserva el lado derecho para Perú y reúne SIDPOL y las
+referencias en una columna izquierda. Los formularios mantienen superficies
+opacas; en móvil el fondo se atenúa y los controles siguen el flujo de la página.
+
+- **14 pruebas de componente aprobadas**: automatización y diálogo de referencias.
+  Se conservan selección, cancelación, reemplazo, borradores y retorno del foco.
+- **Escenario Chromium de los cinco módulos aprobado en 32,6 s** contra el build
+  de producción. Comprueba decodificación de ambos PNG locales, cambio de tema,
+  fondo exclusivo de inicio, importación de referencias y SIDPOL, validación,
+  procesamiento y navegación. Sin errores de página ni solicitudes externas.
+- Escritorio sin scroll en **1366 × 768, 1440 × 900 y 1920 × 1080**, vacío, con
+  referencias seleccionadas y con SIDPOL cargado. Los paneles terminan antes del
+  60 % del espacio de trabajo, dejando la región de Perú libre. Revisión de
+  anchos intermedios de 800/1024 px y móvil de 400 px sin desbordamiento horizontal.
+- Se inspeccionaron ambos temas, la configuración de referencias y el regreso
+  a inicio con SIDPOL cargado. Durante el ajuste se corrigieron el exceso de
+  altura con nombres de catálogos y una regla móvil que creaba una columna extra
+  para «Continuar validación». El escenario final cubre esa regresión.
+- TypeScript/Vite y comprobación del diff correctos. Se mantiene el aviso previo
+  de tamaño de MapLibre. No se modificaron backend, dependencias ni datos operativos.
+
+Las pruebas usan 18001/15175 con base y archivos sintéticos temporales, eliminados
+al terminar. Capturas privadas: `.local/ui-backgrounds-20260925/`, fuera de Git.
+La web local en 5174 sirve el build y ambas imágenes actualizados.
+
 ## Portada abierta y adjunto directo · 25 de septiembre de 2026
 
 Título e ilustración del Perú se presentan sobre el fondo, sin marco exterior.

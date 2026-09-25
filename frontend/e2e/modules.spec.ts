@@ -62,29 +62,146 @@ test("five modules preserve data, render both themes and expose statistics and r
         .poll(() => page.evaluate(() => localStorage.getItem("geopol.theme")))
         .toBe(theme);
   }
-  async function captureThemes(name: string, map = false) {
-    const artwork = page.locator('img[src="/images/peru-geospatial.png"]');
-    if (name === "home") {
-      await expect(artwork).toHaveCount(1);
-      await expect(artwork).toHaveClass(/overview-artwork/);
-      await expect(artwork).toHaveAttribute("alt", "");
-      await expect(artwork).toHaveAttribute("aria-hidden", "true");
-      await expect
-        .poll(() =>
-          artwork.evaluate((image) => (image as HTMLImageElement).naturalWidth),
-        )
-        .toBeGreaterThan(0);
-    } else {
-      await expect(artwork).toHaveCount(0);
+  async function assertOverviewBackground(theme: "light" | "dark") {
+    const workspace = page.locator(".workspace-overview");
+    const expectedPath = `/images/overview-peru-${theme}.png`;
+    await expect(workspace).toHaveCount(1);
+    await expect(workspace).toHaveCSS(
+      "background-image",
+      new RegExp(`overview-peru-${theme}\\.png`),
+    );
+    const image = await workspace.evaluate(async (element, path) => {
+      const background = getComputedStyle(element).backgroundImage;
+      const urls = [...background.matchAll(/url\(["']?([^"')]+)["']?\)/g)];
+      const source = urls.find(
+        ([, url]) => new URL(url, location.href).pathname === path,
+      )?.[1];
+      if (!source) return null;
+      const image = new Image();
+      image.src = source;
+      await image.decode();
+      return {
+        origin: new URL(image.src).origin,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      };
+    }, expectedPath);
+    expect(image?.origin).toBe(origin);
+    expect(image?.width).toBeGreaterThan(0);
+    expect(image?.height).toBeGreaterThan(0);
+  }
+  async function assertHomeDesktopLayout() {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const workspace = await page.locator(".workspace-overview").boundingBox();
+    const source = await page
+      .locator(".overview-imports .intake-source")
+      .boundingBox();
+    const references = await page
+      .locator(".overview-imports .reference-upload-column")
+      .boundingBox();
+    expect(workspace).not.toBeNull();
+    expect(source).not.toBeNull();
+    expect(references).not.toBeNull();
+    // The supplied backgrounds place Peru on the right. Preserve that region
+    // at each desktop size instead of allowing the upload cards to cover it.
+    const mapRegion = workspace!.x + workspace!.width * 0.6;
+    for (const panel of [source!, references!]) {
+      expect(panel.x).toBeGreaterThanOrEqual(workspace!.x);
+      expect(panel.x + panel.width).toBeLessThanOrEqual(mapRegion);
+      expect(panel.width).toBeGreaterThan(280);
+      expect(panel.y + panel.height).toBeLessThanOrEqual(
+        page.viewportSize()!.height + 1,
+      );
     }
+    expect(source!.y + source!.height).toBeLessThanOrEqual(references!.y + 1);
+    expect(Math.abs(source!.x - references!.x)).toBeLessThanOrEqual(1);
+    await expect(page.locator(".reference-direct-row").last()).toBeInViewport({
+      ratio: 1,
+    });
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const scrollHeight = document.documentElement.scrollHeight;
+            const scrollWidth = document.documentElement.scrollWidth;
+            if (
+              scrollHeight <= window.innerHeight + 1 &&
+              scrollWidth <= window.innerWidth
+            )
+              return "fits";
+            const source = document.querySelector(
+              ".overview-imports .intake-source",
+            );
+            const references = document.querySelector(
+              ".overview-imports .reference-upload-column",
+            );
+            const content = document.querySelector(".main-content");
+            return JSON.stringify({
+              scrollHeight,
+              scrollWidth,
+              viewportWidth: window.innerWidth,
+              viewportHeight: window.innerHeight,
+              sourceBottom: source?.getBoundingClientRect().bottom,
+              referencesBottom: references?.getBoundingClientRect().bottom,
+              contentPaddingBottom: content
+                ? getComputedStyle(content).paddingBottom
+                : null,
+            });
+          }),
+        { message: "Vista general debe caber en el escritorio sin scroll" },
+      )
+      .toBe("fits");
+  }
+  async function captureThemes(name: string, map = false) {
+    const home = name === "home" || name === "home-loaded";
+    await expect(page.locator("img.overview-artwork")).toHaveCount(0);
     for (const theme of ["light", "dark"] as const) {
-      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.setViewportSize(
+        name === "home-loaded"
+          ? { width: 1366, height: 768 }
+          : { width: 1440, height: 1000 },
+      );
       await setTheme(theme);
+      if (home) {
+        await assertOverviewBackground(theme);
+      } else {
+        await expect(page.locator(".workspace-overview")).toHaveCount(0);
+        for (const workspace of await page.locator(".workspace").all())
+          await expect(workspace).not.toHaveCSS(
+            "background-image",
+            /overview-peru-(?:light|dark)\.png/,
+          );
+      }
       if (map) await assertRenderedReferencePoint(page);
       await capture(`${name}-${theme}`);
+      if (home) await assertHomeDesktopLayout();
       await page.setViewportSize({ width: 400, height: 900 });
+      if (home) await assertOverviewBackground(theme);
       if (map) await assertRenderedReferencePoint(page);
       await capture(`mobile-${name}-${theme}`);
+      if (name === "home-loaded") {
+        const source = page.locator(".overview-imports .intake-source");
+        const continuation = source.getByRole("link", {
+          name: "Continuar validación",
+          exact: true,
+        });
+        await expect(source).toBeVisible();
+        await expect(continuation).toBeVisible();
+        const sourceBox = await source.boundingBox();
+        const continuationBox = await continuation.boundingBox();
+        expect(sourceBox).not.toBeNull();
+        expect(continuationBox).not.toBeNull();
+        for (const box of [sourceBox!, continuationBox!]) {
+          expect(box.x).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.width).toBeLessThanOrEqual(
+            page.viewportSize()!.width + 1,
+          );
+        }
+        expect(continuationBox!.x).toBeGreaterThanOrEqual(sourceBox!.x);
+        expect(continuationBox!.x + continuationBox!.width).toBeLessThanOrEqual(
+          sourceBox!.x + sourceBox!.width + 1,
+        );
+      }
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -162,15 +279,12 @@ test("five modules preserve data, render both themes and expose statistics and r
       [1920, 1080],
     ]) {
       await page.setViewportSize({ width, height });
+      await assertOverviewBackground(
+        (await page.locator("html").getAttribute("data-theme")) as
+          "light" | "dark",
+      );
       await capture(`home-${state}-${width}x${height}`);
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () =>
-              document.documentElement.scrollHeight <= window.innerHeight + 1,
-          ),
-        )
-        .toBe(true);
+      await assertHomeDesktopLayout();
     }
     await page.setViewportSize({ width: 1440, height: 1000 });
   }
@@ -383,6 +497,7 @@ test("five modules preserve data, render both themes and expose statistics and r
         page.locator(".reference-direct-row").filter({ hasText: name }),
       ).toBeVisible();
     await assertHomeFits("loaded");
+    await captureThemes("home-loaded");
     await page
       .getByRole("link", { name: "Continuar validación", exact: true })
       .click();
