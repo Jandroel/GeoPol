@@ -6,6 +6,11 @@ El repositorio es independiente. Los documentos de análisis y la muestra instit
 
 ## Inicio local en Windows
 
+Si es la primera instalación en otra computadora, sigue la
+[guía paso a paso de instalación y ejecución local](INSTALACION_LOCAL.md).
+Incluye acceso al repositorio privado, creación de usuario, arranque de servicios,
+proxy opcional y solución de problemas frecuentes.
+
 Requisitos: Python 3.11+, Node.js 24 con npm y PowerShell. Ejecutar desde la raíz del proyecto:
 
 ```powershell
