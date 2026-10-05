@@ -32,10 +32,13 @@ compose_version="$(docker compose version --short)" || fail 'Falta Docker Compos
 
 # Always use the saved configuration, even if another application's variables
 # are exported in the shell. Never source an environment file as shell code.
-compose() (
+compose_with_input() (
     unset POSTGRES_PASSWORD GEOPOL_ALLOWED_ORIGINS GEOPOL_WEB_PORT GEOPOL_API_PORT
     docker compose --project-name "$COMPOSE_PROJECT" --env-file "$CONFIG_FILE" --file compose.yaml "$@"
 )
+# Docker exec/build may eagerly consume piped input. Reserve it for Bash's
+# password prompt; only the bootstrap command receives the password stream.
+compose() { compose_with_input "$@" < /dev/null; }
 
 if [[ ! -f "$CONFIG_FILE" ]]; then
     [[ "$action" == install ]] || fail 'Primero ejecuta bash instalar.sh desde esta carpeta.'
@@ -111,7 +114,7 @@ case "$has_user" in
             [[ "$account_password" == "$confirmation" ]] && break
             printf '%s\n' 'Las contraseñas no coinciden. Inténtalo nuevamente.'
         done
-        printf '%s' "$account_password" | compose exec -T api python -c 'import os, sys; os.environ["GEOPOL_BOOTSTRAP_PASSWORD"]=sys.stdin.read(); from geopol.cli import main; sys.argv=["geopol", "bootstrap-user"]; main()'
+        printf '%s' "$account_password" | compose_with_input exec -T api python -c 'import os, sys; os.environ["GEOPOL_BOOTSTRAP_PASSWORD"]=sys.stdin.read(); from geopol.cli import main; sys.argv=["geopol", "bootstrap-user"]; main()'
         unset account_password confirmation
         ;;
     *) fail 'No se pudo comprobar la cuenta inicial. Revisa los registros de la API.' ;;

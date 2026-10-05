@@ -57,6 +57,9 @@ case "$command" in
                 ;;
             *'from geopol.models import User'*)
                 failure users
+                # Real docker exec forwards/consumes stdin even when the
+                # container command does not read it. Keep host prompts intact.
+                cat > /dev/null
                 if [[ -f "$state/user" ]]; then printf 'yes\n'; else printf 'no\n'; fi
                 ;;
             *Heartbeat*) failure heartbeat ;;
