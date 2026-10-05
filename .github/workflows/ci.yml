@@ -127,62 +127,49 @@ jobs:
             .local/ui-*.png
             ${{ runner.temp }}/geopol-e2e-logs/
 
-  postgis:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgis/postgis:16-3.5
-        env:
-          POSTGRES_DB: geopol_test
-          POSTGRES_USER: geopol_test
-          POSTGRES_PASSWORD: synthetic-ci-only-password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U geopol_test -d geopol_test"
-          --health-interval 5s --health-timeout 5s --health-retries 12
+  native-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     env:
-      GEOPOL_TEST_DATABASE_URL: postgresql+psycopg://geopol_test:synthetic-ci-only-password@127.0.0.1:5432/geopol_test
-    defaults:
-      run:
-        working-directory: backend
+      GEOPOL_SETUP_PGHOST: 127.0.0.1
+      GEOPOL_SETUP_PGPORT: '5432'
+      GEOPOL_SETUP_PGDATABASE: geopol_native_ci
+      GEOPOL_SETUP_PGUSER: postgres
+      GEOPOL_SETUP_PGPASSWORD: synthetic-ci-only-password
+      GEOPOL_TEST_DATABASE_URL: postgresql+psycopg://postgres:synthetic-ci-only-password@127.0.0.1:5432/geopol_test
+      BROWSER: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: pip
-          cache-dependency-path: |
-            backend/pyproject.toml
-            backend/requirements.lock
-      - run: python -m pip install -c requirements.lock -e '.[dev]'
-      - run: python -m pytest tests/test_postgres.py -q
-
-  compose:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+          cache-dependency-path: backend/requirements.lock
+      - uses: actions/setup-node@v4
         with:
-          python-version: '3.11'
-      - name: Validate Bash setup and failure handling
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install PostgreSQL and PostGIS directly on Ubuntu
         run: |
-          python -m pip install pytest
-          python -m pytest scripts/tests/test_bash_compose.py -q
-          for script in instalar.sh iniciar.sh detener.sh scripts/local-compose.sh; do bash -n "$script"; done
-      - name: Install a fresh PostgreSQL instance and verify restart
-        run: python scripts/tests/compose_smoke.py
-      - name: Show service diagnostics on failure
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-16 postgresql-client-16 postgresql-contrib postgresql-16-postgis-3
+          sudo systemctl start postgresql
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER ROLE postgres PASSWORD 'synthetic-ci-only-password'"
+          sudo -u postgres createdb geopol_test
+      - name: Install from Bash and verify PostgreSQL, login and restart
+        run: python scripts/tests/native_smoke.py
+      - name: Validate migrations, native setup and process supervision
+        run: |
+          backend/.venv/bin/python -m pytest backend/tests/test_postgres.py scripts/tests -q
+          for script in instalar.sh iniciar.sh detener.sh scripts/native.sh; do bash -n "$script"; done
+      - name: Show native service diagnostics on failure
         if: failure()
         run: |
-          if [ -f .local/compose.env ]; then
-            docker compose -p geopol-local --env-file .local/compose.env -f compose.yaml ps --all
-            docker compose -p geopol-local --env-file .local/compose.env -f compose.yaml logs --tail 60
-          fi
-      - name: Remove only this job's synthetic containers and volumes
+          find .local -maxdepth 2 -name '*.log' -exec tail -n 40 {} \; || true
+      - name: Stop the application's own processes
         if: always()
         run: |
-          if [ -f .local/compose.env ]; then
-            docker compose -p geopol-local --env-file .local/compose.env -f compose.yaml down --volumes
+          if [ -f .local/native.json ]; then
+            bash detener.sh
           fi

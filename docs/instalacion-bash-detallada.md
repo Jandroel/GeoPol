@@ -1,163 +1,194 @@
-# GeoPol con Bash: PostgreSQL, respaldo y ayuda
+# GeoPol con Bash: preparación, respaldo y ayuda
 
 Empieza por la [guía breve](../INSTALACION_LOCAL.md). Esta página amplía el mismo
-método: Bash y Docker Compose, en Windows con Git Bash o en Linux.
-Ejecuta los comandos desde la carpeta que contiene `instalar.sh` y `compose.yaml`.
+método nativo: PostgreSQL con PostGIS, Python y Node.js instalados en la
+computadora. Ejecuta los comandos desde la carpeta que contiene `instalar.sh`.
 
-## Comprobar que estás en la carpeta correcta
+## Preparar Ubuntu 24.04 o WSL
+
+Estos pasos corresponden a **Ubuntu 24.04**, que ofrece Python 3.12 y
+PostgreSQL 16. Python debe ser **3.11 o superior**; PostGIS es obligatorio.
+Consulta los paquetes oficiales de [Python](https://packages.ubuntu.com/noble/python3)
+y [PostGIS para PostgreSQL 16](https://packages.ubuntu.com/noble/postgresql-16-postgis-3).
+
+En Bash:
+
+```bash
+sudo apt update
+sudo apt install git curl ca-certificates python3 python3-venv python3-pip postgresql-16 postgresql-client-16 postgresql-contrib postgresql-16-postgis-3
+sudo systemctl start postgresql
+```
+
+En WSL, si `systemctl` indica que no se utiliza systemd, inicia el servicio con
+`sudo service postgresql start`. Mantén la distribución WSL funcionando mientras
+uses GeoPol. Instala las herramientas y guarda el proyecto dentro de la misma
+distribución.
+
+Para una instalación nueva de PostgreSQL, establece una contraseña propia
+para su usuario administrador. El siguiente comando la solicita de forma
+interactiva; no escribas la contraseña como parte del comando:
+
+```bash
+sudo -u postgres psql -c '\password postgres'
+```
+
+Si PostgreSQL ya está administrado por tu institución, utiliza las credenciales
+que te proporcionen; no cambies su contraseña. El comando `\password` evita
+dejarla en el historial ([documentación de psql](https://www.postgresql.org/docs/16/app-psql.html)).
+
+Para **Node.js 24**, elige Linux y la versión 24 en la
+[página oficial de Node.js](https://nodejs.org/en/download) y sigue su opción de
+instalación con `nvm`. También puedes instalar `nvm` siguiendo su
+[guía oficial](https://github.com/nvm-sh/nvm#installing-and-updating).
+Abre una Bash nueva y ejecuta:
+
+```bash
+nvm install 24
+nvm alias default 24
+nvm use 24
+python3 --version
+node --version
+npm --version
+pg_isready -h 127.0.0.1 -p 5432
+```
+
+`node --version` debe comenzar por `v24.`; instalar el paquete `nodejs` que
+ofrezca por defecto otra versión de Ubuntu puede dar una versión diferente.
+`pg_isready` debe indicar que PostgreSQL acepta conexiones; la contraseña se
+comprobará durante la instalación.
+
+En otras versiones de Ubuntu, sigue el [repositorio oficial de PostgreSQL](https://www.postgresql.org/download/linux/ubuntu/)
+para disponer de la versión 16 y su paquete PostGIS. Comprueba también
+`python3 --version`: si es menor que 3.11, instala una versión compatible antes
+de continuar. Usa los mismos tres scripts de GeoPol en cualquier entorno.
+
+## Comprobar la carpeta y las herramientas
 
 ```bash
 pwd
-ls instalar.sh iniciar.sh detener.sh compose.yaml
-docker --version
-docker compose version
-docker info
+ls instalar.sh iniciar.sh detener.sh
+git --version
+node --version
+npm --version
 ```
 
-`ls` debe encontrar los cuatro archivos. Docker debe responder sin errores y
-Compose debe ser versión 2.20 o superior. `docker info` comprueba que el motor
-está encendido; tener instalado el comando `docker` por sí solo no basta.
+En Windows comprueba Python con `python --version`; en Linux, con
+`python3 --version`. Si acabas de instalar una herramienta, cierra Bash y abre
+una nueva terminal para que reconozca su ubicación.
 
-En Git Bash, una carpeta de Windows como `C:\Users\Ana\Downloads\GeoPol-main`
-se escribe así; sustituye `Ana` por tu usuario y ajusta la ubicación:
+En Git Bash, una ruta de Windows como `C:\Users\Ana\Downloads\GeoPol-main`
+se escribe así; sustituye el usuario y la carpeta:
 
 ```bash
 cd "/c/Users/Ana/Downloads/GeoPol-main"
 ```
 
-Si ya trabajas dentro de WSL, utiliza su terminal Bash con Docker disponible.
-Docker Desktop permite [integrar una distribución WSL](https://docs.docker.com/desktop/features/wsl/#enable-docker-in-a-wsl-2-distribution).
-Mantén el proyecto y la ejecución en el entorno que elegiste.
+Para usar `psql`, `pg_dump` y `pg_restore` desde Git Bash, si no se encuentran,
+añade la carpeta de PostgreSQL a la terminal actual. Ajusta la ruta si elegiste
+otra ubicación al instalar:
+
+```bash
+export PATH="/c/Program Files/PostgreSQL/16/bin:$PATH"
+psql --version
+```
+
+Este ajuste se repite en cada terminal donde necesites esas herramientas. No es
+necesario abrir pgAdmin para instalar o usar GeoPol.
 
 ## Qué hace cada comando
 
 | Comando | Cuándo usarlo | Resultado |
 | --- | --- | --- |
-| `bash instalar.sh` | Primera instalación o actualización del código | Prepara las imágenes de la aplicación, aplica el esquema e inicia los servicios. Crea `administrador` si aún no hay cuentas. |
-| `bash iniciar.sh` | Para volver a usar GeoPol | Inicia los servicios ya preparados y muestra la dirección web. |
-| `bash detener.sh` | Al terminar de trabajar | Detiene los servicios y conserva los datos. |
+| `bash instalar.sh` | Primera instalación o actualización | Instala dependencias, compila la web, prepara PostgreSQL/PostGIS y aplica migraciones. Crea `administrador` solo si aún no hay usuarios. |
+| `bash iniciar.sh` | Para trabajar | Inicia API, worker y web en primer plano. Mantén abierta la terminal. |
+| `bash detener.sh` | Desde otra Bash, al terminar | Detiene los procesos registrados de GeoPol; conserva los datos y deja PostgreSQL funcionando. |
 
-El sitio habitual es [http://localhost:8080](http://localhost:8080); la API está
-en [http://localhost:8000/docs](http://localhost:8000/docs). Ambos accesos son
-locales a esta computadora. Puedes cerrar Bash después de iniciar la aplicación.
+También puedes detener GeoPol con **Ctrl+C** en la terminal de arranque.
+La dirección habitual es [http://localhost:5173](http://localhost:5173);
+la documentación técnica de la API está en [http://localhost:8000/docs](http://localhost:8000/docs).
+Ambos accesos están limitados a esta computadora.
 
-## Qué es PostgreSQL y qué necesitas configurar
+## PostgreSQL y las contraseñas
 
-PostgreSQL es el programa que organiza los datos de GeoPol en tablas: usuarios,
-ejecuciones, ubicaciones y decisiones. PostGIS añade herramientas para datos
-geográficos. En esta instalación Docker ejecuta **PostgreSQL 16 y PostGIS 3.5**
-como parte del proyecto.
+En la primera instalación se solicitan servidor (`127.0.0.1`), puerto (`5432`),
+nombre de una base nueva (`geopol`), usuario administrador (`postgres`) y su
+contraseña. Pulsa Enter para aceptar los valores predeterminados cuando
+correspondan a tu equipo.
 
-El instalador crea la base y configura la conexión automáticamente. No necesitas
-instalar PostgreSQL en Windows/Linux, usar pgAdmin, crear tablas ni abrir el
-puerto 5432 de la computadora.
+El instalador utiliza esos permisos para crear una base nueva, un usuario
+interno sin privilegios de superusuario y las extensiones necesarias. La base
+y el usuario interno deben tener nombres disponibles; no se adopta ni se
+sobrescribe una base ajena. Si aparece un conflicto, repite la instalación con
+otro nombre nuevo.
 
-| Dato técnico | Valor de esta instalación |
-| --- | --- |
-| Proyecto Compose | `geopol-local` |
-| Servicio de base de datos | `db` |
-| Base de datos | `geopol` |
-| Usuario interno de PostgreSQL | `geopol` |
-| Puerto dentro de Docker | `5432`, sin publicación en la computadora |
-| Contraseña interna | Generada una vez y conservada en `.local/compose.env` |
-| Volumen de la base | `geopol-local_database` |
-| Volumen de originales y exportaciones | `geopol-local_artifacts` |
+Hay tres credenciales distintas:
 
-La cuenta web `administrador` y el usuario interno `geopol` tienen funciones y
-contraseñas diferentes. Elige y recuerda la contraseña web; deja que el
-instalador administre la contraseña de PostgreSQL. **No edites, borres ni
-compartas `.local/compose.env`**. No lo incluyas en capturas ni mensajes de ayuda.
+| Credencial | Para qué sirve | Dónde se conserva |
+| --- | --- | --- |
+| Administrador de PostgreSQL, normalmente `postgres` | Preparar la base y sus extensiones | La conserva quien administra PostgreSQL; GeoPol no la guarda. |
+| Usuario interno de la aplicación | Conexión habitual de API y worker | Se genera y guarda en `.local/native.json`. |
+| Cuenta web `administrador` | Iniciar sesión en GeoPol | Tú eliges una contraseña de al menos 12 caracteres; la base guarda su hash. |
 
-Cambiar o borrar ese archivo no cambia la contraseña ya guardada en PostgreSQL;
-puede impedir que la aplicación se conecte a una base que conserva sus datos.
-Si falta el archivo de una instalación existente, recupera su copia privada
-con ayuda de quien administra el equipo.
+Elige una contraseña web distinta de la de PostgreSQL. Escribir contraseñas sin
+que aparezcan caracteres es normal. Si ya existen cuentas, volver a instalar
+las conserva y no restablece sus contraseñas.
 
-### Consultar PostgreSQL, solo si lo necesitas
+## Dónde quedan los datos
 
-Con GeoPol iniciado, esta consulta comprueba el nombre de la base sin mostrar
-contraseñas ni datos de usuarios:
+- **PostgreSQL:** cuentas, ejecuciones, resultados, revisiones y auditoría.
+- **`data/storage-native`:** originales y exportaciones de esta instalación.
+- **`.local/native.json`:** conexión privada, usuario interno, puertos y rutas.
 
-```bash
-(
-unset POSTGRES_PASSWORD GEOPOL_WEB_PORT GEOPOL_API_PORT GEOPOL_ALLOWED_ORIGINS
-docker compose -p geopol-local --env-file .local/compose.env -f compose.yaml exec -T db psql -U geopol -d geopol -c "SELECT current_database();"
-)
-```
+Conserva la configuración y los archivos junto con la base. No publiques
+`.local/native.json` ni lo pegues en mensajes de ayuda: contiene un secreto.
+Descargar el código otra vez no recupera los datos ni sustituye un respaldo.
 
-Para abrir una consola interactiva de PostgreSQL:
+Una instalación anterior con SQLite u otro método conserva sus datos por
+separado. El flujo nativo no modifica el `.env` anterior ni migra sus cuentas
+o archivos. Conserva esa instalación y su respaldo hasta preparar y verificar
+una migración explícita.
 
-```bash
-(
-unset POSTGRES_PASSWORD GEOPOL_WEB_PORT GEOPOL_API_PORT GEOPOL_ALLOWED_ORIGINS
-docker compose -p geopol-local --env-file .local/compose.env -f compose.yaml exec db psql -U geopol -d geopol
-)
-```
+## Crear un respaldo de base y archivos
 
-Sal de esa consola escribiendo `\q` y pulsando Enter. Si Git Bash indica que
-la entrada no es una terminal (`the input device is not a TTY`), usa la consulta
-con `-T` de arriba. No necesitas la consola para trabajar con GeoPol.
+Espera a que terminen los trabajos. Utiliza `pg_dump` y `pg_restore` de
+PostgreSQL 16, disponibles con las herramientas de línea de comandos de
+PostgreSQL. En Windows, consulta arriba cómo añadirlas al PATH.
 
-## Dónde quedan los datos y cómo conservarlos
-
-Docker guarda los volúmenes fuera de la carpeta de código. Reiniciar GeoPol o
-ejecutar `bash detener.sh` conserva su contenido. Descargar otra vez el código
-no es un respaldo de los datos. Tampoco reemplaza la configuración privada de
-una instalación existente.
-
-Para conservar los datos, no uses la opción de borrar volúmenes de Docker ni
-añadas `-v` a un comando `docker compose down`. El código de GitHub y sus ZIP
-contienen la aplicación; las cuentas, archivos reales y resultados se quedan
-en cada computadora.
-
-### Crear un respaldo de base y archivos
-
-Espera a que terminen los trabajos y deja Docker abierto. Estos comandos
-detienen temporalmente las escrituras, crean una carpeta de respaldo junto al
-proyecto y copian la base y los archivos del mismo momento. Pega el bloque
-completo en Bash:
+Este ejemplo utiliza los valores predeterminados. **Si elegiste otro servidor,
+puerto, administrador o nombre de base, cambia esos valores antes de ejecutarlo.**
+Pega el bloque completo desde la raíz del proyecto:
 
 ```bash
 (
   set -eu
   umask 077
-  export MSYS_NO_PATHCONV=1
-  geopol_compose() (
-    unset POSTGRES_PASSWORD GEOPOL_WEB_PORT GEOPOL_API_PORT GEOPOL_ALLOWED_ORIGINS
-    docker compose -p geopol-local --env-file .local/compose.env -f compose.yaml "$@"
-  )
+  bash detener.sh
   respaldo="../geopol-respaldo-$(date +%Y%m%d-%H%M%S)"
-  mkdir -p "$respaldo"
-  geopol_compose stop frontend api worker
-  geopol_compose exec -T db pg_dump -U geopol -d geopol -Fc > "$respaldo/geopol.dump"
-  geopol_compose run --rm --no-deps -T --entrypoint tar api -czf - -C /app/data storage > "$respaldo/artifacts-backup.tgz"
+  mkdir "$respaldo"
+  pg_dump -h 127.0.0.1 -p 5432 -U postgres -W -d geopol -Fc -f "$respaldo/geopol.dump"
+  tar -czf "$respaldo/artifacts-backup.tgz" -C data storage-native
   test -s "$respaldo/geopol.dump"
+  pg_restore --list "$respaldo/geopol.dump" > /dev/null
   tar -tzf "$respaldo/artifacts-backup.tgz" > /dev/null
-  geopol_compose start api worker frontend
   printf 'Respaldo guardado en: %s\n' "$respaldo"
 )
 ```
 
-Si cualquier paso falla, el bloque se detiene: conserva el mensaje y solicita
-ayuda. La carpeta creada puede contener una copia incompleta. Para volver a
-usar GeoPol después de resolver el fallo, ejecuta `bash iniciar.sh`.
+`pg_dump` solicita la contraseña de PostgreSQL de forma oculta. La base permanece
+encendida, pero GeoPol queda detenido durante la copia. Si cualquier comando
+falla, el bloque se detiene: la carpeta puede contener un respaldo incompleto.
+Después de resolverlo, vuelve a iniciar con `bash iniciar.sh`.
 
-`geopol.dump` contiene la base y `artifacts-backup.tgz` los originales y
-exportaciones. Conserva ambos juntos en una ubicación privada de respaldo,
-junto con la fecha y versión del proyecto. Conserva también una copia privada
-de `.local/compose.env` en el lugar autorizado para secretos, por separado.
-El formato de la base corresponde a [pg_dump de PostgreSQL](https://www.postgresql.org/docs/16/app-pgdump.html).
-
-Este procedimiento crea copias; la recuperación debe probarse en una instancia
-vacía antes de considerar el respaldo validado. El [manual de operación](runbook.md#procedimiento-de-restauración-en-una-instancia-vacía)
-describe ese proceso avanzado. Sus comandos genéricos de Compose deben adaptarse
-al proyecto y archivo de configuración de la instancia de destino; no los
-ejecutes sobre la instalación que deseas conservar.
+Guarda los dos archivos juntos en una ubicación privada autorizada, registra
+fecha y versión del proyecto y conserva **por separado una copia privada de
+`.local/native.json`**. El formato `-Fc` permite restaurar con `pg_restore`
+([documentación de pg_dump](https://www.postgresql.org/docs/16/app-pgdump.html)).
+Leer el archivo comprueba su estructura, pero no sustituye una
+[prueba de restauración](runbook.md#procedimiento-de-restauración-en-una-instancia-vacía).
 
 ## Actualizar GeoPol
 
-Primero crea un respaldo. Si descargaste con `git clone`, revisa el estado y
-detén GeoPol:
+Crea primero un respaldo. Si descargaste con Git, ejecuta uno por uno:
 
 ```bash
 git status --short
@@ -167,92 +198,63 @@ bash instalar.sh
 bash iniciar.sh
 ```
 
-Ejecuta los comandos uno por uno. Si hay cambios locales de código o un comando
-falla, resuélvelo antes de continuar. Conserva `.local/compose.env` y los
-volúmenes: reinstalar aplica el esquema pendiente y conserva las cuentas.
+Si hay cambios locales de código o un comando falla, resuélvelo antes de
+continuar. Conserva `.local/native.json` y `data/storage-native`: reinstalar
+actualiza las dependencias y el esquema y conserva las cuentas y los datos.
 
-Si descargaste un ZIP, descarga la versión nueva y actualiza los archivos de
-código en la misma carpeta, conservando la carpeta privada `.local`. Después
-ejecuta `bash instalar.sh` y `bash iniciar.sh`. No reemplaces los datos por una
-carpeta vacía ni compartas un ZIP de tu instalación con sus archivos privados.
+Si descargaste un ZIP, actualiza los archivos de código en la misma carpeta,
+conservando `.local` y `data`. Después ejecuta `bash instalar.sh` y
+`bash iniciar.sh`. No envíes un ZIP de tu instalación con sus archivos privados.
 
 ## Problemas frecuentes
 
 | Problema | Solución |
 | --- | --- |
-| GitHub muestra `Repository not found` | Acepta la invitación con la cuenta correcta. Para un ZIP, inicia sesión en el navegador; para clonar, autentícate cuando Git lo solicite. |
-| `bash` no se reconoce | Abre Git Bash en Windows; los comandos de esta guía se pegan allí. |
-| No encuentra `instalar.sh` | Extrae el ZIP y entra en la carpeta que contiene ese archivo. Comprueba la ubicación con `pwd` y `ls`. |
-| `docker: command not found` | Instala Docker, cierra Bash y abre una terminal nueva. |
-| No puede conectar al motor de Docker | Abre Docker Desktop y espera a que arranque. En Linux, comprueba el servicio y los permisos según la documentación oficial. |
-| Docker informa que necesita contenedores Linux | Cambia Docker Desktop al modo Linux y repite la instalación. |
-| Docker Compose demasiado antiguo | Actualiza Docker Desktop o el complemento Compose. Se requiere 2.20 o superior. |
-| La contraseña no se ve mientras escribes | Es normal. Escribe la contraseña y pulsa Enter. |
-| Contraseña de menos de 12 caracteres o confirmación distinta | El instalador vuelve a pedirla automáticamente. Escribe dos veces una contraseña válida. |
-| El inicio de sesión falla | Usa la cuenta de esta instalación y la contraseña web elegida al instalar. Reinstalar no cambia contraseñas de cuentas existentes. |
-| Falla la conexión interna con PostgreSQL después de editar `.local/compose.env` | Recupera la configuración original. No borres los volúmenes para intentar corregir la contraseña. |
-| El navegador no muestra GeoPol | Ejecuta `bash iniciar.sh`, espera a que termine y abre la dirección que muestra. Comprueba que Docker siga activo. |
-| Se queda descargando o aparece un error de red | Revisa Internet y, en una red institucional, la configuración de proxy indicada debajo. |
+| GitHub muestra `Repository not found` | Acepta la invitación con la cuenta correcta. Para descargar un ZIP, inicia sesión en GitHub. |
+| No encuentra `instalar.sh` | Extrae el ZIP y entra en la carpeta que contiene ese archivo. Compruébalo con `pwd` y `ls`. |
+| Python no aparece o abre Microsoft Store | Revisa la instalación y la opción **Add Python to PATH**; abre una Bash nueva. |
+| Python es menor que 3.11 o Node.js es de otra versión | Instala Python compatible y Node.js 24 antes de continuar. |
+| En Linux no puede crear el entorno Python | Instala el paquete `python3-venv` correspondiente a tu Python. |
+| `Connection refused` al conectar con PostgreSQL | Comprueba que el servicio esté iniciado. Revisa servidor y puerto; instalar pgAdmin no inicia por sí solo un servidor. |
+| PostgreSQL rechaza la contraseña | Usa la del administrador PostgreSQL, no la contraseña web. Confirma los datos con quien administra el servidor. |
+| PostGIS no está disponible | Instala el paquete PostGIS de la misma versión principal de PostgreSQL y repite la instalación. |
+| Ya existe la base o el rol | Para una instalación nueva, elige otro nombre de base libre. Para una existente, conserva su configuración privada original. |
+| Falta `.local/native.json` de una instalación existente | Recupera su copia privada. No borres la base ni intentes recrearla con el mismo nombre. |
+| La contraseña no se ve | Es normal. Escríbela y pulsa Enter. |
+| La contraseña web es corta o no coincide | Introduce dos veces la misma contraseña, de al menos 12 caracteres. |
+| El inicio de sesión falla | Usa la cuenta de esta instalación. Reinstalar no cambia contraseñas existentes. |
+| La web no abre | Ejecuta `bash iniciar.sh`, espera la dirección y mantén abierta la terminal. |
+| Falla la descarga de dependencias | Comprueba Internet y, si corresponde, el proxy indicado por soporte. |
 
 ### Un puerto ya está ocupado
 
-Si es otra sesión de GeoPol, detén esa sesión. Si GeoPol debe convivir con otra
-aplicación, elige otros puertos. El primer número corresponde a la web y el
-segundo a la API:
+Si pertenece a otra sesión tuya de GeoPol, detenla. Para convivir con otra
+aplicación, elige otros puertos. El primer número es la web y el segundo la API:
 
 ```bash
-bash instalar.sh --puertos 8081 8003
-bash iniciar.sh
+bash iniciar.sh --puertos 5174 8002
 ```
 
-En este ejemplo la web será [http://localhost:8081](http://localhost:8081).
-Los puertos se guardan para los siguientes arranques. Esta opción también
-funciona si el primer intento falló porque un puerto estaba ocupado: conserva
-la contraseña interna y los datos. No edites el archivo privado manualmente.
+La web se abrirá en [http://localhost:5174](http://localhost:5174).
+También puedes elegirlos al instalar: `bash instalar.sh --puertos 5174 8002`.
+Se guardan para los siguientes arranques. No cambian el puerto de PostgreSQL.
 
 ### Proxy institucional
 
-Aplica esta sección únicamente si soporte te indica que la red requiere proxy.
-Sustituye el ejemplo por la dirección y puerto que te proporcionen:
+Solo si soporte indica que tu red utiliza proxy, ajusta la dirección del ejemplo
+y configura la terminal donde descargarás las dependencias:
 
 ```bash
 export http_proxy="http://proxy.ejemplo:3128"
 export https_proxy="$http_proxy"
-export no_proxy="localhost,127.0.0.1,::1,db,api"
+export no_proxy="localhost,127.0.0.1,::1"
 export HTTP_PROXY="$http_proxy"
 export HTTPS_PROXY="$https_proxy"
 export NO_PROXY="$no_proxy"
+export npm_config_proxy="$http_proxy"
+export npm_config_https_proxy="$https_proxy"
 ```
 
-Estas variables afectan a Bash y sus comandos; se pierden al cerrar la terminal.
-No configuran por sí solas el motor de Docker. En Docker Desktop, abre
-**Settings → Resources → Proxies** y usa el proxy del sistema o el indicado por
-soporte, según la [documentación oficial](https://docs.docker.com/desktop/settings-and-maintenance/settings/#proxies).
-En Linux, soporte debe configurar el [proxy del motor Docker](https://docs.docker.com/engine/daemon/proxy/)
-si las imágenes no se descargan. No desactives la verificación de certificados
-para eludir un error de la red.
-
-### Consultar el estado y los registros
-
-```bash
-(
-unset POSTGRES_PASSWORD GEOPOL_WEB_PORT GEOPOL_API_PORT GEOPOL_ALLOWED_ORIGINS
-docker compose -p geopol-local --env-file .local/compose.env -f compose.yaml ps
-docker compose -p geopol-local --env-file .local/compose.env -f compose.yaml logs --tail=80 api worker db
-)
-```
-
-Al pedir ayuda, incluye el mensaje de error y el comando ejecutado. Revisa los
-registros antes de compartirlos y excluye datos reales y secretos. Evita
-compartir la salida de `docker compose config`, que puede contener la contraseña.
-
-## Si ya utilizabas el método anterior con SQLite
-
-Los scripts `instalar.cmd`, `iniciar.cmd` y `scripts/setup.sh` corresponden al
-método anterior con herramientas instaladas en la computadora. Su base habitual
-es `data/geopol.db`, no la base PostgreSQL creada por esta guía.
-
-El método Bash con Docker inicia su propia base: **no importa automáticamente
-usuarios, archivos ni resultados de SQLite**. Conserva la instalación anterior
-y su respaldo si contienen información necesaria. La [guía manual anterior](instalacion-local-detallada.md)
-se mantiene como alternativa para esas instalaciones.
+Después ejecuta `bash instalar.sh` en esa misma terminal. Para certificados
+corporativos, utiliza la configuración que indique soporte. Las conexiones
+locales deben permanecer fuera del proxy.

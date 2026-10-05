@@ -29,7 +29,7 @@ El despliegue tiene tres procesos de aplicación: frontend, API y worker. Postgr
 | Persistencia | Usuarios, cargas, filas, unidades, resultados, revisiones, cola y auditoría | Restricciones y transacciones conservan trazabilidad |
 | Worker | Ingesta, matching y exportaciones con estado persistido | Procesa identidades de trabajos; no depende del navegador |
 | Frontend | Flujo de carga, progreso, resultados, revisión, referencias y exportaciones | Muestra datos reales de API; no inventa resultados |
-| Infraestructura | Contenedores, red local, salud, volúmenes, scripts y CI | Despliegue reproducible de piloto |
+| Infraestructura | PostgreSQL local, procesos supervisados, salud, almacenamiento, scripts Bash y CI | Instalación directa en la computadora |
 
 La entrada `geopol/main.py` compone FastAPI, CORS, cabeceras de seguridad y registro de routers. Las rutas se agrupan en `geopol/api/` por responsabilidad:
 

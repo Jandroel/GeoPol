@@ -6,10 +6,11 @@ El repositorio es independiente. Los documentos de análisis y la muestra instit
 
 ## Inicio local con Bash
 
-Necesitas **Bash y Docker activo con Compose 2.20 o superior**. En Windows,
-utiliza Git Bash y Docker Desktop con contenedores Linux; en Linux, Bash y
-Docker Engine. La [guía para principiantes](INSTALACION_LOCAL.md) explica cómo
-preparar la computadora y descargar el proyecto como ZIP o con Git.
+Necesitas **Python 3.11 o superior, Node.js 24 y PostgreSQL 16 con PostGIS**
+instalados en la computadora. En Windows utiliza **Git Bash**; en Linux o WSL,
+su terminal Bash. PostgreSQL debe estar funcionando como servicio. La
+[guía para principiantes](INSTALACION_LOCAL.md) explica cómo preparar las
+herramientas y descargar el proyecto como ZIP o con Git.
 
 Desde la carpeta del proyecto, ejecuta:
 
@@ -18,20 +19,22 @@ bash instalar.sh
 bash iniciar.sh
 ```
 
-El instalador prepara la aplicación y **PostgreSQL 16 con PostGIS 3.5**. No
-necesitas instalar Python, Node.js ni PostgreSQL por separado. Si la base no
-tiene usuarios, crea `administrador` y pide una contraseña propia de al menos
-12 caracteres; conserva las cuentas de instalaciones existentes.
+El instalador prepara las dependencias y la web. En la primera ejecución pide
+los datos de conexión y la contraseña del administrador de PostgreSQL; crea
+una base nueva, un usuario interno con permisos limitados y las extensiones
+necesarias. Después crea la cuenta web `administrador` con una contraseña
+propia de al menos 12 caracteres. Al reinstalar conserva las cuentas y datos.
 
-Abre [GeoPol local](http://localhost:8080). Puedes cerrar la terminal y mantener
-Docker activo. Los siguientes días ejecuta solo `bash iniciar.sh`; para detener
-la aplicación conservando los datos, usa `bash detener.sh`.
+Abre [GeoPol local](http://localhost:5173). **Mantén abierta la terminal:** el
+arranque ejecuta API, worker y web en primer plano. Los siguientes días usa solo
+`bash iniciar.sh`. Para terminar, pulsa **Ctrl+C** o ejecuta `bash detener.sh`
+desde otra Bash en la misma carpeta; PostgreSQL continúa funcionando.
 
-Los datos persisten en los volúmenes `geopol-local_database` y
-`geopol-local_artifacts`. El instalador genera la contraseña interna de la base
-y la conserva en `.local/compose.env`: no edites, borres ni compartas ese
-archivo. PostgreSQL no publica su puerto en la computadora. La documentación
-de la API está en [OpenAPI local](http://localhost:8000/docs).
+PostgreSQL guarda los datos y `data/storage-native` los archivos.
+La configuración y la contraseña interna de la aplicación quedan en
+`.local/native.json`: consérvalo privado. La contraseña de administración de
+PostgreSQL no se guarda. La documentación de la API está en
+[OpenAPI local](http://localhost:8000/docs).
 
 La [guía Bash detallada](docs/instalacion-bash-detallada.md) explica PostgreSQL,
 respaldo, actualizaciones, puertos y proxy. Para compartir el proyecto, envía
@@ -39,22 +42,10 @@ el enlace de GitHub y la guía; cada persona tendrá su propia cuenta y datos.
 El acceso desde otras computadoras requiere un despliegue administrado; consulta
 los controles de [seguridad](docs/security.md).
 
-## Alternativa anterior: instalación manual con SQLite
-
-La [guía manual de Windows y Linux/macOS](docs/instalacion-local-detallada.md)
-conserva la instalación con Python 3.11+, Node.js 24 y SQLite. Los scripts
-`instalar.cmd`, `iniciar.cmd` y **`scripts/setup.sh` pertenecen a esa alternativa**;
-no preparan el nuevo despliegue Bash con PostgreSQL.
-
-En ese método, la base habitual es `data/geopol.db` y los archivos están en
-`data/storage`; usar un solo worker con SQLite. El método Docker no migra esos
-datos automáticamente. Conserva la instalación anterior y su respaldo si ya
-contienen información necesaria.
-
-Para lotes grandes en la instalación SQLite, consulta la [configuración de
-almacenamiento en SSD](docs/runbook.md#almacenamiento-para-lotes-grandes).
-La [prueba de carga](docs/validation-load.md) documenta el efecto observado del
-almacenamiento y la recuperación por checkpoints.
+Las instalaciones anteriores conservan sus datos por separado: el flujo nativo
+no los migra automáticamente ni modifica su `.env`. Conserva sus respaldos;
+consulta la [nota sobre instalaciones anteriores](docs/instalacion-local-detallada.md)
+si ya utilizabas otro método.
 
 ## Primer recorrido verificable
 
@@ -85,7 +76,7 @@ Ver [ejemplos](examples/README.md) para conocer cada caso sintético. Las coorde
 
 No incluye capas INEI/PNP oficiales, integración SIDPOL/OIDC ni validación de rendimiento con el volumen nacional. El motor espacial inicial utiliza Shapely sobre un catálogo acotado; el despliegue incluye PostGIS como base para evolucionar hacia consultas e índices espaciales. Consulte [alcance y límites](docs/limitations.md).
 
-La [guía de automatización y revisión](docs/automation-operation.md) explica cómo configurar la referencia base, resolver causas comunes y preparar un piloto ArcGIS opcional. El adaptador externo está desactivado y no participa automáticamente en los procesamientos. Esta actualización requiere aplicar la migración 4 con `python -m geopol.cli init-db` antes de iniciar API y worker; conservar un respaldo previo.
+La [guía de automatización y revisión](docs/automation-operation.md) explica cómo configurar la referencia base, resolver causas comunes y preparar un piloto ArcGIS opcional. El adaptador externo está desactivado y no participa automáticamente en los procesamientos. `bash instalar.sh` aplica las migraciones pendientes antes del arranque; conservar un respaldo previo al actualizar.
 
 ## Arquitectura y estructura
 
@@ -99,14 +90,15 @@ geopol-mvp/
 │   │   ├── worker.py       # Trabajos persistentes y checkpoints
 │   │   └── ...             # Persistencia, seguridad, migraciones y CLI
 │   ├── tests/              # Pruebas de reglas y flujo de aplicación
-│   ├── pyproject.toml
-│   └── Dockerfile
+│   └── pyproject.toml
 ├── frontend/               # React, TypeScript, Vite y MapLibre local
 ├── examples/               # Archivos sintéticos y explicación de escenarios
 ├── docs/                   # Arquitectura, operación, límites y contratos
-├── scripts/                # Instalación y ejecución local PS/Bash
+├── scripts/                # Instalación y ejecución nativa
 ├── .github/workflows/      # Verificaciones automatizadas
-├── compose.yaml
+├── instalar.sh             # Preparar dependencias, PostgreSQL y cuenta inicial
+├── iniciar.sh              # Ejecutar API, worker y web
+├── detener.sh              # Detener únicamente los procesos de GeoPol
 └── AGENTS.md               # Convenciones de desarrollo
 ```
 
@@ -120,16 +112,20 @@ Se verificaron las 40 filas de la muestra suministrada como 16 unidades, y un CS
 
 ## Verificación y colaboración
 
-Para desarrollar con Python y Node.js instalados, ejecuta desde Bash:
+Para desarrollar, después de instalar las dependencias, ejecuta desde Bash:
 
 ```bash
-backend/.venv/bin/python -m ruff check backend
-backend/.venv/bin/python -m pytest backend/tests -q
+geopol_python="backend/.venv/bin/python"
+if [ -x backend/.venv/Scripts/python.exe ]; then
+  geopol_python="backend/.venv/Scripts/python.exe"
+fi
+"$geopol_python" -m ruff check backend
+"$geopol_python" -m pytest backend/tests -q
 cd frontend
 npm run test
 npm run build
 ```
 
-Si usas un entorno Python creado en Windows, cambia el ejecutable por `backend/.venv/Scripts/python.exe`. Los mismos controles están definidos en GitHub Actions. Las pruebas utilizan datos sintéticos y bases aisladas. La prueba opcional PostgreSQL/PostGIS requiere `GEOPOL_TEST_DATABASE_URL` apuntando a una base de pruebas dedicada y vacía; se omite localmente si no está definida. El job `postgis` de CI crea ese servicio y valida migración idempotente, geometría derivada y presencia de índices espaciales. El job `compose` comprueba una instalación Bash nueva y la conservación de cuentas y archivos después de reiniciar PostgreSQL y la aplicación.
+El bloque elige el ejecutable de Python para Windows o Linux. Los mismos controles están definidos en GitHub Actions. Las pruebas utilizan datos sintéticos y bases aisladas. La prueba opcional PostgreSQL/PostGIS requiere `GEOPOL_TEST_DATABASE_URL` apuntando a una base de pruebas dedicada y vacía; se omite localmente si no está definida. CI prepara PostgreSQL/PostGIS de forma nativa y comprueba las migraciones, geometrías e índices espaciales, además del flujo de instalación y arranque.
 
 Usar [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/): `feat(ingestion): ...`, `fix(review): ...`, `test(domain): ...`, `docs(operations): ...`. Mantener cambios pequeños, ejecutar las comprobaciones relevantes y no versionar `.env`, `data/`, muestras institucionales ni exportaciones. La política operativa de acceso y retención debe acordarse antes de incorporar datos reales.

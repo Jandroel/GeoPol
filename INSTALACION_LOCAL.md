@@ -1,132 +1,146 @@
 # GeoPol: instalar y usar con Bash
 
-Esta guía sirve para **Windows con Git Bash** y **Linux con Bash**.
-Después de preparar Docker, instalarás GeoPol con un comando y lo abrirás
-con otro. No necesitas saber programar ni instalar Python, Node.js o PostgreSQL
-por separado.
+GeoPol se instala directamente en tu computadora. Esta guía sirve para
+**Windows con Git Bash** y **Linux o WSL con Bash**. Prepararás las herramientas
+una sola vez; después usarás `instalar.sh`, `iniciar.sh` y `detener.sh`.
 
 ## 1. Preparar la computadora: solo una vez
 
-Docker ejecuta GeoPol y su base de datos en espacios preparados, como cajas que
-ya contienen las herramientas necesarias. Necesitas Internet para descargarlas.
+Necesitas Internet para la instalación, **Python 3.11 o superior**, **Node.js 24**
+y **PostgreSQL 16 con PostGIS**. PostGIS es obligatorio: permite guardar y
+consultar información geográfica. No necesitas crear tablas manualmente.
 
-**En Windows:**
+### Windows
 
 1. Instala [Git para Windows](https://git-scm.com/install/windows). Incluye
    **Git Bash**, la terminal donde pegarás los comandos de esta guía.
-2. Instala [Docker Desktop siguiendo su guía oficial](https://docs.docker.com/desktop/setup/install/windows-install/).
-   Utiliza el modo de contenedores Linux y completa los pasos de WSL 2 que
-   indique el instalador; reinicia Windows si te lo solicita.
-3. Abre **Docker Desktop** desde Inicio y espera a que su motor esté funcionando.
-   Debe permanecer activo mientras uses GeoPol.
+2. Instala [Python para Windows](https://www.python.org/downloads/windows/),
+   versión 3.11 o superior, de 64 bits. En el instalador clásico marca
+   **Add Python to PATH** antes de instalar; esa opción permite encontrar Python
+   desde Bash ([instrucciones oficiales](https://docs.python.org/3.11/using/windows.html#finding-the-python-executable)).
+3. Instala [Node.js 24 LTS](https://nodejs.org/en/download), eligiendo el
+   instalador de Windows. Incluye `npm`; conserva las opciones predeterminadas.
+4. Descarga **PostgreSQL 16** desde la [página oficial para Windows](https://www.postgresql.org/download/windows/).
+   En el instalador conserva **PostgreSQL Server**, **Command Line Tools** y
+   **Stack Builder**. Usa el puerto **5432**, salvo que ya esté ocupado.
+   Elige y guarda la contraseña del usuario **`postgres`**: GeoPol la pedirá
+   durante su primera instalación.
+5. Abre **Stack Builder**, selecciona la instalación PostgreSQL 16 y, dentro de
+   **Spatial Extensions**, instala el paquete **PostGIS Bundle** compatible con
+   esa versión. Es el procedimiento de la [guía oficial de PostGIS](https://postgis.net/workshops/en/postgis-intro/installation.html#postgresql-for-microsoft-windows).
+   No hace falta crear una base de ejemplo.
+6. Cierra las terminales abiertas y abre una nueva **Git Bash**. PostgreSQL debe
+   estar funcionando como servicio de Windows; no necesitas mantener pgAdmin abierto.
 
-En una entidad pública, Docker Desktop requiere una suscripción de pago;
-utiliza la instalación autorizada por tu institución. Véanse las
-[condiciones oficiales](https://docs.docker.com/desktop/setup/install/windows-install/#start-docker-desktop).
+### Linux o WSL
 
-**En Linux:** usa la terminal Bash e instala Docker Engine y el complemento
-Compose según tu distribución. Para Ubuntu, sigue la
-[instalación oficial](https://docs.docker.com/engine/install/ubuntu/) y la
-[configuración de acceso a Docker](https://docs.docker.com/engine/install/linux-postinstall/).
-El proyecto requiere **Docker Compose 2.20 o superior**.
+Usa la terminal Bash de tu distribución. La [preparación para Ubuntu 24.04](docs/instalacion-bash-detallada.md#preparar-ubuntu-2404-o-wsl)
+incluye los comandos para Python, PostgreSQL y PostGIS, además de la instalación
+de Node.js 24. Si eliges WSL, instala y ejecuta todas las herramientas dentro de
+esa distribución y conserva allí el proyecto.
 
 ## 2. Descargar el proyecto de GitHub
 
-El repositorio es [Jandroel/GeoPol](https://github.com/Jandroel/GeoPol).
-Si es privado, primero acepta la invitación con tu cuenta de GitHub.
+Abre [Jandroel/GeoPol](https://github.com/Jandroel/GeoPol). Si es privado,
+acepta primero la invitación con tu cuenta de GitHub.
 
-**La forma más sencilla es descargar un ZIP:**
+1. Pulsa **Code → Download ZIP** y extrae el archivo.
+2. Abre la carpeta extraída, normalmente `GeoPol-main`. Busca `instalar.sh`,
+   `iniciar.sh` y `detener.sh`; si están en una subcarpeta, entra en ella.
+3. En Windows, haz clic derecho en un espacio vacío de esa carpeta y elige
+   **Open Git Bash here**; puede estar en **Mostrar más opciones**.
 
-1. Abre el enlace del repositorio e inicia sesión en GitHub.
-2. Pulsa el botón verde **Code** y luego **Download ZIP**.
-3. Extrae el ZIP en una carpeta que puedas encontrar. No trabajes dentro del ZIP.
-4. Abre la carpeta extraída, normalmente `GeoPol-main`. Debes ver los archivos
-   `instalar.sh`, `iniciar.sh` y `compose.yaml`.
-5. En Windows, haz clic derecho en un espacio vacío de esa carpeta y elige
-   **Open Git Bash here**. En Windows 11 puede estar en **Mostrar más opciones**.
-
-GitHub explica la descarga en su [guía oficial de archivos ZIP](https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives).
-Si prefieres descargar con Git, abre Bash en la carpeta de destino y ejecuta:
+Si prefieres Git, ejecuta en Bash:
 
 ```bash
 git clone https://github.com/Jandroel/GeoPol.git
 cd GeoPol
 ```
 
-En Linux, abre la terminal y entra en la carpeta extraída, por ejemplo:
+En Linux puedes entrar en la carpeta del ZIP con `cd`, ajustando la ruta:
 
 ```bash
 cd "$HOME/Descargas/GeoPol-main"
 ```
 
-Cambia la ruta si elegiste otra ubicación. Las comillas permiten usar carpetas
-con espacios. Todos los comandos siguientes se ejecutan desde esa misma carpeta.
+Todos los comandos siguientes se ejecutan desde la carpeta que contiene
+`instalar.sh`. Las comillas permiten usar rutas con espacios.
 
 ## 3. Instalar GeoPol: la primera vez
 
-En Bash, copia esta línea y pulsa Enter:
+Con PostgreSQL funcionando, escribe en Bash y pulsa Enter:
 
 ```bash
 bash instalar.sh
 ```
 
-La primera descarga puede tardar varios minutos. El instalador prepara la web,
-la aplicación y **PostgreSQL 16 con PostGIS 3.5**, su base de datos.
-Si aún no hay usuarios, crea la cuenta **`administrador`** y te pide elegir y
-repetir una contraseña de **al menos 12 caracteres**.
+El instalador descarga las dependencias y prepara la web. Después solicita:
 
-Es normal que no aparezcan letras ni asteriscos al escribir la contraseña.
-Guárdala: es la que usarás para entrar a GeoPol. Si ya existen cuentas, se
-conservan y no se solicita otra contraseña. Espera el mensaje **«GeoPol está listo»**;
-si aparece un error, consulta la ayuda al final.
+| Pregunta | Qué escribir en una instalación nueva |
+| --- | --- |
+| Servidor PostgreSQL | Pulsa Enter para usar `127.0.0.1`, tu computadora. |
+| Puerto PostgreSQL | Pulsa Enter para usar `5432`, o indica el elegido al instalar PostgreSQL. |
+| Nombre de la base nueva | Pulsa Enter para usar `geopol`, si ese nombre está libre. |
+| Usuario administrador de PostgreSQL | Pulsa Enter para usar `postgres`. |
+| Contraseña de PostgreSQL | La que elegiste para `postgres` en el paso 1. |
 
-## 4. Abrir GeoPol
+La contraseña se escribe de forma oculta: es normal que no aparezcan letras ni
+asteriscos. El instalador crea una base nueva, activa PostGIS y crea un usuario
+interno con permisos limitados. Si el nombre de la base ya está ocupado, elige
+otro nombre nuevo; no se sobrescribe una base existente.
+
+Finalmente, si aún no hay cuentas, te pide elegir y repetir una contraseña de
+**al menos 12 caracteres** para entrar a GeoPol como **`administrador`**. Usa
+una contraseña distinta de la de PostgreSQL y guárdala. Espera el mensaje de
+instalación terminada antes de continuar.
+
+## 4. Abrir y detener GeoPol
 
 ```bash
 bash iniciar.sh
 ```
 
-Abre **[http://localhost:8080](http://localhost:8080)** en tu navegador.
-Entra con `administrador` y la contraseña que elegiste. Puedes cerrar la
-terminal: GeoPol sigue funcionando mientras Docker esté activo.
+Abre **[http://localhost:5173](http://localhost:5173)** e inicia sesión con
+`administrador` y tu contraseña web. Este comando inicia la API, el proceso que
+ejecuta los trabajos y la web. **Mantén esta terminal abierta mientras trabajas.**
 
-**Los siguientes días:** abre Docker Desktop si usas Windows, entra en la
-carpeta del proyecto con Bash y ejecuta solamente `bash iniciar.sh`.
-
-Para detener GeoPol, vuelve a esa carpeta en Bash y ejecuta:
+Para terminar, pulsa **Ctrl+C** en esa terminal. También puedes abrir una
+segunda Bash en la misma carpeta y ejecutar:
 
 ```bash
 bash detener.sh
 ```
 
-Esto conserva usuarios, archivos y resultados. Cerrar el navegador no detiene
-GeoPol.
+Se detienen los procesos de GeoPol y se conservan los datos. PostgreSQL continúa
+funcionando como servicio. Cerrar el navegador no detiene GeoPol.
 
-## 5. PostgreSQL y tus datos, explicado brevemente
+**Los siguientes días:** comprueba que PostgreSQL esté funcionando, abre Bash
+en la carpeta del proyecto y ejecuta solamente `bash iniciar.sh`.
 
-PostgreSQL guarda las cuentas, los trabajos y sus resultados. El instalador
-crea la base y su contraseña interna automáticamente: **no tienes que abrir
-PostgreSQL ni crear tablas**. Esa contraseña es distinta de la de `administrador`.
+## 5. Conservar tus datos
 
-Los datos se guardan en espacios persistentes administrados por Docker, llamados
-volúmenes. El archivo `.local/compose.env` contiene la configuración y una
-contraseña privada: **no lo borres, edites ni compartas**. Tampoco borres los
-volúmenes de Docker si deseas conservar los datos.
+PostgreSQL guarda las cuentas y resultados; `data/storage-native` guarda los
+archivos. `.local/native.json` guarda la configuración y la contraseña interna
+de la aplicación, **no la contraseña de administración de PostgreSQL**.
+Conserva ese archivo privado: no lo borres, edites ni compartas.
 
-Para compartir el proyecto, envía el enlace de GitHub y esta guía. Cada persona
-instala su propia copia y elige su contraseña; GitHub no comparte tus datos ni
-tus cuentas. Una instalación anterior con SQLite no se migra automáticamente.
+Volver a ejecutar `bash instalar.sh` conserva la configuración, las cuentas y
+los datos. Para compartir GeoPol, envía el enlace de GitHub y esta guía: cada
+persona prepara su propia instalación. Las instalaciones anteriores conservan
+sus datos por separado; este método no los importa automáticamente ni modifica
+su archivo `.env`.
 
 ## Si algo no funciona
 
-| Lo que aparece | Qué hacer |
+| Problema | Qué hacer |
 | --- | --- |
-| `bash` no se reconoce | En Windows, abre **Git Bash** desde la carpeta del proyecto. |
-| `instalar.sh: No such file or directory` | Entra en la carpeta extraída que contiene `instalar.sh`. |
-| Docker no está disponible | Abre Docker Desktop y espera a que termine de iniciar. |
-| Contraseña demasiado corta o distinta | El instalador vuelve a pedirla. Escribe dos veces la misma contraseña, de al menos 12 caracteres. |
-| El puerto está ocupado o falla una descarga | Consulta [puertos, proxy y problemas frecuentes](docs/instalacion-bash-detallada.md#problemas-frecuentes). |
+| `bash` no se reconoce | En Windows, abre **Git Bash**. |
+| No encuentra `instalar.sh` | Entra en la carpeta extraída que contiene ese archivo. |
+| No encuentra Python o Node.js | Termina de instalarlos y abre una nueva Bash. |
+| No conecta con PostgreSQL | Comprueba que su servicio esté iniciado y que el puerto y la contraseña sean correctos. |
+| No encuentra PostGIS | Instala el paquete compatible con PostgreSQL 16 y repite `bash instalar.sh`. |
+| El puerto web está ocupado | Usa `bash iniciar.sh --puertos 5174 8002` y abre la dirección que muestre. |
 
 La [guía Bash detallada](docs/instalacion-bash-detallada.md) incluye respaldos,
-actualizaciones y acceso técnico a PostgreSQL. Para una primera prueba, usa los
+actualizaciones y más soluciones. Para probar el programa, usa los
 [ejemplos ficticios incluidos](examples/README.md).

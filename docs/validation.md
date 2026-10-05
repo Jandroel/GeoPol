@@ -89,7 +89,7 @@ Pyogrio y GeoPandas no son dependencias de producción. La prueba se omite si no
 
 ## Infraestructura
 
-`docker compose config --quiet` valida la configuración declarativa. Los scripts PowerShell y Bash pasan su análisis sintáctico. El intento de iniciar Docker Desktop confirmó que WSL no está instalado; se cerró el proceso de verificación sin cambiar la configuración del equipo. No se ejecutaron contenedores ni una restauración PostgreSQL. CI incluye un servicio PostGIS para comprobar migración idempotente, geometría derivada e índices espaciales.
+La instalación vigente utiliza Bash, Python, Node.js y PostgreSQL/PostGIS instalados directamente. El job `native-postgres` de CI instala PostgreSQL como servicio de Ubuntu y ejecuta el instalador, el arranque, el inicio de sesión y un reinicio con verificación de persistencia. También prueba las migraciones e índices PostGIS en una base sintética separada. Los scripts se comprueban con Bash en Windows y Linux; el supervisor mantiene procesos propios y conserva la instalación SQLite anterior. La configuración de contenedores anterior fue retirada. Una prueba de arranque no sustituye una restauración PostgreSQL ensayada en el entorno de destino.
 
 ## Capacidad medida
 

@@ -1,102 +1,186 @@
 # Operación y recuperación
 
-Todos los comandos parten de la raíz del proyecto. No ejecutar acciones de borrado de volúmenes sobre una instancia con información que deba conservarse.
+Este manual corresponde a la instalación nativa descrita en la
+[guía Bash](../INSTALACION_LOCAL.md). Todos los comandos parten de la raíz del
+proyecto y se ejecutan en Bash. PostgreSQL debe estar funcionando como servicio.
 
 ## Arranque y salud
 
 ```bash
-docker compose up --build -d
-docker compose ps
-docker compose logs --tail=100 api worker
+bash iniciar.sh
 ```
 
-`GET /api/health` comprueba API y base de datos. No certifica que el worker esté procesando: revisar también `GET /api/health/worker` con sesión autenticada, los logs y los estados de las ejecuciones. Un archivo cargado no comienza a procesarse hasta crear su ejecución. Los estados `COMPLETED` y `COMPLETED_WITH_ISSUES` indican terminación técnica, no que todas las ubicaciones hayan sido aprobadas.
+Mantén esa terminal abierta: administra la API, el worker y la web. Para detener
+GeoPol, pulsa Ctrl+C o ejecuta `bash detener.sh` desde otra terminal.
+PostgreSQL continúa funcionando y los datos se conservan.
 
-En local, mantener activas las tres terminales indicadas en el README. Los scripts fijan el directorio de trabajo a la raíz para que API, worker y CLI utilicen la misma base SQLite y almacenamiento.
+Desde una segunda Bash, con los puertos predeterminados:
+
+```bash
+curl --fail http://127.0.0.1:8000/api/health
+```
+
+`GET /api/health` comprueba API y base de datos. No certifica que el worker esté
+procesando: revisa también `GET /api/health/worker` con sesión autenticada, los
+registros del arranque y los estados de las ejecuciones. Un archivo cargado no
+comienza a procesarse hasta crear su ejecución. `COMPLETED` y
+`COMPLETED_WITH_ISSUES` indican terminación técnica, no que todas las ubicaciones
+hayan sido aprobadas.
+
+API, worker y las herramientas `scripts/native_cli.py` utilizan la configuración
+privada de `.local/native.json`. No ejecutes una CLI manual con el `.env` de una
+instalación anterior esperando modificar esta misma base.
 
 ## Almacenamiento para lotes grandes
 
-El ensayo local mostró una diferencia importante al trasladar la base SQLite de un HDD a un SSD; las etapas y sus límites están descritos en la [prueba de carga](validation-load.md). Para una instalación local nueva, se puede elegir una ruta en SSD mediante `.env`, antes de inicializar la base y crear usuarios:
+En esta instalación PostgreSQL administra sus propios archivos de base de
+datos y GeoPol guarda originales y exportaciones en `data/storage-native`.
+Planifica espacio para la base, originales, exportaciones y respaldos.
+El traslado del directorio de datos de PostgreSQL debe realizarlo su
+administrador; cambiar una ruta no traslada datos existentes.
 
-```dotenv
-GEOPOL_DATABASE_URL=sqlite:///C:/GeoPolData/geopol.db
-```
-
-La ruta es un ejemplo de Windows y debe corresponder al disco elegido. API, worker y CLI deben usar la misma configuración. Los originales pueden permanecer en el almacenamiento privado configurado con `GEOPOL_STORAGE_PATH`. Cambiar la variable no traslada datos existentes: una instancia con datos necesita detener sus procesos y restaurar una copia consistente de base y archivos, siguiendo el procedimiento de respaldo. Mantener un solo worker con SQLite.
+La [prueba de carga](validation-load.md) documenta un ensayo anterior con SQLite
+y almacenamiento HDD/SSD. Sus tiempos no son una medición de la instalación
+PostgreSQL actual. Para conservar una instalación SQLite anterior, respalda
+su base y almacenamiento del mismo corte y mantén un solo worker.
 
 ## Usuarios
 
+La instalación crea `administrador` solo si no existe ninguna cuenta. Para
+crear un operador adicional, ejecuta este bloque en Bash. La contraseña se
+solicita de forma oculta y debe tener al menos 12 caracteres:
+
 ```bash
-docker compose exec api python -m geopol.cli create-user --username operador01 --role operator
-docker compose exec api python -m geopol.cli create-user --username revisor01 --role reviewer
-docker compose exec api python -m geopol.cli create-user --username analista01 --role analyst
+(
+  set -eu
+  geopol_python="backend/.venv/bin/python"
+  if [ -x backend/.venv/Scripts/python.exe ]; then
+    geopol_python="backend/.venv/Scripts/python.exe"
+  fi
+  IFS= read -r -s -p 'Contraseña del nuevo usuario: ' GEOPOL_BOOTSTRAP_PASSWORD
+  printf '\n'
+  export GEOPOL_BOOTSTRAP_PASSWORD
+  "$geopol_python" scripts/native_cli.py create-user --username operador01 --role operator
+  unset GEOPOL_BOOTSTRAP_PASSWORD
+)
 ```
 
-Introducir cada contraseña en el prompt. No compartir la cuenta de administración para el trabajo habitual. Para ejecución sin terminal interactiva, definir una variable temporal y utilizar `--password-env NOMBRE_VARIABLE`.
+Cambia el nombre y el rol antes de ejecutar el bloque para crear otra cuenta.
+Los roles disponibles son `admin`, `operator`, `reviewer` y `analyst`; consulta
+la [matriz de permisos](security.md#matriz-funcional). El comando no reemplaza
+contraseñas de usuarios existentes. Usa cuentas individuales para el trabajo
+habitual.
 
 ## Trabajo detenido o fallido
 
-1. Confirmar salud de la base y espacio en disco. Revisar el error de la ejecución y los logs del worker sin copiar datos sensibles a sistemas externos.
-2. Si el proceso worker cayó, reiniciarlo: `docker compose restart worker`. La cola y los checkpoints residen en la base; una reserva vigente puede impedir reclamar el trabajo hasta vencer.
-3. Para un trabajo `FAILED` o `CANCELLED`, utilizar **Reintentar** en la ejecución. Para aplicar un nuevo procesamiento conservando el histórico, utilizar **Reprocesar**, que crea otra ejecución.
-4. Corregir un archivo o catálogo inválido mediante una nueva carga/versión. No editar los originales persistidos ni manipular filas directamente para forzar un estado.
-5. Si la revisión devuelve conflicto, volver a cargar el resultado y comprobar su reserva y revisión actual. Una decisión obsoleta no debe sobreescribir otra.
+1. Confirma la salud de la base y el espacio en disco. Revisa el error de la
+   ejecución y los registros sin copiar datos sensibles a sistemas externos.
+2. Si el worker terminó, detén la sesión con `bash detener.sh` y vuelve a
+   ejecutar `bash iniciar.sh`. La cola y los checkpoints residen en la base;
+   una reserva vigente puede impedir reclamar el trabajo hasta vencer.
+3. Para un trabajo `FAILED` o `CANCELLED`, utiliza **Reintentar**. Para aplicar
+   otro procesamiento conservando el histórico, usa **Reprocesar**, que crea
+   una nueva ejecución.
+4. Corrige archivos o catálogos inválidos mediante una nueva carga o versión.
+   No edites los originales persistidos ni filas de la base para forzar estados.
+5. Si la revisión devuelve un conflicto, vuelve a cargar el resultado y
+   comprueba su reserva y revisión actual.
 
-La cancelación es cooperativa: puede tardar hasta un límite de procesamiento. Los resultados ya persistidos se conservan. No eliminar archivos de la carpeta de datos mientras existan trabajos que los referencian.
+La cancelación es cooperativa: puede tardar hasta un límite de procesamiento.
+Los resultados ya persistidos se conservan. No elimines archivos de datos
+mientras existan trabajos que los referencian.
 
-Si una carga devuelve repetidamente «La carga está ocupada» después de una caída, puede quedar un archivo `uploads/<id>.lock`. Detener la API antes de inspeccionarlo, verificar que su proceso ya no está activo y que el UUID corresponde a esa carga; solo entonces retirar ese bloqueo específico. No eliminar el original ni otros bloqueos. Al reiniciar, consultar la carga para obtener el offset efectivo y continuar desde allí. El MVP no roba automáticamente un bloqueo que podría pertenecer a un escritor activo.
+Si una carga devuelve repetidamente «La carga está ocupada» después de una
+caída, puede quedar un archivo `uploads/<id>.lock` dentro del almacenamiento.
+Detén GeoPol, comprueba que su proceso ya no esté activo y que el UUID
+corresponda a esa carga; solo entonces retira ese bloqueo específico. Conserva
+el original y los demás bloqueos. Al reiniciar, consulta el offset efectivo
+de la carga para continuar desde allí.
 
-## Respaldo consistente del despliegue Compose
+## Respaldo consistente de PostgreSQL y archivos
 
-Respaldar base **y** originales/exportaciones del mismo corte. La siguiente receta detiene escrituras para una copia simple de piloto; un entorno institucional requiere su política de backups y pruebas de recuperación. El archivo de credenciales se conserva por separado en el almacén de secretos aprobado.
+Sigue el [procedimiento de respaldo nativo](instalacion-bash-detallada.md#crear-un-respaldo-de-base-y-archivos):
+detiene GeoPol, exporta la base con `pg_dump` y copia `data/storage-native`.
+La base y los archivos deben corresponder al mismo corte. Conserva aparte
+una copia privada de `.local/native.json`, con acceso restringido.
 
-Crear una carpeta de backup fuera del repositorio y protegerla. Los comandos siguientes producen archivos locales: en PowerShell es preferible evitar redirección de datos binarios, por eso se utiliza `docker compose cp`.
-
-```bash
-docker compose stop frontend api worker
-docker compose exec -T db pg_dump -U geopol -d geopol -Fc -f /tmp/geopol.dump
-docker compose cp db:/tmp/geopol.dump ./geopol.dump
-docker compose run --rm --no-deps --entrypoint tar api -czf /app/data/artifacts-backup.tgz -C /app/data storage
-docker compose cp api:/app/data/artifacts-backup.tgz ./artifacts-backup.tgz
-docker compose start api worker frontend
-```
-
-Mover los dos archivos a la ubicación de backup protegida, registrar fecha, versión de aplicación y checksum, y verificar que el archivo de objetos contiene la carpeta `storage`. La copia temporal dentro del volumen se puede eliminar **solo después** de verificar y mover el respaldo. No versionar los archivos de backup.
+Registra fecha, versión de la aplicación y checksums. Un respaldo operativo
+debe tener una prueba de recuperación en una instancia separada. Para uso
+institucional, acuerda la frecuencia de copias, la retención y los tiempos
+máximos de recuperación.
 
 ## Evidencia de recuperación local
 
-La prueba automatizada `test_sqlite_database_and_objects_restore_together` crea un lote y una exportación con datos sintéticos, copia la base mediante `sqlite3.Connection.backup` y respalda los objetos mientras no hay escrituras. Restaura ambos en rutas nuevas y verifica salud, recuentos, SHA-256 de la exportación, conservación del original y un nuevo reproceso con el worker restaurado.
+La prueba `test_sqlite_database_and_objects_restore_together` demuestra la
+restauración de un escenario SQLite acotado con datos sintéticos. Incluye base,
+original, exportación, checksums y un nuevo reproceso. Esa evidencia histórica
+no acredita la restauración de PostgreSQL.
 
-```powershell
-.\backend\.venv\Scripts\python.exe -m pytest backend/tests/test_api.py -q -k sqlite_database_and_objects_restore
-```
-
-Esta prueba demuestra la restauración de un escenario SQLite acotado. La copia consistente de SQLite incluye el estado WAL; copiar solo `geopol.db` mientras está activo puede omitir cambios. Para un respaldo operativo local, detener API y worker y copiar la base y `data/storage` como un mismo corte. No equivale a una prueba de restauración PostgreSQL ni a un objetivo institucional de recuperación; la receta Compose debe ensayarse donde esté disponible Docker.
+En SQLite, una copia consistente mediante `sqlite3.Connection.backup` incluye
+los cambios del WAL. Copiar solo `geopol.db` mientras está activo puede omitir
+cambios. La [evidencia de validación](validation.md) describe el alcance del
+ensayo; la instalación nativa necesita su propia prueba de recuperación.
 
 ## Procedimiento de restauración en una instancia vacía
 
-Usar un proyecto Compose distinto evita sobrescribir la instancia original. Crear credenciales propias en `.env` antes de arrancar. Este ejemplo usa el proyecto `geopol-restore` y requiere tener las copias en la raíz de trabajo temporal:
+Este es un procedimiento para quien administra PostgreSQL. Ensáyalo en otra
+instancia de PostgreSQL 16 con PostGIS compatible, sin información que deba
+conservarse, y con una carpeta de proyecto separada.
+
+1. Verifica el respaldo y conserva intacta la instalación original.
+2. Prepara la instancia PostgreSQL de destino en otro puerto o equipo. Recrea
+   el rol limitado de la aplicación con el mismo nombre que figura en la
+   configuración privada respaldada y crea **una base vacía propiedad de ese rol**. Establece
+   su secreto por un mecanismo interactivo protegido; no lo escribas en
+   comandos ni archivos de código. El archivo de `pg_dump` no incluye los
+   roles globales del servidor.
+3. Usa `pg_restore` como administrador sobre esa base vacía. El respaldo
+   conserva los propietarios de objetos; el rol del paso anterior debe
+   existir. El siguiente ejemplo supone una instancia separada en el puerto
+   **5433**, una base vacía llamada `geopol` y la ruta de respaldo indicada:
 
 ```bash
-docker compose -p geopol-restore up -d db
-docker compose -p geopol-restore cp ./geopol.dump db:/tmp/geopol.dump
-docker compose -p geopol-restore exec -T db pg_restore -U geopol -d geopol --no-owner --exit-on-error /tmp/geopol.dump
-docker compose -p geopol-restore create api
-docker compose -p geopol-restore cp ./artifacts-backup.tgz api:/app/data/artifacts-backup.tgz
-docker compose -p geopol-restore run --rm --no-deps --entrypoint tar api -xzf /app/data/artifacts-backup.tgz -C /app/data
-docker compose -p geopol-restore up -d
+pg_restore -h 127.0.0.1 -p 5433 -U postgres -W -d geopol --exit-on-error "../geopol-respaldo/geopol.dump"
 ```
 
-La restauración debe hacerse en un host/puerto que no compita con la instancia original. Esperar a que PostgreSQL esté saludable antes de restaurar y usar la misma versión compatible del esquema. El ejemplo no usa `--clean`: si la base no está vacía, detenerse y preparar una instancia vacía.
+Sustituye la ruta por la real antes de ejecutar. Consulta las opciones en la
+[documentación de pg_restore](https://www.postgresql.org/docs/16/app-pgrestore.html).
+No ejecutes el comando contra una base ya inicializada por el instalador:
+debe estar vacía. Si la restauración falla, investiga el error antes de continuar.
 
-Verificar inicio de sesión, número de ejecuciones, descarga de un original autorizado/exportación, checksums, lectura del histórico y un nuevo trabajo sintético. Registrar tiempo de restauración y resultado; un backup sin prueba de restauración no acredita recuperación.
+4. Restaura `artifacts-backup.tgz` en la carpeta `data` del proyecto de destino,
+   manteniendo la estructura `data/storage-native`.
+5. Recupera allí la copia privada de `.local/native.json`. Quien administra
+   la recuperación debe ajustar exclusivamente la conexión y las rutas al
+   destino, conservar la identidad del rol y verificar sus permisos antes de
+   arrancar. Esta operación avanzada no la realiza automáticamente
+   `bash instalar.sh`.
+6. Con el proyecto en la misma versión que el respaldo, prepara las
+   dependencias con `bash instalar.sh` y arranca con
+   `bash iniciar.sh --puertos 5174 8002`, en una terminal propia.
+
+Verifica inicio de sesión, número de ejecuciones, descarga de un original
+autorizado y una exportación, checksums, lectura del histórico y un nuevo
+trabajo sintético. Registra el tiempo y el resultado de la prueba. Mantén la
+instancia original hasta validar la recuperación.
 
 ## Actualizaciones
 
-Leer cambios de esquema y límites antes de actualizar. La inicialización `init-db` prepara el esquema inicial; no es un sistema general de migraciones. Respaldar, ensayar actualización/restauración en una copia y fijar versiones de imágenes/dependencias revisadas. Nunca usar la eliminación de volúmenes como mecanismo de actualización con datos reales.
+Respalda antes de actualizar. `bash instalar.sh` instala las dependencias,
+compila la web y aplica las migraciones pendientes con la configuración nativa.
+Ensaya cambios de esquema y recuperación en una copia cuando haya información
+que conservar. El [procedimiento de actualización](instalacion-bash-detallada.md#actualizar-geopol)
+incluye los comandos para Git y las indicaciones para ZIP.
 
 ## Exportación a GIS
 
-Conservar juntos CSV y manifiesto. Verificar SHA-256 y registrar ejecución, versión de referencia/reglas y revisiones. Importar UBIGEO e identificadores como texto; interpretar coordenadas vacías como ausencia de geometría. Las columnas geográficas usan EPSG:4326 y orden explícito latitud/longitud; GeoJSON usa longitud/latitud.
+Conserva juntos CSV y manifiesto. Verifica SHA-256 y registra ejecución, versión
+de referencia, reglas y revisiones. Importa UBIGEO e identificadores como texto;
+interpreta coordenadas vacías como ausencia de geometría. Las columnas
+geográficas usan EPSG:4326 y orden explícito latitud/longitud; GeoJSON usa
+longitud/latitud.
 
-El modo seguro para hojas de cálculo puede prefijar apóstrofo a celdas que parecen fórmulas. No removerlo automáticamente al abrir en Excel. Acordar con el consumidor GIS si utilizar ese perfil o una exportación no destinada a hojas de cálculo.
+El modo seguro para hojas de cálculo puede prefijar apóstrofo a celdas que
+parecen fórmulas. No lo retires automáticamente al abrir en Excel. Acuerda con
+el consumidor GIS si utilizar ese perfil o una exportación no destinada a
+hojas de cálculo.

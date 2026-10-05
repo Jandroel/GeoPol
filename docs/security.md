@@ -1,6 +1,6 @@
 # Seguridad y tratamiento de datos
 
-Este proyecto es una implementación de piloto. Tener autenticación y contenedores no demuestra cumplimiento institucional ni autoriza incorporar datos personales.
+Este proyecto es una implementación de piloto. Tener autenticación y una base de datos local no demuestra cumplimiento institucional ni autoriza incorporar datos personales.
 
 ## Controles del MVP
 
@@ -15,8 +15,8 @@ Este proyecto es una implementación de piloto. Tener autenticación y contenedo
 - Reserva de revisión y control de versión, con motivo y evidencia para las decisiones.
 - Auditoría de operaciones y trazabilidad de versiones; los originales se preservan.
 - Sin mapa base público, geocodificador público, analítica externa ni carga remota de fuentes tipográficas por defecto.
-- Logs de acceso HTTP desactivados en los scripts y contenedores para evitar registrar direcciones introducidas en búsquedas. Si se inicia Uvicorn manualmente, conservar `--no-access-log` y revisar también los logs del proxy institucional.
-- Servicios Compose expuestos solo en localhost, procesos de aplicación sin privilegios, filesystem de contenedores de aplicación de solo lectura salvo volúmenes y temporales.
+- Logs de acceso HTTP desactivados en los scripts para evitar registrar direcciones introducidas en búsquedas. Si se inicia Uvicorn manualmente, conservar `--no-access-log` y revisar también los logs del proxy institucional.
+- API y web nativas accesibles solo desde la computadora local. PostgreSQL utiliza un rol interno de aplicación sin privilegios de superusuario, separado del administrador que prepara la base y sus extensiones.
 
 ## Matriz funcional
 
@@ -35,7 +35,7 @@ Crear usuarios con el prompt de la CLI. Para automatización, la CLI puede leer 
 
 El frontend conserva la sesión en memoria y almacenamiento de sesión del navegador. Este mecanismo queda expuesto a JavaScript del mismo origen; la mitigación principal es evitar contenido ejecutable no confiable y limitar origen/CSP. La siguiente etapa institucional debe evaluar cookies seguras, SSO/OIDC y políticas de sesión. Servir el sistema con TLS para uso fuera de localhost.
 
-La contraseña PostgreSQL de Compose requiere caracteres seguros para URL porque se incorpora en una URL de conexión. Utilizar un secreto aleatorio propio; `.env` es local y debe tener permisos restringidos. Antes del despliegue institucional, sustituirlo por el mecanismo de secretos aprobado y usar un usuario de aplicación de mínimos privilegios separado del de administración/migraciones.
+El instalador nativo genera la contraseña del rol PostgreSQL de la aplicación y la guarda en `.local/native.json`. Ese archivo es privado y no se versiona; debe conservarse con acceso restringido. La contraseña del administrador de PostgreSQL se solicita de forma oculta durante la preparación y no se guarda. La contraseña web es independiente. Antes de un despliegue institucional, integrar la configuración con el mecanismo de secretos aprobado y revisar los permisos de base y almacenamiento.
 
 ## Antes de incorporar información real
 
