@@ -6,9 +6,9 @@ x-backend: &backend
     context: ./backend
   environment: &backend-env
     GEOPOL_ENV: production
-    GEOPOL_DATABASE_URL: postgresql+psycopg://geopol:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD in .env}@db:5432/geopol
+    GEOPOL_DATABASE_URL: postgresql+psycopg://geopol:${POSTGRES_PASSWORD:?Ejecuta bash instalar.sh o configura POSTGRES_PASSWORD}@db:5432/geopol
     GEOPOL_STORAGE_PATH: /app/data/storage
-    GEOPOL_ALLOWED_ORIGINS: ${GEOPOL_ALLOWED_ORIGINS:-http://localhost:8080}
+    GEOPOL_ALLOWED_ORIGINS: ${GEOPOL_ALLOWED_ORIGINS:-http://localhost:${GEOPOL_WEB_PORT:-8080},http://127.0.0.1:${GEOPOL_WEB_PORT:-8080}}
   volumes:
     - artifacts:/app/data
   init: true
@@ -24,7 +24,7 @@ services:
     environment:
       POSTGRES_DB: geopol
       POSTGRES_USER: geopol
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ejecuta bash instalar.sh o configura POSTGRES_PASSWORD}
     volumes:
       - database:/var/lib/postgresql/data
     healthcheck:
@@ -47,7 +47,7 @@ services:
     <<: *backend
     command: [uvicorn, geopol.main:app, --host, 0.0.0.0, --port, '8000', --no-access-log]
     ports:
-      - '127.0.0.1:8000:8000'
+      - '127.0.0.1:${GEOPOL_API_PORT:-8000}:8000'
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -72,7 +72,7 @@ services:
     build:
       context: ./frontend
     ports:
-      - '127.0.0.1:8080:8080'
+      - '127.0.0.1:${GEOPOL_WEB_PORT:-8080}:8080'
     depends_on:
       api:
         condition: service_healthy

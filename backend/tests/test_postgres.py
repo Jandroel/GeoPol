@@ -6,7 +6,7 @@ import uuid
 import pytest
 from sqlalchemy import create_engine, inspect, text
 
-from geopol.migrations import migrate
+from geopol.migrations import SCHEMA_VERSION, migrate
 
 
 def test_postgis_migration_is_idempotent_and_coordinates_generate_geometry():
@@ -104,12 +104,9 @@ def test_postgis_migration_is_idempotent_and_coordinates_generate_geometry():
         migrate(engine)
         migrate(engine)
         with engine.connect() as conn:
-            assert list(conn.scalars(text("SELECT version FROM schema_versions ORDER BY version"))) == [
-                1,
-                2,
-                3,
-                4,
-            ]
+            assert list(conn.scalars(text("SELECT version FROM schema_versions ORDER BY version"))) == list(
+                range(1, SCHEMA_VERSION + 1)
+            )
             actual = {
                 row.id: (row.review_status, row.review_bucket, row.manual)
                 for row in conn.execute(

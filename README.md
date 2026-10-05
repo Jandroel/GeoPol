@@ -4,62 +4,57 @@ Aplicación para recibir CSV/XLSX, conservar sus filas de origen, normalizar ubi
 
 El repositorio es independiente. Los documentos de análisis y la muestra institucional quedan fuera del control de versiones. Los ejemplos incluidos son totalmente sintéticos y no representan cartografía oficial.
 
-## Inicio local en Windows
+## Inicio local con Bash
 
-Requisitos: Python 3.11+, Node.js 24 con npm y PowerShell. Tras descargar el
-proyecto, ejecuta desde su carpeta:
+Necesitas **Bash y Docker activo con Compose 2.20 o superior**. En Windows,
+utiliza Git Bash y Docker Desktop con contenedores Linux; en Linux, Bash y
+Docker Engine. La [guía para principiantes](INSTALACION_LOCAL.md) explica cómo
+preparar la computadora y descargar el proyecto como ZIP o con Git.
 
-```powershell
-.\instalar.cmd
-.\iniciar.cmd
+Desde la carpeta del proyecto, ejecuta:
+
+```bash
+bash instalar.sh
+bash iniciar.sh
 ```
 
-El instalador prepara dependencias, esquema e interfaz. Si la base no tiene
-usuarios, crea `administrador` y solicita una contraseña propia de al menos
+El instalador prepara la aplicación y **PostgreSQL 16 con PostGIS 3.5**. No
+necesitas instalar Python, Node.js ni PostgreSQL por separado. Si la base no
+tiene usuarios, crea `administrador` y pide una contraseña propia de al menos
 12 caracteres; conserva las cuentas de instalaciones existentes.
 
-El iniciador abre [GeoPol local](http://127.0.0.1:5173) y mantiene API, worker e
-interfaz en una sola terminal. **Ctrl + C** detiene los tres servicios. Los
-siguientes días ejecuta únicamente `.\iniciar.cmd`. Si un puerto está ocupado,
-el comando lo informa; no selecciona otro automáticamente.
+Abre [GeoPol local](http://localhost:8080). Puedes cerrar la terminal y mantener
+Docker activo. Los siguientes días ejecuta solo `bash iniciar.sh`; para detener
+la aplicación conservando los datos, usa `bash detener.sh`.
 
-Consulta la [guía breve para otra computadora](INSTALACION_LOCAL.md) o el
-[método manual avanzado](docs/instalacion-local-detallada.md). La documentación
-interactiva de la API está en [OpenAPI local](http://127.0.0.1:8000/docs).
+Los datos persisten en los volúmenes `geopol-local_database` y
+`geopol-local_artifacts`. El instalador genera la contraseña interna de la base
+y la conserva en `.local/compose.env`: no edites, borres ni compartas ese
+archivo. PostgreSQL no publica su puerto en la computadora. La documentación
+de la API está en [OpenAPI local](http://localhost:8000/docs).
 
-El modo local utiliza SQLite en `data/geopol.db` y archivos en `data/storage`, relativos a la raíz desde la que se ejecutan estos scripts. Usar **un solo worker con SQLite**. La configuración lee variables `GEOPOL_*` del entorno y de `.env`; mantener rutas y orígenes coherentes si se alternan los modos local y Compose.
+La [guía Bash detallada](docs/instalacion-bash-detallada.md) explica PostgreSQL,
+respaldo, actualizaciones, puertos y proxy. Para compartir el proyecto, envía
+el enlace de GitHub y la guía; cada persona tendrá su propia cuenta y datos.
+El acceso desde otras computadoras requiere un despliegue administrado; consulta
+los controles de [seguridad](docs/security.md).
 
-Para lotes grandes, consultar la [configuración de almacenamiento en SSD](docs/runbook.md#almacenamiento-para-lotes-grandes) antes de inicializar una instalación nueva. La [prueba de carga](docs/validation-load.md) documenta el efecto observado del almacenamiento y la recuperación por checkpoints.
+## Alternativa anterior: instalación manual con SQLite
 
-## Inicio local en Linux o macOS
+La [guía manual de Windows y Linux/macOS](docs/instalacion-local-detallada.md)
+conserva la instalación con Python 3.11+, Node.js 24 y SQLite. Los scripts
+`instalar.cmd`, `iniciar.cmd` y **`scripts/setup.sh` pertenecen a esa alternativa**;
+no preparan el nuevo despliegue Bash con PostgreSQL.
 
-```bash
-bash scripts/setup.sh
-backend/.venv/bin/python -m geopol.cli create-user --username administrador --role admin
-# En tres terminales:
-bash scripts/dev.sh api
-bash scripts/dev.sh worker
-bash scripts/dev.sh frontend
-```
+En ese método, la base habitual es `data/geopol.db` y los archivos están en
+`data/storage`; usar un solo worker con SQLite. El método Docker no migra esos
+datos automáticamente. Conserva la instalación anterior y su respaldo si ya
+contienen información necesaria.
 
-Si Python no está en el ejecutable por defecto, usar `instalar.cmd -PythonCommand <ruta>` en Windows o `PYTHON=python3.11 bash scripts/setup.sh` en Linux/macOS.
-
-## Contenedores con PostgreSQL/PostGIS
-
-Requisitos: Docker Engine o Docker Desktop activo y Docker Compose v2 o superior.
-
-1. Copiar `.env.example` a `.env` y establecer `POSTGRES_PASSWORD` con un valor aleatorio propio, usando caracteres seguros para URL (letras, números, `-`, `_`).
-2. Ejecutar los siguientes comandos desde la raíz:
-
-```bash
-docker compose up --build -d
-docker compose exec api python -m geopol.cli create-user --username administrador --role admin
-docker compose ps
-```
-
-Abrir [GeoPol en contenedores](http://localhost:8080). La API también se publica en `127.0.0.1:8000`. PostgreSQL no publica un puerto en el host. Compose espera la salud de la base, ejecuta la inicialización del esquema y después inicia API y worker. [Orden de inicio de Compose](https://docs.docker.com/compose/how-tos/startup-order/).
-
-Los volúmenes `database` y `artifacts` conservan base y archivos. `docker compose down` detiene el despliegue conservando volúmenes; **`down -v` los elimina**. El despliegue escucha únicamente en localhost y es una base de piloto: el acceso institucional requiere TLS, respaldo probado y controles adicionales descritos en [seguridad](docs/security.md).
+Para lotes grandes en la instalación SQLite, consulta la [configuración de
+almacenamiento en SSD](docs/runbook.md#almacenamiento-para-lotes-grandes).
+La [prueba de carga](docs/validation-load.md) documenta el efecto observado del
+almacenamiento y la recuperación por checkpoints.
 
 ## Primer recorrido verificable
 
@@ -125,14 +120,16 @@ Se verificaron las 40 filas de la muestra suministrada como 16 unidades, y un CS
 
 ## Verificación y colaboración
 
-```powershell
-.\backend\.venv\Scripts\python.exe -m ruff check backend
-.\backend\.venv\Scripts\python.exe -m pytest backend/tests -q
-Set-Location frontend
+Para desarrollar con Python y Node.js instalados, ejecuta desde Bash:
+
+```bash
+backend/.venv/bin/python -m ruff check backend
+backend/.venv/bin/python -m pytest backend/tests -q
+cd frontend
 npm run test
 npm run build
 ```
 
-En Linux/macOS sustituir el ejecutable por `backend/.venv/bin/python`. Los mismos controles están definidos en GitHub Actions. Las pruebas utilizan datos sintéticos y bases aisladas. La prueba opcional PostgreSQL/PostGIS requiere `GEOPOL_TEST_DATABASE_URL` apuntando a una base de pruebas dedicada y vacía; se omite localmente si no está definida. El job `postgis` de CI crea ese servicio y valida migración idempotente, geometría derivada y presencia de índices espaciales.
+Si usas un entorno Python creado en Windows, cambia el ejecutable por `backend/.venv/Scripts/python.exe`. Los mismos controles están definidos en GitHub Actions. Las pruebas utilizan datos sintéticos y bases aisladas. La prueba opcional PostgreSQL/PostGIS requiere `GEOPOL_TEST_DATABASE_URL` apuntando a una base de pruebas dedicada y vacía; se omite localmente si no está definida. El job `postgis` de CI crea ese servicio y valida migración idempotente, geometría derivada y presencia de índices espaciales. El job `compose` comprueba una instalación Bash nueva y la conservación de cuentas y archivos después de reiniciar PostgreSQL y la aplicación.
 
 Usar [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/): `feat(ingestion): ...`, `fix(review): ...`, `test(domain): ...`, `docs(operations): ...`. Mantener cambios pequeños, ejecutar las comprobaciones relevantes y no versionar `.env`, `data/`, muestras institucionales ni exportaciones. La política operativa de acceso y retención debe acordarse antes de incorporar datos reales.

@@ -1,9 +1,10 @@
-# GeoPol: instalación local detallada y método manual
+# GeoPol: alternativa manual con SQLite
 
-> Esta guía conserva el método manual avanzado, con API, worker y frontend en
-> terminales separadas. Para el uso habitual en Windows, sigue la
-> [guía breve de dos comandos](../INSTALACION_LOCAL.md). Utiliza un solo método
-> de arranque a la vez; `iniciar.cmd` ya pone en marcha los tres servicios.
+> Esta guía conserva la alternativa anterior con SQLite y herramientas
+> instaladas en la computadora, incluida la opción `scripts/setup.sh` de
+> Linux/macOS. Para una instalación nueva con Bash y PostgreSQL, sigue la
+> [guía breve de dos comandos](../INSTALACION_LOCAL.md). Las bases de ambos
+> métodos son independientes; no hay migración automática entre ellos.
 
 Esta guía permite instalar GeoPol en otra computadora, crear una cuenta propia y
 probar la aplicación con archivos de ejemplo. El recorrido principal utiliza
@@ -273,8 +274,8 @@ también la interfaz compilada y `iniciar.cmd` administra los tres procesos.
 
 ### Opciones del iniciador de Windows
 
-Si utilizas el método de la [guía breve](../INSTALACION_LOCAL.md), puedes elegir
-otros puertos sin editar la configuración del frontend:
+Si utilizas los iniciadores anteriores `instalar.cmd` e `iniciar.cmd`, puedes
+elegir otros puertos sin editar la configuración del frontend:
 
 ```powershell
 .\iniciar.cmd --api-port 8002 --port 5174
@@ -331,7 +332,7 @@ Después ejecuta el comando que necesitabas, por ejemplo `git clone` o
 procesos hijos. Si cierras la terminal, debes configurarlas nuevamente cuando
 sean necesarias. `NO_PROXY` mantiene las conexiones locales fuera del proxy.
 
-## Linux o macOS
+## Linux o macOS: método manual anterior con SQLite
 
 Con Git, Python 3.11 o superior y Node.js 24 o superior ya instalados:
 
