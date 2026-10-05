@@ -6,30 +6,26 @@ El repositorio es independiente. Los documentos de análisis y la muestra instit
 
 ## Inicio local en Windows
 
-Si es la primera instalación en otra computadora, sigue la
-[guía paso a paso de instalación y ejecución local](INSTALACION_LOCAL.md).
-Incluye acceso al repositorio privado, creación de usuario, arranque de servicios,
-proxy opcional y solución de problemas frecuentes.
-
-Requisitos: Python 3.11+, Node.js 24 con npm y PowerShell. Ejecutar desde la raíz del proyecto:
+Requisitos: Python 3.11+, Node.js 24 con npm y PowerShell. Tras descargar el
+proyecto, ejecuta desde su carpeta:
 
 ```powershell
-.\scripts\setup.ps1
-.\backend\.venv\Scripts\python.exe -m geopol.cli create-user --username administrador --role admin
+.\instalar.cmd
+.\iniciar.cmd
 ```
 
-La CLI solicitará una contraseña propia; no existe usuario ni contraseña predefinidos. Después, abrir tres terminales en la raíz:
+El instalador prepara dependencias, esquema e interfaz. Si la base no tiene
+usuarios, crea `administrador` y solicita una contraseña propia de al menos
+12 caracteres; conserva las cuentas de instalaciones existentes.
 
-```powershell
-# Terminal 1
-.\scripts\dev.ps1 api
-# Terminal 2
-.\scripts\dev.ps1 worker
-# Terminal 3
-.\scripts\dev.ps1 frontend
-```
+El iniciador abre [GeoPol local](http://127.0.0.1:5173) y mantiene API, worker e
+interfaz en una sola terminal. **Ctrl + C** detiene los tres servicios. Los
+siguientes días ejecuta únicamente `.\iniciar.cmd`. Si un puerto está ocupado,
+el comando lo informa; no selecciona otro automáticamente.
 
-Abrir [GeoPol local](http://localhost:5173). Si ese puerto ya está ocupado, usar la URL alternativa que muestra Vite en la terminal. La documentación interactiva de la API está en [OpenAPI local](http://localhost:8000/docs). El worker debe permanecer activo para procesar ejecuciones y exportaciones; su trabajo continúa aunque se cierre el navegador.
+Consulta la [guía breve para otra computadora](INSTALACION_LOCAL.md) o el
+[método manual avanzado](docs/instalacion-local-detallada.md). La documentación
+interactiva de la API está en [OpenAPI local](http://127.0.0.1:8000/docs).
 
 El modo local utiliza SQLite en `data/geopol.db` y archivos en `data/storage`, relativos a la raíz desde la que se ejecutan estos scripts. Usar **un solo worker con SQLite**. La configuración lee variables `GEOPOL_*` del entorno y de `.env`; mantener rutas y orígenes coherentes si se alternan los modos local y Compose.
 
@@ -46,7 +42,7 @@ bash scripts/dev.sh worker
 bash scripts/dev.sh frontend
 ```
 
-Si Python no está en el ejecutable por defecto, usar `scripts/setup.ps1 -PythonCommand <ruta>` en Windows o `PYTHON=python3.11 bash scripts/setup.sh` en Linux/macOS.
+Si Python no está en el ejecutable por defecto, usar `instalar.cmd -PythonCommand <ruta>` en Windows o `PYTHON=python3.11 bash scripts/setup.sh` en Linux/macOS.
 
 ## Contenedores con PostgreSQL/PostGIS
 
