@@ -127,17 +127,11 @@ jobs:
             .local/ui-*.png
             ${{ runner.temp }}/geopol-e2e-logs/
 
-  native-postgres:
+  manual-postgres:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      GEOPOL_SETUP_PGHOST: 127.0.0.1
-      GEOPOL_SETUP_PGPORT: '5432'
-      GEOPOL_SETUP_PGDATABASE: geopol_native_ci
-      GEOPOL_SETUP_PGUSER: postgres
-      GEOPOL_SETUP_PGPASSWORD: synthetic-ci-only-password
       GEOPOL_TEST_DATABASE_URL: postgresql+psycopg://postgres:synthetic-ci-only-password@127.0.0.1:5432/geopol_test
-      BROWSER: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -157,19 +151,23 @@ jobs:
           sudo systemctl start postgresql
           sudo -u postgres psql -v ON_ERROR_STOP=1 -c "ALTER ROLE postgres PASSWORD 'synthetic-ci-only-password'"
           sudo -u postgres createdb geopol_test
-      - name: Install from Bash and verify PostgreSQL, login and restart
-        run: python scripts/tests/native_smoke.py
-      - name: Validate migrations, native setup and process supervision
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE geopol_app LOGIN PASSWORD 'synthetic-ci-app-password' NOSUPERUSER NOCREATEDB NOCREATEROLE"
+          sudo -u postgres createdb -O geopol_app geopol_manual_ci
+          sudo -u postgres psql -v ON_ERROR_STOP=1 -d geopol_manual_ci -c "CREATE EXTENSION postgis; CREATE EXTENSION pg_trgm;"
+      - name: Install backend dependencies
+        working-directory: backend
         run: |
-          backend/.venv/bin/python -m pytest backend/tests/test_postgres.py scripts/tests -q
-          for script in instalar.sh iniciar.sh detener.sh scripts/native.sh; do bash -n "$script"; done
-      - name: Show native service diagnostics on failure
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install -c requirements.lock -e '.[dev]'
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Verify manual env, backend dev, frontend dev and restart
+        run: python scripts/tests/manual_smoke.py
+      - name: Validate PostgreSQL migrations and development shutdown
+        run: backend/.venv/bin/python -m pytest backend/tests/test_postgres.py backend/tests/test_dev.py -q
+      - name: Show development diagnostics on failure
         if: failure()
         run: |
-          find .local -maxdepth 2 -name '*.log' -exec tail -n 40 {} \; || true
-      - name: Stop the application's own processes
-        if: always()
-        run: |
-          if [ -f .local/native.json ]; then
-            bash detener.sh
-          fi
+          find .local -maxdepth 1 -name 'manual-smoke-*.log' -exec tail -n 60 {} \; || true

@@ -20,6 +20,8 @@ flowchart LR
 
 El despliegue tiene tres procesos de aplicación: frontend, API y worker. PostgreSQL/PostGIS es la persistencia compartida. SQLite permite desarrollo sin servicios adicionales, con un solo worker. Los originales y las exportaciones se guardan fuera del servidor estático; descargarlos requiere autorización de la API.
 
+Para ejecutar localmente se utilizan dos terminales: `python -m geopol.dev` desde `backend` inicia la API y el worker, mientras `npm run dev` desde `frontend` inicia la web. El backend lee su `.env`, aplica las migraciones y prepara el administrador inicial solo si la base no tiene usuarios. La creación de la base, el rol PostgreSQL y sus extensiones se realiza una vez, siguiendo la guía. Las tablas de la aplicación se crean o actualizan al arrancar el backend; la base y los archivos de otra instalación no se importan automáticamente.
+
 ## Módulos y dependencias
 
 | Capa | Responsabilidad | Restricción |
@@ -29,7 +31,7 @@ El despliegue tiene tres procesos de aplicación: frontend, API y worker. Postgr
 | Persistencia | Usuarios, cargas, filas, unidades, resultados, revisiones, cola y auditoría | Restricciones y transacciones conservan trazabilidad |
 | Worker | Ingesta, matching y exportaciones con estado persistido | Procesa identidades de trabajos; no depende del navegador |
 | Frontend | Flujo de carga, progreso, resultados, revisión, referencias y exportaciones | Muestra datos reales de API; no inventa resultados |
-| Infraestructura | PostgreSQL local, procesos supervisados, salud, almacenamiento, scripts Bash y CI | Instalación directa en la computadora |
+| Infraestructura | PostgreSQL local, arranque del backend, salud, almacenamiento y CI | Configuración en `backend/.env` y dependencias instaladas por componente |
 
 La entrada `geopol/main.py` compone FastAPI, CORS, cabeceras de seguridad y registro de routers. Las rutas se agrupan en `geopol/api/` por responsabilidad:
 

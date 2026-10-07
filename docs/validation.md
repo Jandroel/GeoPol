@@ -60,8 +60,11 @@ Tres pruebas de integración adicionales pasaron:
 | Protección frente al worker anterior | El token anterior no puede insertar filas después de la reasignación. Su confirmación tardía tampoco completa la reserva del nuevo propietario. |
 | Cancelación y reintento | La cancelación conserva el checkpoint de dos filas y una unidad. Un único reintento termina con tres filas, dos unidades y dos revisiones automáticas. Un segundo reintento de un trabajo ya en cola devuelve conflicto. |
 
-```powershell
-.\backend\.venv\Scripts\python.exe -m pytest backend/tests/test_api.py -q -k 'reclaims_expired or old_worker or cancellation_and_retry'
+Para repetir estos casos, ejecuta desde `backend`, con su entorno virtual y
+dependencias de desarrollo activados:
+
+```bash
+python -m pytest tests/test_api.py -q -k 'reclaims_expired or old_worker or cancellation_and_retry'
 ```
 
 Estas pruebas fuerzan vencimiento y reasignación en SQLite de forma determinística. No equivalen a una prueba de carga ni de concurrencia con varios workers PostgreSQL. La restauración SQLite de base y objetos también se comprueba con la prueba descrita en la [guía de operación](runbook.md).
@@ -78,18 +81,20 @@ Se exportaron dos ubicaciones mediante la API y el worker, una con punto aprobad
 
 La lectura utilizó `X_POSSIBLE_NAMES=GEOPOL_longitude`, `Y_POSSIBLE_NAMES=GEOPOL_latitude`, `KEEP_GEOM_COLUMNS=YES`, `EMPTY_STRING_AS_NULL=YES` y `AUTODETECT_TYPE=NO`. Las opciones y el orden de ejes corresponden al [lector CSV de GDAL](https://gdal.org/en/stable/drivers/vector/csv.html).
 
-Para repetir la comprobación, instalar las herramientas únicamente en el entorno de QA y ejecutar el test:
+Para repetir la comprobación, instala las herramientas únicamente en el entorno de QA. Desde `backend`, con su entorno virtual y dependencias de desarrollo activados, ejecuta:
 
-```powershell
-.\backend\.venv\Scripts\python.exe -m pip install -c backend/requirements.lock pyogrio==0.13.0 geopandas==1.1.4
-.\backend\.venv\Scripts\python.exe -m pytest backend/tests/test_api.py -q -s -k gdal_reads_actual_export_point_and_null_geometry
+```bash
+python -m pip install -c requirements.lock pyogrio==0.13.0 geopandas==1.1.4
+python -m pytest tests/test_api.py -q -s -k gdal_reads_actual_export_point_and_null_geometry
 ```
 
 Pyogrio y GeoPandas no son dependencias de producción. La prueba se omite si no están instaladas. La versión de GDAL depende del wheel de Pyogrio y de la plataforma; el test imprime la versión realmente utilizada. No se probó la interfaz de QGIS ni el GIS institucional.
 
 ## Infraestructura
 
-La instalación vigente utiliza Bash, Python, Node.js y PostgreSQL/PostGIS instalados directamente. El job `native-postgres` de CI instala PostgreSQL como servicio de Ubuntu y ejecuta el instalador, el arranque, el inicio de sesión y un reinicio con verificación de persistencia. También prueba las migraciones e índices PostGIS en una base sintética separada. Los scripts se comprueban con Bash en Windows y Linux; el supervisor mantiene procesos propios y conserva la instalación SQLite anterior. La configuración de contenedores anterior fue retirada. Una prueba de arranque no sustituye una restauración PostgreSQL ensayada en el entorno de destino.
+El flujo local vigente utiliza dependencias instaladas por componente, una base PostgreSQL/PostGIS creada previamente y `backend/.env`. Los comandos de arranque son `python -m geopol.dev` desde `backend` y `npm run dev` desde `frontend`; las tablas se crean o actualizan al iniciar el backend.
+
+El job `manual-postgres` está destinado a comprobar este mismo recorrido en una instancia sintética de Ubuntu: preparar PostgreSQL, configurar `.env`, arrancar ambas partes, iniciar sesión y reiniciar conservando datos. La integración PostgreSQL comprueba además migraciones e índices PostGIS en una base separada. La configuración de una prueba en CI no acredita por sí sola que haya terminado correctamente; su resultado debe consultarse en la ejecución correspondiente. Una prueba de arranque tampoco sustituye una restauración PostgreSQL ensayada en el entorno de destino.
 
 ## Capacidad medida
 

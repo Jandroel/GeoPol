@@ -1,43 +1,69 @@
 # Operación y recuperación
 
-Este manual corresponde a la instalación nativa descrita en la
-[guía Bash](../INSTALACION_LOCAL.md). Todos los comandos parten de la raíz del
-proyecto y se ejecutan en Bash. PostgreSQL debe estar funcionando como servicio.
+La [guía de instalación](../INSTALACION_LOCAL.md) explica la preparación inicial:
+crear una base PostgreSQL con PostGIS, configurar `backend/.env` e instalar las
+dependencias de backend y frontend. Los comandos de este documento se ejecutan
+en Bash. PostgreSQL debe estar funcionando como servicio.
 
-## Arranque y salud
+## Arranque y parada
+
+Abre una terminal en `backend`, activa el entorno virtual y ejecuta:
 
 ```bash
-bash iniciar.sh
+# Git Bash en Windows:
+source .venv/Scripts/activate
+
+# En Linux o macOS, usa en su lugar:
+# source .venv/bin/activate
+
+python -m geopol.dev
 ```
 
-Mantén esa terminal abierta: administra la API, el worker y la web. Para detener
-GeoPol, pulsa Ctrl+C o ejecuta `bash detener.sh` desde otra terminal.
-PostgreSQL continúa funcionando y los datos se conservan.
+Este comando lee `backend/.env`, aplica las migraciones pendientes y arranca la
+API y el worker juntos. En una base sin usuarios solicita la contraseña inicial
+de `administrador`; en los siguientes arranques conserva las cuentas existentes.
 
-Desde una segunda Bash, con los puertos predeterminados:
+Abre otra terminal en `frontend`:
+
+```bash
+npm run dev
+```
+
+Entra a <http://127.0.0.1:5173>. Mantén ambas terminales abiertas. Para detener
+GeoPol, pulsa **Ctrl+C en cada una**. PostgreSQL continúa funcionando y los datos
+se conservan. No necesitas reinstalar dependencias cada vez que inicias la app.
+
+## Salud y configuración
+
+Desde otra terminal puedes comprobar la API:
 
 ```bash
 curl --fail http://127.0.0.1:8000/api/health
 ```
 
 `GET /api/health` comprueba API y base de datos. No certifica que el worker esté
-procesando: revisa también `GET /api/health/worker` con sesión autenticada, los
-registros del arranque y los estados de las ejecuciones. Un archivo cargado no
+procesando: revisa también `GET /api/health/worker` con sesión autenticada, la
+terminal del backend y los estados de las ejecuciones. Un archivo cargado no
 comienza a procesarse hasta crear su ejecución. `COMPLETED` y
 `COMPLETED_WITH_ISSUES` indican terminación técnica, no que todas las ubicaciones
 hayan sido aprobadas.
 
-API, worker y las herramientas `scripts/native_cli.py` utilizan la configuración
-privada de `.local/native.json`. No ejecutes una CLI manual con el `.env` de una
-instalación anterior esperando modificar esta misma base.
+Ejecuta también las herramientas `python -m geopol.cli` desde `backend`, con el
+entorno virtual activado. Así utilizan el mismo `.env` que la app. La conexión
+se define en `GEOPOL_DATABASE_URL`; `GEOPOL_STORAGE_PATH=../data/storage` guarda
+los originales y exportaciones en `data/storage`, en la raíz del proyecto.
+Una variable `GEOPOL_*` exportada en la terminal tiene prioridad sobre `.env`.
+
+Las instalaciones anteriores conservan su base y sus archivos. Cambiar la
+conexión o la ruta no traslada datos: comprueba que ambos apuntan a la misma
+instalación antes de iniciar. El arranque no importa automáticamente otra base.
 
 ## Almacenamiento para lotes grandes
 
-En esta instalación PostgreSQL administra sus propios archivos de base de
-datos y GeoPol guarda originales y exportaciones en `data/storage-native`.
-Planifica espacio para la base, originales, exportaciones y respaldos.
-El traslado del directorio de datos de PostgreSQL debe realizarlo su
-administrador; cambiar una ruta no traslada datos existentes.
+PostgreSQL administra sus propios archivos de base de datos. GeoPol guarda los
+originales y las exportaciones en la carpeta indicada por `GEOPOL_STORAGE_PATH`.
+Planifica espacio para la base, originales, exportaciones y respaldos. El
+traslado del directorio de datos de PostgreSQL debe realizarlo su administrador.
 
 La [prueba de carga](validation-load.md) documenta un ensayo anterior con SQLite
 y almacenamiento HDD/SSD. Sus tiempos no son una medición de la instalación
@@ -46,37 +72,33 @@ su base y almacenamiento del mismo corte y mantén un solo worker.
 
 ## Usuarios
 
-La instalación crea `administrador` solo si no existe ninguna cuenta. Para
-crear un operador adicional, ejecuta este bloque en Bash. La contraseña se
-solicita de forma oculta y debe tener al menos 12 caracteres:
+Para crear un operador adicional, abre una terminal en `backend` y activa su
+entorno virtual. Ejecuta este bloque; la contraseña se solicita de forma oculta
+y debe tener al menos 12 caracteres:
 
 ```bash
 (
   set -eu
-  geopol_python="backend/.venv/bin/python"
-  if [ -x backend/.venv/Scripts/python.exe ]; then
-    geopol_python="backend/.venv/Scripts/python.exe"
-  fi
   IFS= read -r -s -p 'Contraseña del nuevo usuario: ' GEOPOL_BOOTSTRAP_PASSWORD
   printf '\n'
   export GEOPOL_BOOTSTRAP_PASSWORD
-  "$geopol_python" scripts/native_cli.py create-user --username operador01 --role operator
+  python -m geopol.cli create-user --username operador01 --role operator
   unset GEOPOL_BOOTSTRAP_PASSWORD
 )
 ```
 
-Cambia el nombre y el rol antes de ejecutar el bloque para crear otra cuenta.
-Los roles disponibles son `admin`, `operator`, `reviewer` y `analyst`; consulta
-la [matriz de permisos](security.md#matriz-funcional). El comando no reemplaza
+Cambia el nombre y el rol para crear otra cuenta. Los roles son `admin`,
+`operator`, `reviewer` y `analyst`; consulta la
+[matriz de permisos](security.md#matriz-funcional). El comando no reemplaza
 contraseñas de usuarios existentes. Usa cuentas individuales para el trabajo
-habitual.
+habitual. La contraseña de acceso a GeoPol es distinta de la de PostgreSQL.
 
 ## Trabajo detenido o fallido
 
 1. Confirma la salud de la base y el espacio en disco. Revisa el error de la
-   ejecución y los registros sin copiar datos sensibles a sistemas externos.
-2. Si el worker terminó, detén la sesión con `bash detener.sh` y vuelve a
-   ejecutar `bash iniciar.sh`. La cola y los checkpoints residen en la base;
+   ejecución y la terminal del backend sin copiar datos sensibles a otros sistemas.
+2. Si el worker terminó, pulsa Ctrl+C en la terminal del backend y vuelve a
+   ejecutar `python -m geopol.dev`. La cola y los checkpoints residen en la base;
    una reserva vigente puede impedir reclamar el trabajo hasta vencer.
 3. Para un trabajo `FAILED` o `CANCELLED`, utiliza **Reintentar**. Para aplicar
    otro procesamiento conservando el histórico, usa **Reprocesar**, que crea
@@ -97,80 +119,95 @@ corresponda a esa carga; solo entonces retira ese bloqueo específico. Conserva
 el original y los demás bloqueos. Al reiniciar, consulta el offset efectivo
 de la carga para continuar desde allí.
 
-## Respaldo consistente de PostgreSQL y archivos
+## Respaldo de PostgreSQL y archivos
 
-Sigue el [procedimiento de respaldo nativo](instalacion-bash-detallada.md#crear-un-respaldo-de-base-y-archivos):
-detiene GeoPol, exporta la base con `pg_dump` y copia `data/storage-native`.
-La base y los archivos deben corresponder al mismo corte. Conserva aparte
-una copia privada de `.local/native.json`, con acceso restringido.
+Detén ambas terminales de GeoPol antes de copiar. Deja PostgreSQL encendido.
+Desde la **raíz del proyecto**, ejecuta este ejemplo si utilizas la base
+`geopol`, el rol `geopol_app` y la carpeta `data/storage` de la guía:
 
-Registra fecha, versión de la aplicación y checksums. Un respaldo operativo
-debe tener una prueba de recuperación en una instancia separada. Para uso
-institucional, acuerda la frecuencia de copias, la retención y los tiempos
-máximos de recuperación.
+```bash
+geopol_backup="../geopol-respaldo-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$geopol_backup"
+pg_dump -h 127.0.0.1 -p 5432 -U geopol_app -W -Fc -f "$geopol_backup/geopol.dump" geopol
+tar -czf "$geopol_backup/archivos.tgz" -C data storage
+```
 
-## Evidencia de recuperación local
+`pg_dump` pide la contraseña del rol PostgreSQL. Si cambiaste host, puerto,
+usuario, base o almacenamiento en `backend/.env`, ajusta los comandos a esos
+valores. Comprueba que cada comando terminó correctamente antes de continuar.
+Si Bash no encuentra `pg_dump`, añade la carpeta `bin` de PostgreSQL a `PATH`
+como indica la [guía detallada](instalacion-bash-detallada.md).
 
-La prueba `test_sqlite_database_and_objects_restore_together` demuestra la
-restauración de un escenario SQLite acotado con datos sintéticos. Incluye base,
-original, exportación, checksums y un nuevo reproceso. Esa evidencia histórica
-no acredita la restauración de PostgreSQL.
+La base y los archivos deben corresponder al mismo corte. Conserva aparte una
+copia privada de `backend/.env`, con acceso restringido. Registra fecha,
+versión de la aplicación y checksums. Un respaldo operativo debe tener una
+prueba de recuperación en una instancia separada. Para uso institucional,
+acuerda la frecuencia de copias, la retención y los tiempos de recuperación.
 
-En SQLite, una copia consistente mediante `sqlite3.Connection.backup` incluye
-los cambios del WAL. Copiar solo `geopol.db` mientras está activo puede omitir
-cambios. La [evidencia de validación](validation.md) describe el alcance del
-ensayo; la instalación nativa necesita su propia prueba de recuperación.
+## Restauración en una instancia vacía
 
-## Procedimiento de restauración en una instancia vacía
-
-Este es un procedimiento para quien administra PostgreSQL. Ensáyalo en otra
-instancia de PostgreSQL 16 con PostGIS compatible, sin información que deba
-conservarse, y con una carpeta de proyecto separada.
+Este procedimiento es para quien administra PostgreSQL. Ensáyalo en otra
+instancia compatible con PostGIS y en una carpeta de proyecto separada.
 
 1. Verifica el respaldo y conserva intacta la instalación original.
-2. Prepara la instancia PostgreSQL de destino en otro puerto o equipo. Recrea
-   el rol limitado de la aplicación con el mismo nombre que figura en la
-   configuración privada respaldada y crea **una base vacía propiedad de ese rol**. Establece
-   su secreto por un mecanismo interactivo protegido; no lo escribas en
-   comandos ni archivos de código. El archivo de `pg_dump` no incluye los
-   roles globales del servidor.
-3. Usa `pg_restore` como administrador sobre esa base vacía. El respaldo
-   conserva los propietarios de objetos; el rol del paso anterior debe
-   existir. El siguiente ejemplo supone una instancia separada en el puerto
-   **5433**, una base vacía llamada `geopol` y la ruta de respaldo indicada:
+2. Prepara PostgreSQL de destino en otro puerto o equipo. Crea el mismo rol
+   limitado indicado en el `.env` respaldado y una **base vacía propiedad de
+   ese rol**. El respaldo de `pg_dump` no incluye los roles globales del servidor.
+3. Restaura como administrador sobre esa base vacía. El siguiente ejemplo
+   supone una instancia separada en el puerto **5433** y una base `geopol`:
 
 ```bash
 pg_restore -h 127.0.0.1 -p 5433 -U postgres -W -d geopol --exit-on-error "../geopol-respaldo/geopol.dump"
 ```
 
-Sustituye la ruta por la real antes de ejecutar. Consulta las opciones en la
-[documentación de pg_restore](https://www.postgresql.org/docs/16/app-pgrestore.html).
-No ejecutes el comando contra una base ya inicializada por el instalador:
-debe estar vacía. Si la restauración falla, investiga el error antes de continuar.
+Sustituye la ruta por la real. La base debe estar vacía: no arranques GeoPol
+antes de restaurar. El administrador permite restaurar también las extensiones
+PostGIS incluidas en el respaldo. Si falla, investiga el error antes de continuar.
 
-4. Restaura `artifacts-backup.tgz` en la carpeta `data` del proyecto de destino,
-   manteniendo la estructura `data/storage-native`.
-5. Recupera allí la copia privada de `.local/native.json`. Quien administra
-   la recuperación debe ajustar exclusivamente la conexión y las rutas al
-   destino, conservar la identidad del rol y verificar sus permisos antes de
-   arrancar. Esta operación avanzada no la realiza automáticamente
-   `bash instalar.sh`.
-6. Con el proyecto en la misma versión que el respaldo, prepara las
-   dependencias con `bash instalar.sh` y arranca con
-   `bash iniciar.sh --puertos 5174 8002`, en una terminal propia.
+4. Desde la raíz de la copia del proyecto, restaura los archivos en una carpeta
+   `data` vacía:
+
+```bash
+mkdir -p data
+tar -xzf "../geopol-respaldo/archivos.tgz" -C data
+```
+
+5. Recupera la copia privada de `backend/.env` y ajusta conexión y rutas al
+   destino. Mantén la misma versión de GeoPol que produjo el respaldo.
+6. Instala las dependencias según la [guía](../INSTALACION_LOCAL.md) y arranca
+   el backend y el frontend en sus dos terminales. Si usas la misma computadora,
+   detén la otra app antes del arranque para liberar sus puertos.
 
 Verifica inicio de sesión, número de ejecuciones, descarga de un original
 autorizado y una exportación, checksums, lectura del histórico y un nuevo
 trabajo sintético. Registra el tiempo y el resultado de la prueba. Mantén la
 instancia original hasta validar la recuperación.
 
+La prueba `test_sqlite_database_and_objects_restore_together` demuestra la
+restauración de un escenario SQLite acotado con datos sintéticos. Esa evidencia
+histórica no acredita la restauración de PostgreSQL. En SQLite, una copia
+consistente mediante `sqlite3.Connection.backup` incluye los cambios del WAL;
+copiar solo `geopol.db` mientras está activo puede omitir cambios.
+
 ## Actualizaciones
 
-Respalda antes de actualizar. `bash instalar.sh` instala las dependencias,
-compila la web y aplica las migraciones pendientes con la configuración nativa.
-Ensaya cambios de esquema y recuperación en una copia cuando haya información
-que conservar. El [procedimiento de actualización](instalacion-bash-detallada.md#actualizar-geopol)
-incluye los comandos para Git y las indicaciones para ZIP.
+Respalda y detén GeoPol antes de actualizar el código. Desde `backend`, con el
+entorno virtual activado, actualiza las dependencias:
+
+```bash
+python -m pip install -c requirements.lock -e .
+```
+
+Desde `frontend`, ejecuta:
+
+```bash
+npm ci
+```
+
+Después inicia cada parte como de costumbre. `python -m geopol.dev` aplica las
+migraciones pendientes antes de arrancar la API y el worker. Conserva tu `.env`
+y los datos al actualizar. Ensaya cambios de esquema y recuperación en una
+copia cuando haya información que conservar.
 
 ## Exportación a GIS
 

@@ -10,7 +10,7 @@ from .models import User
 from .security import password_hash
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description="Administración local de GeoPol")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("init-db", help="Aplicar migraciones pendientes")
@@ -26,7 +26,7 @@ def main():
     bootstrap.add_argument("--username", default="administrador")
     bootstrap.add_argument("--password-env", default="GEOPOL_BOOTSTRAP_PASSWORD")
     bootstrap.set_defaults(role="admin")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.command == "init-db":
         migrate(engine)
         print(f"Base de datos actualizada (versión {SCHEMA_VERSION}).")

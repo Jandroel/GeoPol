@@ -4,7 +4,7 @@ Este proyecto es una implementación de piloto. Tener autenticación y una base 
 
 ## Controles del MVP
 
-- Usuarios y roles explícitos; no hay cuenta operativa ni contraseña predeterminada. Las credenciales de tests/CI son exclusivamente sintéticas.
+- Usuarios y roles explícitos; no se entrega una cuenta ya activa ni una contraseña predeterminada. El administrador inicial se crea con la contraseña elegida en la instalación local. Las credenciales de tests/CI son exclusivamente sintéticas.
 - Contraseñas derivadas mediante función de hash para contraseñas y sesiones revocables con vencimiento.
 - Validación de permisos en el backend, además de las acciones visibles en la interfaz.
 - Exportación con originales reservada a roles autorizados; las vistas operativas evitan devolver todas las columnas de origen.
@@ -15,8 +15,8 @@ Este proyecto es una implementación de piloto. Tener autenticación y una base 
 - Reserva de revisión y control de versión, con motivo y evidencia para las decisiones.
 - Auditoría de operaciones y trazabilidad de versiones; los originales se preservan.
 - Sin mapa base público, geocodificador público, analítica externa ni carga remota de fuentes tipográficas por defecto.
-- Logs de acceso HTTP desactivados en los scripts para evitar registrar direcciones introducidas en búsquedas. Si se inicia Uvicorn manualmente, conservar `--no-access-log` y revisar también los logs del proxy institucional.
-- API y web nativas accesibles solo desde la computadora local. PostgreSQL utiliza un rol interno de aplicación sin privilegios de superusuario, separado del administrador que prepara la base y sus extensiones.
+- Logs de acceso HTTP desactivados por `python -m geopol.dev` para evitar registrar direcciones introducidas en búsquedas. Si se inicia Uvicorn por separado, conservar `--no-access-log` y revisar también los logs del proxy institucional.
+- API y servidor de desarrollo web accesibles solo desde la computadora local. La guía configura PostgreSQL con un rol de aplicación sin privilegios de superusuario, separado del administrador que prepara la base y sus extensiones.
 
 ## Matriz funcional
 
@@ -35,7 +35,9 @@ Crear usuarios con el prompt de la CLI. Para automatización, la CLI puede leer 
 
 El frontend conserva la sesión en memoria y almacenamiento de sesión del navegador. Este mecanismo queda expuesto a JavaScript del mismo origen; la mitigación principal es evitar contenido ejecutable no confiable y limitar origen/CSP. La siguiente etapa institucional debe evaluar cookies seguras, SSO/OIDC y políticas de sesión. Servir el sistema con TLS para uso fuera de localhost.
 
-El instalador nativo genera la contraseña del rol PostgreSQL de la aplicación y la guarda en `.local/native.json`. Ese archivo es privado y no se versiona; debe conservarse con acceso restringido. La contraseña del administrador de PostgreSQL se solicita de forma oculta durante la preparación y no se guarda. La contraseña web es independiente. Antes de un despliegue institucional, integrar la configuración con el mecanismo de secretos aprobado y revisar los permisos de base y almacenamiento.
+La conexión PostgreSQL se configura en `backend/.env`, incluido el secreto del rol de aplicación creado al preparar la base. Ese archivo es privado y no se versiona; debe conservarse con acceso restringido. La app no necesita guardar la contraseña del administrador de PostgreSQL. La plantilla de configuración contiene solo valores de ejemplo que deben completarse con los datos de la instalación.
+
+La contraseña web es independiente: `python -m geopol.dev` permite definirla al primer arranque cuando no existen cuentas. Los arranques posteriores conservan usuarios y contraseñas. La variable `GEOPOL_BOOTSTRAP_PASSWORD` es una alternativa para entornos sin prompt; úsala de forma transitoria, no como una contraseña fija en el repositorio. Antes de un despliegue institucional, integrar la configuración con el mecanismo de secretos aprobado y revisar los permisos de base y almacenamiento.
 
 ## Antes de incorporar información real
 

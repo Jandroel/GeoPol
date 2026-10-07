@@ -6,46 +6,52 @@ El repositorio es independiente. Los documentos de análisis y la muestra instit
 
 ## Inicio local con Bash
 
-Necesitas **Python 3.11 o superior, Node.js 24 y PostgreSQL 16 con PostGIS**
-instalados en la computadora. En Windows utiliza **Git Bash**; en Linux o WSL,
-su terminal Bash. PostgreSQL debe estar funcionando como servicio. La
-[guía para principiantes](INSTALACION_LOCAL.md) explica cómo preparar las
-herramientas y descargar el proyecto como ZIP o con Git.
+Necesitas **Python 3.11 o superior, Node.js 24 y PostgreSQL 16 con PostGIS**.
+Prepara tu base y configura `backend/.env` con su conexión siguiendo la
+[guía breve](INSTALACION_LOCAL.md). Usa Git Bash en Windows o Bash en Linux/WSL.
 
-Desde la carpeta del proyecto, ejecuta:
+En una terminal, prepara el backend **la primera vez**:
 
 ```bash
-bash instalar.sh
-bash iniciar.sh
+cd backend
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install -c requirements.lock -e '.[dev]'
+cp -n .env.example .env
 ```
 
-El instalador prepara las dependencias y la web. En la primera ejecución pide
-los datos de conexión y la contraseña del administrador de PostgreSQL; crea
-una base nueva, un usuario interno con permisos limitados y las extensiones
-necesarias. Después crea la cuenta web `administrador` con una contraseña
-propia de al menos 12 caracteres. Al reinstalar conserva las cuentas y datos.
+En Linux/WSL, crea el entorno con `python3 -m venv .venv` y actívalo con
+`source .venv/bin/activate`. Edita `backend/.env` con el usuario, contraseña
+y nombre de tu base PostgreSQL; después inicia el backend:
 
-Abre [GeoPol local](http://localhost:5173). **Mantén abierta la terminal:** el
-arranque ejecuta API, worker y web en primer plano. Los siguientes días usa solo
-`bash iniciar.sh`. Para terminar, pulsa **Ctrl+C** o ejecuta `bash detener.sh`
-desde otra Bash en la misma carpeta; PostgreSQL continúa funcionando.
+```bash
+python -m geopol.dev
+```
 
-PostgreSQL guarda los datos y `data/storage-native` los archivos.
-La configuración y la contraseña interna de la aplicación quedan en
-`.local/native.json`: consérvalo privado. La contraseña de administración de
-PostgreSQL no se guarda. La documentación de la API está en
-[OpenAPI local](http://localhost:8000/docs).
+Al iniciar se crean o actualizan las tablas y, si aún no hay usuarios, se
+solicita una contraseña para la cuenta web `administrador`. El mismo comando
+mantiene activos la API y el trabajador que procesa los archivos.
 
-La [guía Bash detallada](docs/instalacion-bash-detallada.md) explica PostgreSQL,
-respaldo, actualizaciones, puertos y proxy. Para compartir el proyecto, envía
-el enlace de GitHub y la guía; cada persona tendrá su propia cuenta y datos.
-El acceso desde otras computadoras requiere un despliegue administrado; consulta
-los controles de [seguridad](docs/security.md).
+En otra terminal, desde la raíz del proyecto:
 
-Las instalaciones anteriores conservan sus datos por separado: el flujo nativo
-no los migra automáticamente ni modifica su `.env`. Conserva sus respaldos;
-consulta la [nota sobre instalaciones anteriores](docs/instalacion-local-detallada.md)
-si ya utilizabas otro método.
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Abre [GeoPol local](http://localhost:5173) y mantén las dos terminales abiertas.
+Para detenerlo, pulsa **Ctrl+C** en ambas. Los siguientes días solo activa el
+entorno del backend y ejecuta `python -m geopol.dev`; en el frontend ejecuta
+`npm run dev`. No hace falta reinstalar dependencias ni recrear la base.
+
+La configuración queda en `backend/.env`, los datos en PostgreSQL y los archivos
+en `data/storage` con la configuración de ejemplo. La documentación de la API
+está en [OpenAPI local](http://localhost:8000/docs). La
+[guía detallada](docs/instalacion-bash-detallada.md) cubre herramientas, respaldos
+y ayuda. Cada persona prepara su propia base, cuenta y `.env`; comparte el
+código y la guía, no las credenciales. Si ya usabas otro método, consulta la
+[nota para instalaciones anteriores](docs/instalacion-local-detallada.md).
 
 ## Primer recorrido verificable
 
@@ -76,7 +82,7 @@ Ver [ejemplos](examples/README.md) para conocer cada caso sintético. Las coorde
 
 No incluye capas INEI/PNP oficiales, integración SIDPOL/OIDC ni validación de rendimiento con el volumen nacional. El motor espacial inicial utiliza Shapely sobre un catálogo acotado; el despliegue incluye PostGIS como base para evolucionar hacia consultas e índices espaciales. Consulte [alcance y límites](docs/limitations.md).
 
-La [guía de automatización y revisión](docs/automation-operation.md) explica cómo configurar la referencia base, resolver causas comunes y preparar un piloto ArcGIS opcional. El adaptador externo está desactivado y no participa automáticamente en los procesamientos. `bash instalar.sh` aplica las migraciones pendientes antes del arranque; conservar un respaldo previo al actualizar.
+La [guía de automatización y revisión](docs/automation-operation.md) explica cómo configurar la referencia base, resolver causas comunes y preparar un piloto ArcGIS opcional. El adaptador externo está desactivado y no participa automáticamente en los procesamientos. `python -m geopol.dev` aplica las migraciones pendientes antes del arranque; conservar un respaldo previo al actualizar.
 
 ## Arquitectura y estructura
 
@@ -88,17 +94,17 @@ geopol-mvp/
 │   │   ├── api/            # Routers por responsabilidad y helpers HTTP comunes
 │   │   ├── domain/         # Ingesta, normalización y matching sin HTTP
 │   │   ├── worker.py       # Trabajos persistentes y checkpoints
+│   │   ├── dev.py          # Arranque local de API y trabajador
 │   │   └── ...             # Persistencia, seguridad, migraciones y CLI
 │   ├── tests/              # Pruebas de reglas y flujo de aplicación
+│   ├── .env.example        # Plantilla de conexión a tu PostgreSQL
 │   └── pyproject.toml
 ├── frontend/               # React, TypeScript, Vite y MapLibre local
 ├── examples/               # Archivos sintéticos y explicación de escenarios
 ├── docs/                   # Arquitectura, operación, límites y contratos
-├── scripts/                # Instalación y ejecución nativa
+├── scripts/                # Herramientas de comprobación y soporte
 ├── .github/workflows/      # Verificaciones automatizadas
-├── instalar.sh             # Preparar dependencias, PostgreSQL y cuenta inicial
-├── iniciar.sh              # Ejecutar API, worker y web
-├── detener.sh              # Detener únicamente los procesos de GeoPol
+├── INSTALACION_LOCAL.md    # Preparación y arranque con Bash
 └── AGENTS.md               # Convenciones de desarrollo
 ```
 

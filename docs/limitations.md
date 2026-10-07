@@ -36,7 +36,7 @@ El límite configurado de carga es un control de aceptación; no constituye un b
 
 La [prueba sintética documentada](validation-load.md) sí verificó un CSV de 1 248 312 057 bytes y 400 100 filas hasta su exportación, con recuperación del mismo lote y etapas en HDD/SSD. Ese resultado no se extiende a XLSX de igual tamaño, catálogos nacionales, matching complejo o concurrencia de producción.
 
-SQLite está destinado al desarrollo con un solo worker. Para varios procesos concurrentes utilizar PostgreSQL y verificar la recuperación de reservas y la consistencia de resultados en el despliegue objetivo. La instalación Bash utiliza PostgreSQL y PostGIS instalados directamente; consultar `docs/validation.md` para conocer la evidencia y los límites de las pruebas.
+SQLite está destinado al desarrollo con un solo worker. Para varios procesos concurrentes utilizar PostgreSQL y verificar la recuperación de reservas y la consistencia de resultados en el despliegue objetivo. El flujo local documentado usa PostgreSQL y PostGIS, con conexión en `backend/.env`, backend mediante `python -m geopol.dev` y frontend mediante `npm run dev`. El backend aplica migraciones al arrancar, pero no crea el servidor PostgreSQL ni importa bases de instalaciones anteriores. Consultar [la evidencia de validación](validation.md) para conocer el alcance de las pruebas.
 
 ## Validaciones institucionales pendientes
 
